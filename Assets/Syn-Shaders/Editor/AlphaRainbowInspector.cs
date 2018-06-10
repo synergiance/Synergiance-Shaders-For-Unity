@@ -25,11 +25,30 @@ public class AlphaRainbowInspector : ShaderGUI
         Alphablend // Full alpha blending
     }
     
+    public enum ShadowMode
+    {
+        None,
+        Tint,
+        Ramp
+    }
+    
+    public enum SphereMode
+    {
+        None,
+        Add,
+        Mul
+    }
+
     MaterialProperty blendMode;
     MaterialProperty mainTexture;
     MaterialProperty color;
     MaterialProperty colorMask;
-    MaterialProperty shadow;
+    MaterialProperty shadowMode;
+    MaterialProperty shadowWidth;
+    MaterialProperty shadowFeather;
+    MaterialProperty shadowAmbient;
+    MaterialProperty shadowTint;
+    MaterialProperty shadowRamp;
     MaterialProperty outlineMode;
     MaterialProperty outlineWidth;
     MaterialProperty outlineFeather;
@@ -46,7 +65,9 @@ public class AlphaRainbowInspector : ShaderGUI
     MaterialProperty rainbowMask;
     MaterialProperty rainbowSpeed;
     MaterialProperty brightness;
-    MaterialProperty toonLut;
+    MaterialProperty sphereAddTex;
+    MaterialProperty sphereMulTex;
+    MaterialProperty sphereMode;
 
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
@@ -55,7 +76,12 @@ public class AlphaRainbowInspector : ShaderGUI
             mainTexture = FindProperty("_MainTex", props);
             color = FindProperty("_Color", props);
             colorMask = FindProperty("_ColorMask", props);
-            shadow = FindProperty("_Shadow", props);
+            shadowMode = FindProperty("_ShadowMode", props);
+            shadowWidth = FindProperty("_shadow_coverage", props);
+            shadowFeather = FindProperty("_shadow_feather", props);
+            shadowAmbient = FindProperty("_ShadowAmbient", props);
+            shadowTint = FindProperty("_ShadowTint", props);
+            shadowRamp = FindProperty("_ShadowRamp", props);
             outlineMode = FindProperty("_OutlineMode", props);
             outlineWidth = FindProperty("_outline_width", props);
             outlineFeather = FindProperty("_outline_feather", props);
@@ -71,8 +97,10 @@ public class AlphaRainbowInspector : ShaderGUI
             rainbowMask = FindProperty("_RainbowMask", props);
             rainbowSpeed = FindProperty("_Speed", props);
             brightness = FindProperty("_Brightness", props);
-            toonLut = FindProperty("_ToonLut", props);
             alphaOverride = FindProperty("_AlphaOverride", props);
+            sphereAddTex = FindProperty("_SphereAddTex", props);
+            sphereMulTex = FindProperty("_SphereMulTex", props);
+            sphereMode = FindProperty("_SphereMode", props);
         }
         
         Material material = materialEditor.target as Material;
@@ -170,10 +198,60 @@ public class AlphaRainbowInspector : ShaderGUI
                 
                 EditorGUILayout.Space();
                 materialEditor.ShaderProperty(brightness, "Brightness");
-                materialEditor.ShaderProperty(shadow, "Shadow");
-                EditorGUI.indentLevel += 2;
-                materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Gradient", "Shadow Gradient (G)"), toonLut);
-                EditorGUI.indentLevel -= 2;
+                //EditorGUI.BeginChangeCheck();
+                //shadowTintEnable = EditorGUILayout.Toggle("ShadowTint", shadowTintEnable);
+                //if (EditorGUI.EndChangeCheck())
+                //{
+                    //if (shadowTintEnable)
+                        //foreach (Material mat in materialEditor.targets)
+                        //{
+                            //mat.EnableKeyword("SHADOWTINT");
+                        //}
+                    //else
+                        //foreach (Material mat in materialEditor.targets)
+                        //{
+                            //mat.DisableKeyword("SHADOWTINT");
+                        //}
+                //}
+
+                var sMode = (ShadowMode)shadowMode.floatValue;
+
+                EditorGUI.BeginChangeCheck();
+                sMode = (ShadowMode)EditorGUILayout.Popup("Shadow Mode", (int)sMode, Enum.GetNames(typeof(ShadowMode)));
+                
+                if (EditorGUI.EndChangeCheck())
+                {
+                    materialEditor.RegisterPropertyChangeUndo("Shadow Mode");
+                    shadowMode.floatValue = (float)sMode;
+
+                    foreach (var obj in shadowMode.targets)
+                    {
+                        SetupMaterialWithShadowMode((Material)obj, (ShadowMode)material.GetFloat("_ShadowMode"));
+                    }
+
+                }
+                switch (sMode)
+                {
+                    case ShadowMode.Tint:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.ShaderProperty(shadowWidth, "Coverage");
+                        materialEditor.ShaderProperty(shadowFeather, "Feather");
+                        materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
+                        materialEditor.ShaderProperty(shadowTint, "Tint Color");
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case ShadowMode.Ramp:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Ramp", "Shadow Ramp (RGBA)"), shadowRamp);
+                        EditorGUILayout.LabelField("Set your texture's wrapping mode to clamp!");
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case ShadowMode.None:
+                    default:
+                        break;
+                }
+                EditorGUILayout.Space();
 
                 var oMode = (OutlineMode)outlineMode.floatValue;
 
@@ -200,6 +278,40 @@ public class AlphaRainbowInspector : ShaderGUI
                         materialEditor.ShaderProperty(outlineFeather, new GUIContent("Feather", "Outline Smoothness"), 2);
                         break;
                     case OutlineMode.None:
+                    default:
+                        break;
+                }
+                EditorGUILayout.Space();
+
+                var sphMode = (SphereMode)sphereMode.floatValue;
+
+                EditorGUI.BeginChangeCheck();
+                sphMode = (SphereMode)EditorGUILayout.Popup("Sphere Mode", (int)sphMode, Enum.GetNames(typeof(SphereMode)));
+                
+                if (EditorGUI.EndChangeCheck())
+                {
+                    materialEditor.RegisterPropertyChangeUndo("Sphere Mode");
+                    sphereMode.floatValue = (float)sphMode;
+
+                    foreach (var obj in sphereMode.targets)
+                    {
+                        SetupMaterialWithSphereMode((Material)obj, (SphereMode)material.GetFloat("_SphereMode"));
+                    }
+
+                }
+                switch (sphMode)
+                {
+                    case SphereMode.Add:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (Add)"), sphereAddTex);
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case SphereMode.Mul:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (Multiply)"), sphereMulTex);
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case SphereMode.None:
                     default:
                         break;
                 }
@@ -283,6 +395,54 @@ public class AlphaRainbowInspector : ShaderGUI
                 material.DisableKeyword("NO_OUTLINE");
                 material.DisableKeyword("TINTED_OUTLINE");
                 material.EnableKeyword("COLORED_OUTLINE");
+                break;
+            default:
+                break;
+        }
+    }
+
+    public static void SetupMaterialWithShadowMode(Material material, ShadowMode shadowMode)
+    {
+        switch ((ShadowMode)material.GetFloat("_ShadowMode"))
+        {
+            case ShadowMode.None:
+                material.EnableKeyword("NO_SHADOW");
+                material.DisableKeyword("TINTED_SHADOW");
+                material.DisableKeyword("RAMP_SHADOW");
+                break;
+            case ShadowMode.Tint:
+                material.DisableKeyword("NO_SHADOW");
+                material.EnableKeyword("TINTED_SHADOW");
+                material.DisableKeyword("RAMP_SHADOW");
+                break;
+            case ShadowMode.Ramp:
+                material.DisableKeyword("NO_SHADOW");
+                material.DisableKeyword("TINTED_SHADOW");
+                material.EnableKeyword("RAMP_SHADOW");
+                break;
+            default:
+                break;
+        }
+    }
+
+    public static void SetupMaterialWithSphereMode(Material material, SphereMode sphereMode)
+    {
+        switch ((SphereMode)material.GetFloat("_SphereMode"))
+        {
+            case SphereMode.None:
+                material.EnableKeyword("NO_SPHERE");
+                material.DisableKeyword("ADD_SPHERE");
+                material.DisableKeyword("MUL_SPHERE");
+                break;
+            case SphereMode.Add:
+                material.DisableKeyword("NO_SPHERE");
+                material.EnableKeyword("ADD_SPHERE");
+                material.DisableKeyword("MUL_SPHERE");
+                break;
+            case SphereMode.Mul:
+                material.DisableKeyword("NO_SPHERE");
+                material.DisableKeyword("ADD_SPHERE");
+                material.EnableKeyword("MUL_SPHERE");
                 break;
             default:
                 break;
