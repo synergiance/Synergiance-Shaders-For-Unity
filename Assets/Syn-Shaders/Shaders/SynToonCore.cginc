@@ -1,4 +1,4 @@
-// Alpha Rainbow by Synergiance
+// SynToon by Synergiance
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -13,6 +13,7 @@ sampler2D _MainTex;
 sampler2D _BumpMap;
 sampler2D _ColorMask;
 sampler2D _EmissionMap;
+float4 _MainTex_ST;
 float4 _EmissionColor;
 #if defined(PULSE)
 float _EmissionSpeed;
@@ -113,7 +114,7 @@ v2g vert(appdata_full v)
     o.bitangentDir = normalize(cross(o.normalDir, o.tangentDir) * v.tangent.w);
     o.posWorld = mul(unity_ObjectToWorld, v.vertex);
     o.vertex = v.vertex;
-    o.uv = v.texcoord;
+    o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
     o.uv1 = v.texcoord1;
 	TRANSFER_VERTEX_TO_FRAGMENT(o);
 	UNITY_TRANSFER_FOG(o, o.pos);
@@ -258,7 +259,7 @@ float4 frag4(VertexOutput i) : COLOR
     #endif
 
     // Outline
-    #if !NO_OUTLINE
+    #if ARTSY_OUTLINE
     float3 outlineColor = color.rgb;
     #if TINTED_OUTLINE
     outlineColor *= _outline_color.rgb;
@@ -285,8 +286,79 @@ float4 frag4(VertexOutput i) : COLOR
     return float4(bright * lightColor, _AlphaOverride) * color;
 }
 
+float4 frag5(VertexOutput i) : COLOR
+{
+    // Variables
+    float4 color = tex2D(_MainTex, i.uv);
+    float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
+    #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
+    clip (color.a - _Cutoff);
+    #endif
+    color = lerp((color.rgba*_Color.rgba),color.rgba,_ColorMask_var.r);
+    
+    // Lighting
+    float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
+    
+    // Rainbow
+    #if defined(RAINBOW)
+    float4 maskcolor = tex2D(_RainbowMask, i.uv);
+    color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
+    #endif
+
+    // Outline
+    color.rgb *= _outline_color.rgb;
+    
+    // Combining
+    UNITY_APPLY_FOG(i.fogCoord, color);
+    return float4(lightColor, _AlphaOverride) * color;
+}
+
 [maxvertexcount(6)]
 void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
+{
+	VertexOutput o;
+	for (int ii = 0; ii < 3; ii++)
+	{
+		o.pos = UnityObjectToClipPos(IN[ii].vertex);
+		o.uv = IN[ii].uv;
+		o.uv1 = IN[ii].uv1;
+		o.col = fixed4(1., 1., 1., 0.);
+		o.posWorld = mul(unity_ObjectToWorld, IN[ii].vertex);
+		o.normalDir = UnityObjectToWorldNormal(IN[ii].normal);
+		o.tangentDir = IN[ii].tangentDir;
+		o.bitangentDir = IN[ii].bitangentDir;
+		o.is_outline = false;
+        
+        o.amb = IN[ii].amb;
+        o.direct = IN[ii].direct;
+        o.indirect = IN[ii].indirect;
+        o.lightData = IN[ii].lightData;
+        o.reflectionMap = IN[ii].reflectionMap;
+        o.lightModifier = IN[ii].lightModifier;
+
+		// Pass-through the shadow coordinates if this pass has shadows.
+		#if defined (SHADOWS_SCREEN) || ( defined (SHADOWS_DEPTH) && defined (SPOT) ) || defined (SHADOWS_CUBE)
+		o._ShadowCoord = IN[ii]._ShadowCoord;
+		#endif
+
+		// Pass-through the light coordinates if this pass has shadows.
+		#if defined (POINT) || defined (SPOT) || defined (POINT_COOKIE) || defined (DIRECTIONAL_COOKIE)
+		o._LightCoord = IN[ii]._LightCoord;
+		#endif
+
+		// Pass-through the fog coordinates if this pass has shadows.
+		#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
+		o.fogCoord = IN[ii].fogCoord;
+		#endif
+
+		tristream.Append(o);
+	}
+
+	tristream.RestartStrip();
+}
+
+[maxvertexcount(6)]
+void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
 	//#if !NO_OUTLINE
@@ -327,10 +399,16 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 
 	for (int ii = 0; ii < 3; ii++)
 	{
-		o.pos = UnityObjectToClipPos(IN[ii].vertex);
+		#if OUTSIDE_OUTLINE
+        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .01));
+        #elif SCREENSPACE_OUTLINE
+        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .01) * distance(_WorldSpaceCameraPos,mul(unity_ObjectToWorld, IN[ii].vertex).rgb));
+        #else
+        o.pos = UnityObjectToClipPos(IN[ii].vertex);
+        #endif
 		o.uv = IN[ii].uv;
 		o.uv1 = IN[ii].uv1;
-		o.col = fixed4(1., 1., 1., 0.);
+		o.col = fixed4( _outline_color.r, _outline_color.g, _outline_color.b, 1);
 		o.posWorld = mul(unity_ObjectToWorld, IN[ii].vertex);
 		o.normalDir = UnityObjectToWorldNormal(IN[ii].normal);
 		o.tangentDir = IN[ii].tangentDir;

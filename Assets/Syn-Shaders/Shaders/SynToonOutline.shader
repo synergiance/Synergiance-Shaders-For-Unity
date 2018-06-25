@@ -1,6 +1,6 @@
-// Synergiance Alpha Rainbow Shader
+// Synergiance Toon Shader (Outline)
 
-Shader "Synergiance/AlphaRainbow"
+Shader "Synergiance/Toon-Outline"
 {
 	Properties
 	{
@@ -38,6 +38,7 @@ Shader "Synergiance/AlphaRainbow"
 		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
 		[HideInInspector] _DstBlend ("__dst", Float) = 0.0
 		[HideInInspector] _ZWrite ("__zw", Float) = 1.0
+        [HideInInspector] _CullMode ("__zw", Float) = 0.0
 	}
 
 	SubShader
@@ -45,10 +46,10 @@ Shader "Synergiance/AlphaRainbow"
 		Tags
 		{
 			"Queue" = "Transparent"
-			"PreviewType" = "Plane"
+			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
-        Cull Off
+        Cull [_CullMode]
 
 		Pass
 		{
@@ -65,12 +66,13 @@ Shader "Synergiance/AlphaRainbow"
 
 			CGPROGRAM
 			#pragma shader_feature NO_OUTLINE TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ ARTSY_OUTLINE OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #include "AlphaRainbowCore.cginc"
+            #include "SynToonCore.cginc"
             
 			#pragma vertex vert
 			#pragma geometry geom
@@ -94,10 +96,12 @@ Shader "Synergiance/AlphaRainbow"
 
 			CGPROGRAM
 			#pragma shader_feature NO_OUTLINE TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ ARTSY_OUTLINE OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
+            #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-			#include "AlphaRainbowCore.cginc"
+			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom
 			#pragma fragment frag4
@@ -110,7 +114,66 @@ Shader "Synergiance/AlphaRainbow"
             
             ENDCG
         }
+
+		Pass
+		{
+			Name "OUTLINE"
+            
+            //Blend SrcAlpha OneMinusSrcAlpha
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
+            Cull Front
+            
+			Tags
+			{
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
+            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
+            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #include "SynToonCore.cginc"
+            
+			#pragma vertex vert
+			#pragma geometry geom2
+			#pragma fragment frag5
+            
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+            
+			ENDCG
+		}
+        
+        Pass
+        {
+			Name "OUTLINE_DELTA"
+			Tags { "LightMode" = "ForwardAdd" }
+            //Blend SrcAlpha One
+			Blend [_SrcBlend] One
+            Cull Front
+
+			CGPROGRAM
+            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
+            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
+            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+			#include "SynToonCore.cginc"
+			#pragma vertex vert
+			#pragma geometry geom2
+			#pragma fragment frag5
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+            
+            ENDCG
+        }
 	}
 	FallBack "Diffuse"
-	CustomEditor "AlphaRainbowInspector"
+	CustomEditor "SynToonInspector"
 }
