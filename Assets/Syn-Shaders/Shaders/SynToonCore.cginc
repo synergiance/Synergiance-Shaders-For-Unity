@@ -188,7 +188,7 @@ float4 frag(VertexOutput i) : SV_Target
     #endif
 
     // Outline
-    #if !NO_OUTLINE
+    #if ARTSY_OUTLINE
     float3 outlineColor = color.rgb;
     float3 outlineEmissive = emissive;
     #if TINTED_OUTLINE
@@ -306,7 +306,11 @@ float4 frag5(VertexOutput i) : COLOR
     #endif
 
     // Outline
+    #if TINTED_OUTLINE
     color.rgb *= _outline_color.rgb;
+    #elif COLORED_OUTLINE
+    color.rgb = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
+    #endif
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
@@ -361,48 +365,12 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
-	//#if !NO_OUTLINE
-	//for (int i = 2; i >= 0; i--)
-	//{
-		//o.pos = UnityObjectToClipPos(IN[i].vertex + normalize(IN[i].normal) * (_outline_width * .01));
-		//o.uv = IN[i].uv;
-		//o.uv1 = IN[i].uv1;
-		//o.col = fixed4( _outline_color.r, _outline_color.g, _outline_color.b, 1);
-		//o.posWorld = mul(unity_ObjectToWorld, IN[i].vertex);
-		//o.normalDir = UnityObjectToWorldNormal(IN[i].normal);
-		//o.tangentDir = IN[i].tangentDir;
-		//o.bitangentDir = IN[i].bitangentDir;
-		//o.is_outline = true;
-        
-        //o.amb = IN[i].amb;
-        //o.direct = IN[i].direct;
-        //o.indirect = IN[i].indirect;
-        //o.lightData = IN[i].lightData;
-        //o.reflectionMap = IN[i].reflectionMap;
-        //o.lightModifier = IN[i].lightModifier;
-
-		// Pass-through the shadow coordinates if this pass has shadows.
-		//#if defined (SHADOWS_SCREEN) || ( defined (SHADOWS_DEPTH) && defined (SPOT) ) || defined (SHADOWS_CUBE)
-		//o._ShadowCoord = IN[i]._ShadowCoord;
-		//#endif
-
-		// Pass-through the fog coordinates if this pass has shadows.
-		//#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
-		//o.fogCoord = IN[i].fogCoord;
-		//#endif
-
-		//tristream.Append(o);
-	//}
-
-	//tristream.RestartStrip();
-	//#endif
-
 	for (int ii = 0; ii < 3; ii++)
 	{
 		#if OUTSIDE_OUTLINE
-        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .01));
+        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .05));
         #elif SCREENSPACE_OUTLINE
-        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .01) * distance(_WorldSpaceCameraPos,mul(unity_ObjectToWorld, IN[ii].vertex).rgb));
+        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .05) * distance(_WorldSpaceCameraPos,mul(unity_ObjectToWorld, IN[ii].vertex).rgb));
         #else
         o.pos = UnityObjectToClipPos(IN[ii].vertex);
         #endif

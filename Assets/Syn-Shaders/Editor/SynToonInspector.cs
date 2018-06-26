@@ -1,5 +1,5 @@
 // Written by Synergiance
-// Significant portions taken and modified from FlatLitToon
+// Major edit from Cubed's FlatLitToon
 
 using UnityEditor;
 using UnityEngine;
@@ -12,6 +12,13 @@ public class SynToonInspector : ShaderGUI
     public enum OutlineMode
     {
         None,
+        Artsy,
+        Outside,
+        Screenspace
+    }
+    
+    public enum OutlineColorMode
+    {
         Tinted,
         Colored
     }
@@ -53,6 +60,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty outlineWidth;
     MaterialProperty outlineFeather;
     MaterialProperty outlineColor;
+    MaterialProperty outlineColorMode;
     MaterialProperty emissionMap;
     MaterialProperty emissionColor;
     MaterialProperty emissionSpeed;
@@ -68,7 +76,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty sphereAddTex;
     MaterialProperty sphereMulTex;
     MaterialProperty sphereMode;
-
+    
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
         { //Find Properties
@@ -83,6 +91,7 @@ public class SynToonInspector : ShaderGUI
             shadowTint = FindProperty("_ShadowTint", props);
             shadowRamp = FindProperty("_ShadowRamp", props);
             outlineMode = FindProperty("_OutlineMode", props);
+            outlineColorMode = FindProperty("_OutlineColorMode", props);
             outlineWidth = FindProperty("_outline_width", props);
             outlineFeather = FindProperty("_outline_feather", props);
             outlineColor = FindProperty("_outline_color", props);
@@ -258,6 +267,7 @@ public class SynToonInspector : ShaderGUI
                 EditorGUILayout.Space();
 
                 var oMode = (OutlineMode)outlineMode.floatValue;
+                var ocMode = (OutlineColorMode)outlineColorMode.floatValue;
 
                 EditorGUI.BeginChangeCheck();
                 oMode = (OutlineMode)EditorGUILayout.Popup("Outline Mode", (int)oMode, Enum.GetNames(typeof(OutlineMode)));
@@ -273,17 +283,39 @@ public class SynToonInspector : ShaderGUI
                     }
 
                 }
-                switch (oMode)
+                EditorGUI.BeginChangeCheck();
+                switch (oMode) // solidOutline
                 {
-                    case OutlineMode.Tinted:
-                    case OutlineMode.Colored:
-                        materialEditor.ShaderProperty(outlineColor, "Color", 2);
-                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "Outline Width in percent"), 2);
-                        materialEditor.ShaderProperty(outlineFeather, new GUIContent("Feather", "Outline Smoothness"), 2);
+                    case OutlineMode.Artsy:
+                        EditorGUI.indentLevel += 2;
+                        ocMode = (OutlineColorMode)EditorGUILayout.Popup("Color Mode", (int)ocMode, Enum.GetNames(typeof(OutlineColorMode)));
+                        materialEditor.ShaderProperty(outlineColor, "Color");
+                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "Outline Width in percent"));
+                        materialEditor.ShaderProperty(outlineFeather, new GUIContent("Feather", "Outline Smoothness"));
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case OutlineMode.Outside:
+                    case OutlineMode.Screenspace:
+                        EditorGUI.indentLevel += 2;
+                        ocMode = (OutlineColorMode)EditorGUILayout.Popup("Color Mode", (int)ocMode, Enum.GetNames(typeof(OutlineColorMode)));
+                        materialEditor.ShaderProperty(outlineColor, "Color");
+                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "Outline Width"));
+                        EditorGUI.indentLevel -= 2;
                         break;
                     case OutlineMode.None:
                     default:
                         break;
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    materialEditor.RegisterPropertyChangeUndo("Color Mode");
+                    outlineColorMode.floatValue = (float)ocMode;
+
+                    foreach (var obj in outlineColorMode.targets)
+                    {
+                        SetupMaterialWithOutlineColorMode((Material)obj, (OutlineColorMode)material.GetFloat("_OutlineColorMode"));
+                    }
+
                 }
                 EditorGUILayout.Space();
 
@@ -386,17 +418,43 @@ public class SynToonInspector : ShaderGUI
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
             case OutlineMode.None:
-                material.EnableKeyword("NO_OUTLINE");
-                material.DisableKeyword("TINTED_OUTLINE");
-                material.DisableKeyword("COLORED_OUTLINE");
+                material.DisableKeyword("ARTSY_OUTLINE");
+                material.DisableKeyword("OUTSIDE_OUTLINE");
+                material.DisableKeyword("SCREENSPACE_OUTLINE");
+                material.shader = Shader.Find("Synergiance/Toon");
                 break;
-            case OutlineMode.Tinted:
-                material.DisableKeyword("NO_OUTLINE");
+            case OutlineMode.Artsy:
+                material.EnableKeyword("ARTSY_OUTLINE");
+                material.DisableKeyword("OUTSIDE_OUTLINE");
+                material.DisableKeyword("SCREENSPACE_OUTLINE");
+                material.shader = Shader.Find("Synergiance/Toon");
+                break;
+            case OutlineMode.Outside:
+                material.DisableKeyword("ARTSY_OUTLINE");
+                material.EnableKeyword("OUTSIDE_OUTLINE");
+                material.DisableKeyword("SCREENSPACE_OUTLINE");
+                material.shader = Shader.Find("Synergiance/Toon-Outline");
+                break;
+            case OutlineMode.Screenspace:
+                material.DisableKeyword("ARTSY_OUTLINE");
+                material.DisableKeyword("OUTSIDE_OUTLINE");
+                material.EnableKeyword("SCREENSPACE_OUTLINE");
+                material.shader = Shader.Find("Synergiance/Toon-Outline");
+                break;
+            default:
+                break;
+        }
+    }
+
+    public static void SetupMaterialWithOutlineColorMode(Material material, OutlineColorMode outlineColorMode)
+    {
+        switch ((OutlineColorMode)material.GetFloat("_OutlineColorMode"))
+        {
+            case OutlineColorMode.Tinted:
                 material.EnableKeyword("TINTED_OUTLINE");
                 material.DisableKeyword("COLORED_OUTLINE");
                 break;
-            case OutlineMode.Colored:
-                material.DisableKeyword("NO_OUTLINE");
+            case OutlineColorMode.Colored:
                 material.DisableKeyword("TINTED_OUTLINE");
                 material.EnableKeyword("COLORED_OUTLINE");
                 break;
@@ -404,7 +462,7 @@ public class SynToonInspector : ShaderGUI
                 break;
         }
     }
-
+    
     public static void SetupMaterialWithShadowMode(Material material, ShadowMode shadowMode)
     {
         switch ((ShadowMode)material.GetFloat("_ShadowMode"))

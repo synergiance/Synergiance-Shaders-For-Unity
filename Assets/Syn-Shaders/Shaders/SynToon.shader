@@ -33,6 +33,7 @@ Shader "Synergiance/Toon"
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
 		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
+		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
 		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
@@ -65,8 +66,8 @@ Shader "Synergiance/Toon"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature NO_OUTLINE TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
+			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
@@ -95,8 +96,8 @@ Shader "Synergiance/Toon"
 			Blend [_SrcBlend] One
 
 			CGPROGRAM
-			#pragma shader_feature NO_OUTLINE TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
+			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
