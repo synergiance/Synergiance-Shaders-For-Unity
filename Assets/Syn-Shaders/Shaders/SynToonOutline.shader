@@ -9,11 +9,11 @@ Shader "Synergiance/Toon-Outline"
 		_ColorMask("ColorMask", 2D) = "black" {}
         _RainbowMask ("Rainbow Mask", 2D) = "white" {}
         _Speed("Speed", Range(0,10)) = 3
-        _ShadowTint("Shadow Tint", Color) = (1,1,1,1)
-        _ShadowRamp("Shadow Ramp", 2D) = "white" {}
+        _ShadowTint("Shadow Tint", Color) = (0.75,0.75,0.75,1)
+        _ShadowRamp("Toon Texture", 2D) = "white" {}
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0
-        _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.5
-        _shadow_feather("Shadow Feather", Range(0,1)) = 0.02
+        _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
+        _shadow_feather("Shadow Feather", Range(0,1)) = 0.2
 		_outline_width("outline_width", Range(0,1)) = 0.2
 		_outline_color("outline_color", Color) = (0.5,0.5,0.5,1)
 		_outline_feather("outline_width", Range(0,1)) = 0.5

@@ -1,4 +1,7 @@
 // SynToon by Synergiance
+// v0.2.3
+
+#define VERSION="v0.2.3"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -134,8 +137,54 @@ v2g vert(appdata_full v)
     return o;
 }
 
-//return ShadeSH9(half4(normal, 1.0));
-//saturate((lerp( Function_node_3693( float3(0,1,0) ), 0.0, _NoLightShading )+(_LightColor0.rgb*attenuation)))
+float3 calcShadow(float3 position, float3 normal)
+{// Generate the shadow based on the light direction (and soon take shadow maps into account)
+    float3 bright = float3(1.0, 1.0, 1.0);
+    #if !NO_SHADOW
+    // This hack gets directionless directional lights, a common phenominon in VRChat, to get a direction.
+    float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w * 0.99998 + 0.00001));
+    float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    #if TINTED_SHADOW
+    float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
+    bright = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
+    #elif RAMP_SHADOW
+    bright = tex2D(_ShadowRamp, float2(lightScale, lightScale)).rgb;
+    #else
+    #endif
+    #endif
+    return bright;
+}
+
+float3 artsyOutline(float3 color, float3 view, float3 normal)
+{// Outline
+    #if ARTSY_OUTLINE
+    float3 outlineColor = color;
+    #if TINTED_OUTLINE
+    outlineColor *= _outline_color.rgb;
+    #elif COLORED_OUTLINE
+    outlineColor = float3((_outline_color.rgb * _outline_color.a) + (color * (1 - _outline_color.a)));
+    #endif
+    color = lerp(outlineColor,color.rgb,smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(view, normal)));
+    // Outline Effects
+    
+    #endif
+    return color;
+}
+
+float3 applySphere(float3 color, float3 normal)
+{// Applies add and multiply spheres
+    #if !NO_SPHERE
+	float3 viewNormal = normalize( mul( (float3x3)UNITY_MATRIX_MV, normal ));
+	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
+    #if ADD_SPHERE
+	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
+    color += sphereAdd.rgb;
+    #elif MUL_SPHERE
+	float4 sphereMul = tex2D( _SphereMulTex, sphereUv );
+    color *= sphereMul.rgb;
+    #endif
+    #endif
+}
 
 float4 frag(VertexOutput i) : SV_Target
 {
@@ -158,20 +207,7 @@ float4 frag(VertexOutput i) : SV_Target
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
     float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
-    
-    //New
-    float3 bright = float3(1.0, 1.0, 1.0);
-    #if !NO_SHADOW
-    float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz - i.posWorld.xyz);
-    float lightScale = dot(normalDirection, lightDirection) * 0.5 + 0.5;
-    #if TINTED_SHADOW
-    float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
-    bright = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
-    #elif RAMP_SHADOW
-    bright = tex2D(_ShadowRamp, float2(lightScale, lightScale)).rgb;
-    #else
-    #endif
-    #endif
+    float3 bright = calcShadow(i.posWorld.xyz, normalDirection);
     
     // Pulse
     #if defined(PULSE)
@@ -179,6 +215,7 @@ float4 frag(VertexOutput i) : SV_Target
     emissive = lerp(emissive, _EmissionPulseColor.rgb*pulsemask.rgb, (sin(_Time[1] * _EmissionSpeed * _EmissionSpeed * _EmissionSpeed) + 1) / 2);
     #endif
     
+    // Primary effects
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
@@ -186,21 +223,12 @@ float4 frag(VertexOutput i) : SV_Target
     bright = hueShift(bright, maskcolor.rgb);
     emissive = hueShift(emissive, 1);
     #endif
+    
+    // Secondary Effects
 
     // Outline
-    #if ARTSY_OUTLINE
-    float3 outlineColor = color.rgb;
-    float3 outlineEmissive = emissive;
-    #if TINTED_OUTLINE
-    outlineColor *= _outline_color.rgb;
-    outlineEmissive *= _outline_color.rgb;
-    #elif COLORED_OUTLINE
-    outlineColor = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
-    outlineEmissive = float3((_outline_color.rgb * _outline_color.a) + (emissive * (1 - _outline_color.a)));
-    #endif
-    color.rgb = lerp(outlineColor,color.rgb,smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(viewDirection, normalDirection)));
-    emissive = lerp(outlineEmissive,emissive,smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(viewDirection, normalDirection)));
-    #endif
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
+    emissive = artsyOutline(emissive, viewDirection, normalDirection);
     
     #if !NO_SPHERE
 	float3 viewNormal = normalize( mul( (float3x3)UNITY_MATRIX_MV, i.normalDir ));
@@ -236,20 +264,7 @@ float4 frag4(VertexOutput i) : COLOR
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
-    
-    // New
-    float3 bright = float3(1.0, 1.0, 1.0);
-    #if !NO_SHADOW
-    float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz - i.posWorld.xyz);
-    float lightScale = dot(normalDirection, lightDirection) * 0.5 + 0.5;
-    #if TINTED_SHADOW
-    float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
-    bright = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
-    #elif RAMP_SHADOW
-    bright = tex2D(_ShadowRamp, float2(lightScale, lightScale)).rgb;
-    #else
-    #endif
-    #endif
+    float3 bright = calcShadow(i.posWorld.xyz, normalDirection);
     
     // Rainbow
     #if defined(RAINBOW)
@@ -259,15 +274,7 @@ float4 frag4(VertexOutput i) : COLOR
     #endif
 
     // Outline
-    #if ARTSY_OUTLINE
-    float3 outlineColor = color.rgb;
-    #if TINTED_OUTLINE
-    outlineColor *= _outline_color.rgb;
-    #elif COLORED_OUTLINE
-    outlineColor = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
-    #endif
-    color.rgb = lerp(outlineColor,color.rgb,smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(viewDirection, normalDirection)));
-    #endif
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     
     #if !NO_SPHERE
 	float3 viewNormal = normalize( mul( (float3x3)UNITY_MATRIX_MV, i.normalDir ));
@@ -299,11 +306,14 @@ float4 frag5(VertexOutput i) : COLOR
     // Lighting
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
     
+    // Primary Effects
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
     color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
     #endif
+    
+    // Secondary Effects
 
     // Outline
     #if TINTED_OUTLINE
@@ -311,6 +321,7 @@ float4 frag5(VertexOutput i) : COLOR
     #elif COLORED_OUTLINE
     color.rgb = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
     #endif
+    // Outline Effects
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);

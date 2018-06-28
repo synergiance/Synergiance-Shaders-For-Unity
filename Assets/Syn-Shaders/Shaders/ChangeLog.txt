@@ -1,0 +1,10 @@
+Change Log
+
+2018/6/28
+Lighting hack is now much more subtle
+Added description text to most controls
+
+2018/6/26
+Added outline modes!
+Screenspace outlines!
+Started writing this log in the first place, I should have done this a long time ago

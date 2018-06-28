@@ -1,0 +1,17 @@
+To Do:
+
+Lighting hacks:
+None (normal)
+VRChat (Mixes a small bit of world position into directional light)
+Static (Set your own lighting coordinates)
+
+Effects:
+Primary effects, rainbow, wave rainbow, texture swap
+Secondary effects, overlay
+Outline effects, rainbow, wave rainbow (texture swap already needs to swap the outline)
+
+Add ambient light back
+Add toon ramp as a different texture type
+Find a way to make sphere slots share a texture
+Draw cast shadows
+Texture encoded settings for atlased models

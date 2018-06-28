@@ -140,32 +140,14 @@ public class SynToonInspector : ShaderGUI
                 }
 
                 EditorGUI.showMixedValue = false;
-                
-                EditorGUI.BeginChangeCheck();
-                backfacecull = EditorGUILayout.Toggle("Backface Culling", backfacecull);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (backfacecull)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("BCKFCECULL");
-                            mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Back);
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("BCKFCECULL");
-                            mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
-                        }
-                }
                 EditorGUILayout.Space();
 
                 materialEditor.TexturePropertySingleLine(new GUIContent("Main Texture", "Main Color Texture (RGB)"), mainTexture, color);
                 EditorGUI.indentLevel += 2;
                 if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Cutout) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend))
-                    materialEditor.ShaderProperty(alphaCutoff, "Alpha Cutoff", 2);
+                    materialEditor.ShaderProperty(alphaCutoff, new GUIContent("Alpha Cutoff", "Material will clip here.  Drag to the left if you're losing detail.  Recommended value for alphablend: 0.1"), 2);
                 if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend)
-                    materialEditor.ShaderProperty(alphaOverride, "Alpha Override", 2);
+                    materialEditor.ShaderProperty(alphaOverride, new GUIContent("Alpha Override", "Overrides a texture's alpha (useful for very faint textures)"), 2);
                 materialEditor.TexturePropertySingleLine(new GUIContent("Color Mask", "Masks Color Tinting (G)"), colorMask);
                 EditorGUI.indentLevel -= 2;
                 materialEditor.TexturePropertySingleLine(new GUIContent("Normal Map", "Normal Map (RGB)"), normalMap);
@@ -225,7 +207,7 @@ public class SynToonInspector : ShaderGUI
                 }
                 
                 EditorGUILayout.Space();
-                materialEditor.ShaderProperty(brightness, "Brightness");
+                materialEditor.ShaderProperty(brightness, new GUIContent("Brightness", "How much light gets to your model.  This can have a better effect than darkening the color"));
 
                 var sMode = (ShadowMode)shadowMode.floatValue;
 
@@ -247,16 +229,16 @@ public class SynToonInspector : ShaderGUI
                 {
                     case ShadowMode.Tint:
                         EditorGUI.indentLevel += 2;
-                        materialEditor.ShaderProperty(shadowWidth, "Coverage");
-                        materialEditor.ShaderProperty(shadowFeather, "Feather");
-                        materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
-                        materialEditor.ShaderProperty(shadowTint, "Tint Color");
+                        materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
+                        materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
+                        materialEditor.ShaderProperty(shadowAmbient, new GUIContent("Ambient Light", "Slide to the left for shadow light, to the right for direct light"));
+                        materialEditor.ShaderProperty(shadowTint, new GUIContent("Tint Color", "This will tint your shadows, try pinkish colors for skin"));
                         EditorGUI.indentLevel -= 2;
                         break;
                     case ShadowMode.Ramp:
                         EditorGUI.indentLevel += 2;
-                        materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Ramp", "Shadow Ramp (RGBA)"), shadowRamp);
+                        //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), shadowRamp);
                         EditorGUILayout.LabelField("Set your texture's wrapping mode to clamp!");
                         EditorGUI.indentLevel -= 2;
                         break;
@@ -289,17 +271,17 @@ public class SynToonInspector : ShaderGUI
                     case OutlineMode.Artsy:
                         EditorGUI.indentLevel += 2;
                         ocMode = (OutlineColorMode)EditorGUILayout.Popup("Color Mode", (int)ocMode, Enum.GetNames(typeof(OutlineColorMode)));
-                        materialEditor.ShaderProperty(outlineColor, "Color");
-                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "Outline Width in percent"));
-                        materialEditor.ShaderProperty(outlineFeather, new GUIContent("Feather", "Outline Smoothness"));
+                        materialEditor.ShaderProperty(outlineColor, new GUIContent("Color", "This is the color of the outline"));
+                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "This is the width of the outline.  This mode may or may not look good on your model.  Try \"Outline\""));
+                        materialEditor.ShaderProperty(outlineFeather, new GUIContent("Feather", "Smoothness of the outline. You can go from very crisp to very blurry"));
                         EditorGUI.indentLevel -= 2;
                         break;
                     case OutlineMode.Outside:
                     case OutlineMode.Screenspace:
                         EditorGUI.indentLevel += 2;
                         ocMode = (OutlineColorMode)EditorGUILayout.Popup("Color Mode", (int)ocMode, Enum.GetNames(typeof(OutlineColorMode)));
-                        materialEditor.ShaderProperty(outlineColor, "Color");
-                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "Outline Width"));
+                        materialEditor.ShaderProperty(outlineColor, new GUIContent("Color", "This is the color of the outline"));
+                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "This is the width of the outline"));
                         EditorGUI.indentLevel -= 2;
                         break;
                     case OutlineMode.None:
@@ -350,6 +332,28 @@ public class SynToonInspector : ShaderGUI
                     case SphereMode.None:
                     default:
                         break;
+                }
+                EditorGUILayout.Space();
+
+                GUILayout.Label("Advanced Options", EditorStyles.boldLabel);
+                materialEditor.RenderQueueField();
+                
+                EditorGUI.BeginChangeCheck();
+                backfacecull = !EditorGUILayout.Toggle(new GUIContent("Double Sided", "Render this material on both sides"), !backfacecull);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (backfacecull)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("BCKFCECULL");
+                            mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Back);
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("BCKFCECULL");
+                            mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
+                        }
                 }
             }
             EditorGUI.EndChangeCheck();
