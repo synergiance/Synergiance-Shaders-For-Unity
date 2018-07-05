@@ -29,11 +29,13 @@ Shader "Synergiance/Toon"
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
+        _StaticToonLight ("Static Light", Vector) = (0,0,0,0)
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
 		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
+		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
 		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
@@ -73,6 +75,7 @@ Shader "Synergiance/Toon"
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #pragma shader_feature NORMAL_LIGHTING VRCHAT_HACK STATIC_LIGHT
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -102,6 +105,7 @@ Shader "Synergiance/Toon"
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #pragma shader_feature NORMAL_LIGHTING VRCHAT_HACK STATIC_LIGHT
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom

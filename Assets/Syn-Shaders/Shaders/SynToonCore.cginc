@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.2.3
+// v0.2.4
 
-#define VERSION="v0.2.3"
+#define VERSION="v0.2.4"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -44,6 +44,7 @@ uniform float4 _outline_color;
 //sampler2D _ToonTex;
 sampler2D _SphereAddTex;
 sampler2D _SphereMulTex;
+uniform float4 _StaticToonLight;
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -141,9 +142,18 @@ float3 calcShadow(float3 position, float3 normal)
 {// Generate the shadow based on the light direction (and soon take shadow maps into account)
     float3 bright = float3(1.0, 1.0, 1.0);
     #if !NO_SHADOW
+    #if STATIC_LIGHT
+    // Places light at a specific vector relative to the model
+    float lightScale = dot(normal, _StaticToonLight.rgb) * 0.5 + 0.5;
+    #elif VRCHAT_HACK
     // This hack gets directionless directional lights, a common phenominon in VRChat, to get a direction.
     float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w * 0.99998 + 0.00001));
     float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    #else
+    // Normal lighting
+    float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
+    float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    #endif
     #if TINTED_SHADOW
     float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
     bright = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
@@ -379,7 +389,7 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 	for (int ii = 0; ii < 3; ii++)
 	{
 		#if OUTSIDE_OUTLINE
-        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .05));
+        o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .01));
         #elif SCREENSPACE_OUTLINE
         o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .05) * distance(_WorldSpaceCameraPos,mul(unity_ObjectToWorld, IN[ii].vertex).rgb));
         #else

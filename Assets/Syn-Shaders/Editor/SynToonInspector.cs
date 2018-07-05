@@ -39,6 +39,13 @@ public class SynToonInspector : ShaderGUI
         Ramp
     }
     
+    public enum LightingHack
+    {
+        None,
+        VRChat,
+        Static
+    }
+    
     public enum SphereMode
     {
         None,
@@ -50,6 +57,8 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty mainTexture;
     MaterialProperty color;
     MaterialProperty colorMask;
+    MaterialProperty lightingHack;
+    MaterialProperty staticLight;
     MaterialProperty shadowMode;
     MaterialProperty shadowWidth;
     MaterialProperty shadowFeather;
@@ -84,6 +93,8 @@ public class SynToonInspector : ShaderGUI
             mainTexture = FindProperty("_MainTex", props);
             color = FindProperty("_Color", props);
             colorMask = FindProperty("_ColorMask", props);
+            lightingHack = FindProperty("_LightingHack", props);
+            staticLight = FindProperty("_StaticToonLight", props);
             shadowMode = FindProperty("_ShadowMode", props);
             shadowWidth = FindProperty("_shadow_coverage", props);
             shadowFeather = FindProperty("_shadow_feather", props);
@@ -355,6 +366,37 @@ public class SynToonInspector : ShaderGUI
                             mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
                         }
                 }
+
+                var lHack = (LightingHack)lightingHack.floatValue;
+
+                EditorGUI.BeginChangeCheck();
+                lHack = (LightingHack)EditorGUILayout.Popup("Lighting Hack", (int)lHack, Enum.GetNames(typeof(LightingHack)));
+                
+                if (EditorGUI.EndChangeCheck())
+                {
+                    materialEditor.RegisterPropertyChangeUndo("Lighting Hack");
+                    lightingHack.floatValue = (float)lHack;
+
+                    foreach (var obj in lightingHack.targets)
+                    {
+                        SetupMaterialWithLightingHack((Material)obj, (LightingHack)material.GetFloat("_LightingHack"));
+                    }
+
+                }
+                switch (lHack)
+                {
+                    case LightingHack.VRChat:
+                        // There may be a slider here
+                        break;
+                    case LightingHack.Static:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.ShaderProperty(staticLight, "Static Light Position");
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case LightingHack.None:
+                    default:
+                        break;
+                }
             }
             EditorGUI.EndChangeCheck();
         }
@@ -485,6 +527,30 @@ public class SynToonInspector : ShaderGUI
                 material.DisableKeyword("NO_SHADOW");
                 material.DisableKeyword("TINTED_SHADOW");
                 material.EnableKeyword("RAMP_SHADOW");
+                break;
+            default:
+                break;
+        }
+    }
+    
+    public static void SetupMaterialWithLightingHack(Material material, LightingHack lightingHack)
+    {
+        switch ((LightingHack)material.GetFloat("_LightingHack"))
+        {
+            case LightingHack.None:
+                material.EnableKeyword("NORMAL_LIGHTING");
+                material.DisableKeyword("VRCHAT_HACK");
+                material.DisableKeyword("STATIC_LIGHT");
+                break;
+            case LightingHack.VRChat:
+                material.DisableKeyword("NORMAL_LIGHTING");
+                material.EnableKeyword("VRCHAT_HACK");
+                material.DisableKeyword("STATIC_LIGHT");
+                break;
+            case LightingHack.Static:
+                material.DisableKeyword("NORMAL_LIGHTING");
+                material.DisableKeyword("VRCHAT_HACK");
+                material.EnableKeyword("STATIC_LIGHT");
                 break;
             default:
                 break;

@@ -1,5 +1,11 @@
 Change Log
 
+0.2.4:
+Added lighting hack choice
+None is normal lighting, will work anywhere
+VRChat is for worlds with light direction coordinates 0,0,0 which causes everything to be shadowed and I don't want that.
+Static lets you choose a static light coordinate, relative to the model.  This will work everywhere but may look incorrect
+
 2018/6/28
 Lighting hack is now much more subtle
 Added description text to most controls

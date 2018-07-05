@@ -1,10 +1,5 @@
 To Do:
 
-Lighting hacks:
-None (normal)
-VRChat (Mixes a small bit of world position into directional light)
-Static (Set your own lighting coordinates)
-
 Effects:
 Primary effects, rainbow, wave rainbow, texture swap
 Secondary effects, overlay
@@ -15,3 +10,5 @@ Add toon ramp as a different texture type
 Find a way to make sphere slots share a texture
 Draw cast shadows
 Texture encoded settings for atlased models
+Possibly more description
+Implement hybrid lighting hack, regular lighting if a direction is detected, and uses static light direction otherwise
