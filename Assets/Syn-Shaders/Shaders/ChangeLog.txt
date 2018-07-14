@@ -1,5 +1,8 @@
 Change Log
 
+0.2.6:
+Bug fix: Certain materials that had a redefinition error are now fixed
+
 0.2.5:
 Changed info text for toon textures and shadow ramps
 (Breaking change) Split shader in order to specify explicit render queue settings for VRChat

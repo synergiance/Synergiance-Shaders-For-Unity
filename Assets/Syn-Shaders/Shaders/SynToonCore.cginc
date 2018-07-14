@@ -145,13 +145,14 @@ float3 calcShadow(float3 position, float3 normal, float atten)
 {// Generate the shadow based on the light direction (and soon take shadow maps into account)
     float3 bright = float3(1.0, 1.0, 1.0);
     #if !NO_SHADOW
+    float lightScale = 0;
     #if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
     float3 lightDirection = normalize(_StaticToonLight.rgb);
     #elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
     float3 lightDirection = normalize(_StaticToonLight.rgb - position);
     #else // Normal lighting
     float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
-    float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
     #endif
     #if !NORMAL_LIGHTING
     #if !OVERRIDE_REALTIME
@@ -166,7 +167,7 @@ float3 calcShadow(float3 position, float3 normal, float atten)
     #else
     atten = 1;
     #endif
-    float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
     #endif
     #if defined(IS_OPAQUE) && !DISABLE_SHADOW
     lightScale *= atten * _shadowcast_intensity + (1 - _shadowcast_intensity);
