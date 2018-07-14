@@ -1,5 +1,14 @@
 Change Log
 
+0.2.5:
+Changed info text for toon textures and shadow ramps
+(Breaking change) Split shader in order to specify explicit render queue settings for VRChat
+Transparency Fix will set render queue up in order to combat render queue fights in VRChat
+Shadows now appear on opaque and cutout render modes
+Lighting hacks adjusted and improved, fixed
+Lighting hacks are now hybrid by default
+Lighting hacks now have an override for realtime lighting
+
 0.2.4:
 Added lighting hack choice
 None is normal lighting, will work anywhere

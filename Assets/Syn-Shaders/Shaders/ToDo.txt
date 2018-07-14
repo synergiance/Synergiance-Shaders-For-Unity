@@ -8,7 +8,7 @@ Outline effects, rainbow, wave rainbow (texture swap already needs to swap the o
 Add ambient light back
 Add toon ramp as a different texture type
 Find a way to make sphere slots share a texture
-Draw cast shadows
 Texture encoded settings for atlased models
 Possibly more description
-Implement hybrid lighting hack, regular lighting if a direction is detected, and uses static light direction otherwise
+Add shadow ramps
+Change the way lighting is applied, more passes, hopefully this doesn't backfire

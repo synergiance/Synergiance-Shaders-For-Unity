@@ -14,6 +14,7 @@ Shader "Synergiance/Toon-Outline"
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0
         _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
         _shadow_feather("Shadow Feather", Range(0,1)) = 0.2
+        _shadowcast_intensity("Shadow cast intensity", Range(0,1)) = 0.75
 		_outline_width("outline_width", Range(0,1)) = 0.2
 		_outline_color("outline_color", Color) = (0.5,0.5,0.5,1)
 		_outline_feather("outline_width", Range(0,1)) = 0.5
@@ -29,11 +30,11 @@ Shader "Synergiance/Toon-Outline"
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
-        _StaticToonLight ("Static Light", Vector) = (0,0,0,0)
+        _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
-		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
+		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
@@ -48,7 +49,7 @@ Shader "Synergiance/Toon-Outline"
 	{
 		Tags
 		{
-			"Queue" = "Transparent"
+			"Queue" = "Geometry"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
@@ -73,7 +74,10 @@ Shader "Synergiance/Toon-Outline"
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature NORMAL_LIGHTING VRCHAT_HACK STATIC_LIGHT
+            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
+            #pragma shader_feature _ DISABLE_SHADOW
+            #pragma shader_feature _ OVERRIDE_REALTIME
+            #define IS_OPAQUE
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -95,13 +99,19 @@ Shader "Synergiance/Toon-Outline"
 			Tags { "LightMode" = "ForwardAdd" }
             //Blend SrcAlpha One
 			Blend [_SrcBlend] One
+			Fog { Color (0,0,0,0) } // in additive pass fog should be black
+			ZWrite Off
+			ZTest LEqual
 
 			CGPROGRAM
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature NORMAL_LIGHTING VRCHAT_HACK STATIC_LIGHT
+            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
+            #pragma shader_feature _ DISABLE_SHADOW
+            #pragma shader_feature _ OVERRIDE_REALTIME
+            #define IS_OPAQUE
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom
@@ -157,6 +167,9 @@ Shader "Synergiance/Toon-Outline"
             //Blend SrcAlpha One
 			Blend [_SrcBlend] One
             Cull Front
+			Fog { Color (0,0,0,0) } // in additive pass fog should be black
+			ZWrite Off
+			ZTest LEqual
 
 			CGPROGRAM
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
@@ -176,6 +189,8 @@ Shader "Synergiance/Toon-Outline"
             
             ENDCG
         }
+        
+        UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
 	}
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"

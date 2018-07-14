@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.2.4
+// v0.2.5
 
-#define VERSION="v0.2.4"
+#define VERSION="v0.2.5"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -31,6 +31,9 @@ sampler2D _ShadowRamp;
 float4 _ShadowTint;
 float _shadow_coverage;
 float _shadow_feather;
+#if defined(IS_OPAQUE) && !DISABLE_SHADOW
+float _shadowcast_intensity;
+#endif
 #endif
 float _Cutoff;
 float _AlphaOverride;
@@ -138,21 +141,35 @@ v2g vert(appdata_full v)
     return o;
 }
 
-float3 calcShadow(float3 position, float3 normal)
+float3 calcShadow(float3 position, float3 normal, float atten)
 {// Generate the shadow based on the light direction (and soon take shadow maps into account)
     float3 bright = float3(1.0, 1.0, 1.0);
     #if !NO_SHADOW
-    #if STATIC_LIGHT
-    // Places light at a specific vector relative to the model
-    float lightScale = dot(normal, _StaticToonLight.rgb) * 0.5 + 0.5;
-    #elif VRCHAT_HACK
-    // This hack gets directionless directional lights, a common phenominon in VRChat, to get a direction.
-    float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w * 0.99998 + 0.00001));
-    float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
-    #else
-    // Normal lighting
+    #if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
+    float3 lightDirection = normalize(_StaticToonLight.rgb);
+    #elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
+    float3 lightDirection = normalize(_StaticToonLight.rgb - position);
+    #else // Normal lighting
     float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
     float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    #endif
+    #if !NORMAL_LIGHTING
+    #if !OVERRIDE_REALTIME
+    if (!(abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01))
+    {
+        lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
+    }
+    else
+    {
+        atten = 1;
+    }
+    #else
+    atten = 1;
+    #endif
+    float lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+    #endif
+    #if defined(IS_OPAQUE) && !DISABLE_SHADOW
+    lightScale *= atten * _shadowcast_intensity + (1 - _shadowcast_intensity);
     #endif
     #if TINTED_SHADOW
     float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
@@ -184,7 +201,7 @@ float3 artsyOutline(float3 color, float3 view, float3 normal)
 float3 applySphere(float3 color, float3 normal)
 {// Applies add and multiply spheres
     #if !NO_SPHERE
-	float3 viewNormal = normalize( mul( (float3x3)UNITY_MATRIX_MV, normal ));
+	float3 viewNormal = normalize(UnityObjectToViewPos(normal));
 	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
     #if ADD_SPHERE
 	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
@@ -209,6 +226,7 @@ float4 frag(VertexOutput i) : SV_Target
     color = lerp((color.rgba*_Color.rgba),color.rgba,_ColorMask_var.r);
     
     // Lighting
+    float attenuation = LIGHT_ATTENUATION(i);
     float _AmbientLight = 0.8;
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
@@ -217,7 +235,7 @@ float4 frag(VertexOutput i) : SV_Target
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
     float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
-    float3 bright = calcShadow(i.posWorld.xyz, normalDirection);
+    float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
     
     // Pulse
     #if defined(PULSE)
@@ -241,7 +259,7 @@ float4 frag(VertexOutput i) : SV_Target
     emissive = artsyOutline(emissive, viewDirection, normalDirection);
     
     #if !NO_SPHERE
-	float3 viewNormal = normalize( mul( (float3x3)UNITY_MATRIX_MV, i.normalDir ));
+	float3 viewNormal = normalize(UnityObjectToViewPos(i.normalDir));
 	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
     #if ADD_SPHERE
 	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
@@ -268,13 +286,14 @@ float4 frag4(VertexOutput i) : COLOR
     color = lerp((color.rgba*_Color.rgba),color.rgba,_ColorMask_var.r);
     
     // Lighting
+    float attenuation = LIGHT_ATTENUATION(i);
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
     float3 _BumpMap_var = UnpackNormal(tex2D(_BumpMap,i.uv));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
-    float3 bright = calcShadow(i.posWorld.xyz, normalDirection);
+    float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
     
     // Rainbow
     #if defined(RAINBOW)
@@ -287,7 +306,7 @@ float4 frag4(VertexOutput i) : COLOR
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     
     #if !NO_SPHERE
-	float3 viewNormal = normalize( mul( (float3x3)UNITY_MATRIX_MV, i.normalDir ));
+	float3 viewNormal = normalize(UnityObjectToViewPos(i.normalDir));
 	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
     #if ADD_SPHERE
 	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );

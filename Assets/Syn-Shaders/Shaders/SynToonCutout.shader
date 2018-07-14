@@ -1,6 +1,6 @@
-// Synergiance Toon Shader
+// Synergiance Toon Shader (Cutout)
 
-Shader "Synergiance/Toon"
+Shader "Synergiance/Toon/Cutout"
 {
 	Properties
 	{
@@ -49,7 +49,7 @@ Shader "Synergiance/Toon"
 	{
 		Tags
 		{
-			"Queue" = "Geometry"
+			"Queue" = "AlphaTest"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
@@ -69,8 +69,6 @@ Shader "Synergiance/Toon"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
@@ -106,8 +104,6 @@ Shader "Synergiance/Toon"
 			ZTest LEqual
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
@@ -132,7 +128,6 @@ Shader "Synergiance/Toon"
         
         UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
 	}
-    
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"
 }

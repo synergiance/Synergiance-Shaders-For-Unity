@@ -1,6 +1,6 @@
-// Synergiance Toon Shader
+// Synergiance Toon Shader (Outline/Cutout)
 
-Shader "Synergiance/Toon"
+Shader "Synergiance/Toon-Outline/Cutout"
 {
 	Properties
 	{
@@ -34,7 +34,7 @@ Shader "Synergiance/Toon"
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
-		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
+		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
@@ -49,7 +49,7 @@ Shader "Synergiance/Toon"
 	{
 		Tags
 		{
-			"Queue" = "Geometry"
+			"Queue" = "AlphaTest"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
@@ -69,8 +69,6 @@ Shader "Synergiance/Toon"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
@@ -106,8 +104,6 @@ Shader "Synergiance/Toon"
 			ZTest LEqual
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
             #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
             #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
@@ -129,10 +125,73 @@ Shader "Synergiance/Toon"
             
             ENDCG
         }
+
+		Pass
+		{
+			Name "OUTLINE"
+            
+            //Blend SrcAlpha OneMinusSrcAlpha
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
+            Cull Front
+            
+			Tags
+			{
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
+            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
+            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #include "SynToonCore.cginc"
+            
+			#pragma vertex vert
+			#pragma geometry geom2
+			#pragma fragment frag5
+            
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+            
+			ENDCG
+		}
+        
+        Pass
+        {
+			Name "OUTLINE_DELTA"
+			Tags { "LightMode" = "ForwardAdd" }
+            //Blend SrcAlpha One
+			Blend [_SrcBlend] One
+            Cull Front
+			Fog { Color (0,0,0,0) } // in additive pass fog should be black
+			ZWrite Off
+			ZTest LEqual
+
+			CGPROGRAM
+			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
+            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
+            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+			#include "SynToonCore.cginc"
+			#pragma vertex vert
+			#pragma geometry geom2
+			#pragma fragment frag5
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+            
+            ENDCG
+        }
         
         UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
 	}
-    
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"
 }

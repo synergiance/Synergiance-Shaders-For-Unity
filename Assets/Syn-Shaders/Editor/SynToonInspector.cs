@@ -42,8 +42,8 @@ public class SynToonInspector : ShaderGUI
     public enum LightingHack
     {
         None,
-        VRChat,
-        Static
+        World,
+        Local
     }
     
     public enum SphereMode
@@ -63,6 +63,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty shadowWidth;
     MaterialProperty shadowFeather;
     MaterialProperty shadowAmbient;
+    MaterialProperty shadowCastIntensity;
     MaterialProperty shadowTint;
     MaterialProperty shadowRamp;
     MaterialProperty outlineMode;
@@ -99,6 +100,7 @@ public class SynToonInspector : ShaderGUI
             shadowWidth = FindProperty("_shadow_coverage", props);
             shadowFeather = FindProperty("_shadow_feather", props);
             shadowAmbient = FindProperty("_ShadowAmbient", props);
+            shadowCastIntensity = FindProperty("_shadowcast_intensity", props);
             shadowTint = FindProperty("_ShadowTint", props);
             shadowRamp = FindProperty("_ShadowRamp", props);
             outlineMode = FindProperty("_OutlineMode", props);
@@ -125,9 +127,12 @@ public class SynToonInspector : ShaderGUI
         
         Material material = materialEditor.target as Material;
         
+        bool realOverride = Array.IndexOf(material.shaderKeywords, "OVERRIDE_REALTIME") != -1;
+        bool shadowDisable = Array.IndexOf(material.shaderKeywords, "DISABLE_SHADOW") != -1;
         bool backfacecull = Array.IndexOf(material.shaderKeywords, "BCKFCECULL") != -1;
         bool rainbowEnable = Array.IndexOf(material.shaderKeywords, "RAINBOW") != -1;
         bool pulseEnable = Array.IndexOf(material.shaderKeywords, "PULSE") != -1;
+        bool transFix = Array.IndexOf(material.shaderKeywords, "TRANSFIX") != -1;
         
         { //Shader Properties GUI
             EditorGUIUtility.labelWidth = 0f;
@@ -147,6 +152,7 @@ public class SynToonInspector : ShaderGUI
                     foreach (var obj in blendMode.targets)
                     {
                         SetupMaterialWithBlendMode((Material)obj, (BlendMode)material.GetFloat("_Mode"));
+                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix);
                     }
                 }
 
@@ -250,7 +256,7 @@ public class SynToonInspector : ShaderGUI
                         EditorGUI.indentLevel += 2;
                         //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
                         materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), shadowRamp);
-                        EditorGUILayout.LabelField("Set your texture's wrapping mode to clamp!");
+                        EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
                         EditorGUI.indentLevel -= 2;
                         break;
                     case ShadowMode.None:
@@ -273,6 +279,7 @@ public class SynToonInspector : ShaderGUI
                     foreach (var obj in outlineMode.targets)
                     {
                         SetupMaterialWithOutlineMode((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"));
+                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix);
                     }
 
                 }
@@ -366,6 +373,30 @@ public class SynToonInspector : ShaderGUI
                             mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
                         }
                 }
+                
+                EditorGUI.BeginChangeCheck();
+                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) {
+                    transFix = EditorGUILayout.Toggle(new GUIContent("Transparent Fix", "This makes this material render later than other transparent materials"), transFix);
+                } else {
+                    GUI.enabled = false;
+                    transFix = EditorGUILayout.Toggle(new GUIContent("Transparent Fix", "This makes this material render later than other transparent materials"), false);
+                    GUI.enabled = true;
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (transFix)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("TRANSFIX");
+                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix);
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("TRANSFIX");
+                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix);
+                        }
+                }
 
                 var lHack = (LightingHack)lightingHack.floatValue;
 
@@ -383,19 +414,64 @@ public class SynToonInspector : ShaderGUI
                     }
 
                 }
+                EditorGUI.BeginChangeCheck();
                 switch (lHack)
                 {
-                    case LightingHack.VRChat:
-                        // There may be a slider here
-                        break;
-                    case LightingHack.Static:
+                    case LightingHack.World:
                         EditorGUI.indentLevel += 2;
-                        materialEditor.ShaderProperty(staticLight, "Static Light Position");
+                        realOverride = EditorGUILayout.Toggle(new GUIContent("Override All", "Override All lights not just directionless lights"), realOverride);
+                        materialEditor.ShaderProperty(staticLight, new GUIContent("Light Coordinate", "Static World Light Position"));
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case LightingHack.Local:
+                        EditorGUI.indentLevel += 2;
+                        realOverride = EditorGUILayout.Toggle(new GUIContent("Override All", "Override All lights not just directionless lights"), realOverride);
+                        materialEditor.ShaderProperty(staticLight, new GUIContent("Light Coordinate", "Static Local Light Position"));
                         EditorGUI.indentLevel -= 2;
                         break;
                     case LightingHack.None:
                     default:
                         break;
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (realOverride)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("OVERRIDE_REALTIME");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("OVERRIDE_REALTIME");
+                        }
+                }
+                
+                EditorGUI.BeginChangeCheck();
+                if ((BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
+                    shadowDisable = !EditorGUILayout.Toggle(new GUIContent("Enable Shadow Casts", "This makes shadows appear on the material from other objects"), !shadowDisable);
+                } else {
+                    GUI.enabled = false;
+                    shadowDisable = EditorGUILayout.Toggle(new GUIContent("Enable Shadow Casts", "This makes shadows appear on the material from other objects"), false);
+                    GUI.enabled = true;
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (shadowDisable)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("DISABLE_SHADOW");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("DISABLE_SHADOW");
+                        }
+                }
+                if (!shadowDisable && (BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
+                    EditorGUI.indentLevel += 2;
+                    materialEditor.ShaderProperty(shadowCastIntensity, new GUIContent("Intensity", "This is how much other objects affect your shadow"));
+                    EditorGUI.indentLevel -= 2;
                 }
             }
             EditorGUI.EndChangeCheck();
@@ -467,25 +543,25 @@ public class SynToonInspector : ShaderGUI
                 material.DisableKeyword("ARTSY_OUTLINE");
                 material.DisableKeyword("OUTSIDE_OUTLINE");
                 material.DisableKeyword("SCREENSPACE_OUTLINE");
-                material.shader = Shader.Find("Synergiance/Toon");
+                //material.shader = Shader.Find("Synergiance/Toon");
                 break;
             case OutlineMode.Artsy:
                 material.EnableKeyword("ARTSY_OUTLINE");
                 material.DisableKeyword("OUTSIDE_OUTLINE");
                 material.DisableKeyword("SCREENSPACE_OUTLINE");
-                material.shader = Shader.Find("Synergiance/Toon");
+                //material.shader = Shader.Find("Synergiance/Toon");
                 break;
             case OutlineMode.Outside:
                 material.DisableKeyword("ARTSY_OUTLINE");
                 material.EnableKeyword("OUTSIDE_OUTLINE");
                 material.DisableKeyword("SCREENSPACE_OUTLINE");
-                material.shader = Shader.Find("Synergiance/Toon-Outline");
+                //material.shader = Shader.Find("Synergiance/Toon-Outline");
                 break;
             case OutlineMode.Screenspace:
                 material.DisableKeyword("ARTSY_OUTLINE");
                 material.DisableKeyword("OUTSIDE_OUTLINE");
                 material.EnableKeyword("SCREENSPACE_OUTLINE");
-                material.shader = Shader.Find("Synergiance/Toon-Outline");
+                //material.shader = Shader.Find("Synergiance/Toon-Outline");
                 break;
             default:
                 break;
@@ -539,18 +615,18 @@ public class SynToonInspector : ShaderGUI
         {
             case LightingHack.None:
                 material.EnableKeyword("NORMAL_LIGHTING");
-                material.DisableKeyword("VRCHAT_HACK");
-                material.DisableKeyword("STATIC_LIGHT");
+                material.DisableKeyword("WORLD_STATIC_LIGHT");
+                material.DisableKeyword("LOCAL_STATIC_LIGHT");
                 break;
-            case LightingHack.VRChat:
+            case LightingHack.World:
                 material.DisableKeyword("NORMAL_LIGHTING");
-                material.EnableKeyword("VRCHAT_HACK");
-                material.DisableKeyword("STATIC_LIGHT");
+                material.EnableKeyword("WORLD_STATIC_LIGHT");
+                material.DisableKeyword("LOCAL_STATIC_LIGHT");
                 break;
-            case LightingHack.Static:
+            case LightingHack.Local:
                 material.DisableKeyword("NORMAL_LIGHTING");
-                material.DisableKeyword("VRCHAT_HACK");
-                material.EnableKeyword("STATIC_LIGHT");
+                material.DisableKeyword("WORLD_STATIC_LIGHT");
+                material.EnableKeyword("LOCAL_STATIC_LIGHT");
                 break;
             default:
                 break;
@@ -579,5 +655,40 @@ public class SynToonInspector : ShaderGUI
             default:
                 break;
         }
+    }
+    
+    public static void SetupMaterialShaderSelect(Material material, OutlineMode outlineMode, BlendMode blendMode, bool transparentFix)
+    {
+        string shaderName = "Synergiance/Toon";
+        switch ((OutlineMode)material.GetFloat("_OutlineMode"))
+        {
+            case OutlineMode.Outside:
+                shaderName += "-Outline";
+                break;
+            case OutlineMode.Screenspace:
+                shaderName += "-Outline";
+                break;
+            default:
+                break;
+        }
+        switch ((BlendMode)material.GetFloat("_Mode"))
+        {
+            case BlendMode.Cutout:
+                shaderName += "/Cutout";
+                break;
+            case BlendMode.Fade:
+                shaderName += "/Transparent";
+                break;
+            case BlendMode.Multiply:
+                shaderName += "/Transparent";
+                break;
+            case BlendMode.Alphablend:
+                shaderName += "/Transparent";
+                if (transparentFix) shaderName += "Fix";
+                break;
+            default:
+                break;
+        }
+        material.shader = Shader.Find(shaderName);
     }
 }
