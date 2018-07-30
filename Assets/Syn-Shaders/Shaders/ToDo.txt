@@ -10,5 +10,5 @@ Add toon ramp as a different texture type
 Find a way to make sphere slots share a texture
 Texture encoded settings for atlased models
 Possibly more description
-Add shadow ramps
-Change the way lighting is applied, more passes, hopefully this doesn't backfire
+Change the way lighting is applied, more passes, hopefully this doesn't backfire (probably not)
+When lighting is static and no static lights are around set shadow to full brightness

@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.2.5
+// v0.2.7
 
-#define VERSION="v0.2.5"
+#define VERSION="v0.2.7"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -77,6 +77,7 @@ struct VertexOutput
 	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	float2 uv1 : TEXCOORD1;
+    float3 normal : NORMAL;
     fixed4 amb : COLOR0; //
     fixed3 direct : COLOR1; //
     fixed3 indirect : COLOR2; //
@@ -199,11 +200,14 @@ float3 artsyOutline(float3 color, float3 view, float3 normal)
     return color;
 }
 
-float3 applySphere(float3 color, float3 normal)
+float3 applySphere(float3 color, float3 view, float3 normal)
 {// Applies add and multiply spheres
     #if !NO_SPHERE
-	float3 viewNormal = normalize(UnityObjectToViewPos(normal));
+    float3 tangent = normalize(cross(view, float3(0.0, 1.0, 0.0)));
+    float3 bitangent = normalize(cross(tangent, view));
+	float3 viewNormal = normalize(mul(float3x3(tangent, bitangent, view), normal));
 	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
+    //float2 sphereUv = capCoord * 0.5 + 0.5;
     #if ADD_SPHERE
 	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
     color += sphereAdd.rgb;
@@ -212,6 +216,7 @@ float3 applySphere(float3 color, float3 normal)
     color *= sphereMul.rgb;
     #endif
     #endif
+    return color;
 }
 
 float4 frag(VertexOutput i) : SV_Target
@@ -260,15 +265,7 @@ float4 frag(VertexOutput i) : SV_Target
     emissive = artsyOutline(emissive, viewDirection, normalDirection);
     
     #if !NO_SPHERE
-	float3 viewNormal = normalize(UnityObjectToViewPos(i.normalDir));
-	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
-    #if ADD_SPHERE
-	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
-    color.rgb += sphereAdd.rgb;
-    #elif MUL_SPHERE
-	float4 sphereMul = tex2D( _SphereMulTex, sphereUv );
-    color.rgb *= sphereMul.rgb
-    #endif
+    color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
     #endif
     
     // Combining
@@ -307,15 +304,7 @@ float4 frag4(VertexOutput i) : COLOR
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     
     #if !NO_SPHERE
-	float3 viewNormal = normalize(UnityObjectToViewPos(i.normalDir));
-	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
-    #if ADD_SPHERE
-	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
-    color.rgb += sphereAdd.rgb;
-    #elif MUL_SPHERE
-	float4 sphereMul = tex2D( _SphereMulTex, sphereUv );
-    color.rgb *= sphereMul.rgb
-    #endif
+    color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
     #endif
     
     // Combining
@@ -373,6 +362,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		o.tangentDir = IN[ii].tangentDir;
 		o.bitangentDir = IN[ii].bitangentDir;
 		o.is_outline = false;
+        o.normal = IN[ii].normal;
         
         o.amb = IN[ii].amb;
         o.direct = IN[ii].direct;
@@ -423,6 +413,7 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		o.tangentDir = IN[ii].tangentDir;
 		o.bitangentDir = IN[ii].bitangentDir;
 		o.is_outline = false;
+        o.normal = IN[ii].normal;
         
         o.amb = IN[ii].amb;
         o.direct = IN[ii].direct;

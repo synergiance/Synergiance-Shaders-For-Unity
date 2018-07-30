@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (Outline/TransparentFix)
+// Synergiance Toon Shader (Outline/Transparent)
 
-Shader "Synergiance/Toon-Outline/TransparentFix"
+Shader "Synergiance/Toon-Outline/TransparentDS"
 {
 	Properties
 	{
@@ -49,10 +49,14 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 	{
 		Tags
 		{
-			"Queue" = "Transparent+50"
+			"Queue" = "Transparent"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
+
+        UsePass "Synergiance/Toon/TransparentDS/BACKSIDE"
+        
+        UsePass "Synergiance/Toon/TransparentDS/BACKSIDE_DELTA"
 
         UsePass "Synergiance/Toon/Transparent/FORWARD"
         

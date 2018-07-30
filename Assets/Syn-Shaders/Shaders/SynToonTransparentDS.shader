@@ -1,6 +1,6 @@
 // Synergiance Toon Shader (Transparent)
 
-Shader "Synergiance/Toon/Transparent"
+Shader "Synergiance/Toon/TransparentDS"
 {
 	Properties
 	{
@@ -56,12 +56,12 @@ Shader "Synergiance/Toon/Transparent"
 
 		Pass
 		{
-			Name "FORWARD"
+			Name "BACKSIDE"
             
             //Blend SrcAlpha OneMinusSrcAlpha
             Blend [_SrcBlend] [_DstBlend]
             ZWrite [_ZWrite]
-            Cull Back
+            Cull Front
             
 			Tags
 			{
@@ -95,11 +95,11 @@ Shader "Synergiance/Toon/Transparent"
         
         Pass
         {
-			Name "FORWARD_DELTA"
+			Name "BACKSIDE_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
             //Blend SrcAlpha One
 			Blend [_SrcBlend] One
-            Cull Back
+            Cull Front
 
 			CGPROGRAM
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
@@ -123,6 +123,10 @@ Shader "Synergiance/Toon/Transparent"
             
             ENDCG
         }
+
+        UsePass "Synergiance/Toon/Transparent/FORWARD"
+        
+        UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
 	}
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"

@@ -55,76 +55,9 @@ Shader "Synergiance/Toon-Outline"
 		}
         Cull [_CullMode]
 
-		Pass
-		{
-			Name "FORWARD"
-            
-            //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend]
-            ZWrite [_ZWrite]
-            
-			Tags
-			{
-				"LightMode" = "ForwardBase"
-			}
-
-			CGPROGRAM
-            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
-            #pragma shader_feature PULSE
-            #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
-            #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
-            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
-            #pragma shader_feature _ DISABLE_SHADOW
-            #pragma shader_feature _ OVERRIDE_REALTIME
-            #define IS_OPAQUE
-            #include "SynToonCore.cginc"
-            
-			#pragma vertex vert
-			#pragma geometry geom
-			#pragma fragment frag
-            
-			#pragma only_renderers d3d11 glcore gles
-			#pragma target 4.0
-
-			#pragma multi_compile_fwdbase
-			#pragma multi_compile_fog
-            
-			ENDCG
-		}
+        UsePass "Synergiance/Toon/FORWARD"
         
-        Pass
-        {
-			Name "FORWARD_DELTA"
-			Tags { "LightMode" = "ForwardAdd" }
-            //Blend SrcAlpha One
-			Blend [_SrcBlend] One
-			Fog { Color (0,0,0,0) } // in additive pass fog should be black
-			ZWrite Off
-			ZTest LEqual
-
-			CGPROGRAM
-            #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
-            #pragma shader_feature NO_SHADOW TINTED_SHADOW RAMP_SHADOW
-            #pragma shader_feature NO_SPHERE ADD_SPHERE MUL_SPHERE
-            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
-            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
-            #pragma shader_feature _ DISABLE_SHADOW
-            #pragma shader_feature _ OVERRIDE_REALTIME
-            #define IS_OPAQUE
-			#include "SynToonCore.cginc"
-			#pragma vertex vert
-			#pragma geometry geom
-			#pragma fragment frag4
-
-			#pragma only_renderers d3d11 glcore gles
-			#pragma target 4.0
-
-			#pragma multi_compile_fwdadd_fullshadows
-			#pragma multi_compile_fog
-            
-            ENDCG
-        }
+        UsePass "Synergiance/Toon/FORWARD_DELTA"
 
 		Pass
 		{

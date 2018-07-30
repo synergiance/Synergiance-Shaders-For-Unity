@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (Outline/TransparentFix)
+// Synergiance Toon Shader (TransparentFix)
 
-Shader "Synergiance/Toon-Outline/TransparentFix"
+Shader "Synergiance/Toon/TransparentFixDS"
 {
 	Properties
 	{
@@ -34,7 +34,7 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
-		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
+		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
@@ -54,13 +54,13 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
             //"RenderType" = "Opaque"
 		}
 
+        UsePass "Synergiance/Toon/TransparentDS/BACKSIDE"
+        
+        UsePass "Synergiance/Toon/TransparentDS/BACKSIDE_DELTA"
+
         UsePass "Synergiance/Toon/Transparent/FORWARD"
         
         UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
-
-        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE"
-        
-        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE_DELTA"
 	}
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"
