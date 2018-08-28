@@ -1,5 +1,9 @@
 Change Log
 
+0.2.8.2:
+Fixed a bug with outlines, especially colored outlines, they should appear more colored and less black now.
+Fixed a bug where HSB mode would only apply to the forward pass, this should give more consistent colors.
+
 0.2.8.1:
 Fixed unity package, forgot to include the editor, sorry guys!
 

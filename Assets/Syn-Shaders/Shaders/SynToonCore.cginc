@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.2.8
+// v0.2.8.2
 
-#define VERSION="v0.2.8"
+#define VERSION="v0.2.8.2"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -294,7 +294,17 @@ float4 frag4(VertexOutput i) : COLOR
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
     #endif
-    color = lerp((color.rgba*_Color.rgba),color.rgba,_ColorMask_var.r);
+    #if defined(HUESHIFTMODE)
+    float3 colhsv = RGBtoHSV(_Color.rgb);
+    float3 inphsv = RGBtoHSV(color.rgb);
+    inphsv.x = colhsv.x;
+    inphsv.y *= colhsv.y;
+    inphsv.z *= colhsv.z;
+    float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
+    #else
+    float4 shiftcolor = color.rgba * _Color.rgba;
+    #endif
+    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
     
     // Lighting
     float attenuation = LIGHT_ATTENUATION(i);
@@ -337,10 +347,20 @@ float4 frag5(VertexOutput i) : COLOR
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
     #endif
-    color = lerp((color.rgba*_Color.rgba),color.rgba,_ColorMask_var.r);
+    #if defined(HUESHIFTMODE)
+    float3 colhsv = RGBtoHSV(_Color.rgb);
+    float3 inphsv = RGBtoHSV(color.rgb);
+    inphsv.x = colhsv.x;
+    inphsv.y *= colhsv.y;
+    inphsv.z *= colhsv.z;
+    float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
+    #else
+    float4 shiftcolor = color.rgba * _Color.rgba;
+    #endif
+    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
     
     // Lighting
-    float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
+    float3 lightColor = saturate(i.amb.rgb * _Brightness * saturate(i.lightModifier));
     
     // Primary Effects
     // Saturation boost
