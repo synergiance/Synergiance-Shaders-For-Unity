@@ -1,5 +1,8 @@
 Change Log
 
+0.2.8.1:
+Fixed unity package, forgot to include the editor, sorry guys!
+
 0.2.8:
 You can now oversaturate your models! Saturation boost added.
 HSB mode! Now you can change the color of your textures completely within your materials!

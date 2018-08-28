@@ -86,6 +86,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty sphereAddTex;
     MaterialProperty sphereMulTex;
     MaterialProperty sphereMode;
+    MaterialProperty saturationBoost;
     
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
@@ -123,6 +124,7 @@ public class SynToonInspector : ShaderGUI
             sphereAddTex = FindProperty("_SphereAddTex", props);
             sphereMulTex = FindProperty("_SphereMulTex", props);
             sphereMode = FindProperty("_SphereMode", props);
+            saturationBoost = FindProperty("_SaturationBoost", props);
         }
         
         Material material = materialEditor.target as Material;
@@ -131,6 +133,7 @@ public class SynToonInspector : ShaderGUI
         bool shadowDisable = Array.IndexOf(material.shaderKeywords, "DISABLE_SHADOW") != -1;
         bool backfacecull = Array.IndexOf(material.shaderKeywords, "BCKFCECULL") != -1;
         bool rainbowEnable = Array.IndexOf(material.shaderKeywords, "RAINBOW") != -1;
+        bool hueMode = Array.IndexOf(material.shaderKeywords, "HUESHIFTMODE") != -1;
         bool pulseEnable = Array.IndexOf(material.shaderKeywords, "PULSE") != -1;
         bool transFix = Array.IndexOf(material.shaderKeywords, "TRANSFIX") != -1;
         
@@ -225,6 +228,7 @@ public class SynToonInspector : ShaderGUI
                 
                 EditorGUILayout.Space();
                 materialEditor.ShaderProperty(brightness, new GUIContent("Brightness", "How much light gets to your model.  This can have a better effect than darkening the color"));
+                materialEditor.ShaderProperty(saturationBoost, new GUIContent("Saturation Boost", "This will boost the saturation, don't turn it up too high unless you know what you're doing"));
 
                 var sMode = (ShadowMode)shadowMode.floatValue;
 
@@ -474,6 +478,22 @@ public class SynToonInspector : ShaderGUI
                     EditorGUI.indentLevel += 2;
                     materialEditor.ShaderProperty(shadowCastIntensity, new GUIContent("Intensity", "This is how much other objects affect your shadow"));
                     EditorGUI.indentLevel -= 2;
+                }
+                
+                EditorGUI.BeginChangeCheck();
+                hueMode = EditorGUILayout.Toggle(new GUIContent("HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost"), hueMode);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (hueMode)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("HUESHIFTMODE");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("HUESHIFTMODE");
+                        }
                 }
             }
             EditorGUI.EndChangeCheck();
