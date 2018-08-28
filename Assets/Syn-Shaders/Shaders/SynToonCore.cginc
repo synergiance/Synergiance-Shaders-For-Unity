@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.2.8.2
+// v0.2.8.3
 
-#define VERSION="v0.2.8.2"
+#define VERSION="v0.2.8.3"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -339,7 +339,7 @@ float4 frag4(VertexOutput i) : COLOR
     return float4(bright * lightColor, _AlphaOverride) * color;
 }
 
-float4 frag5(VertexOutput i) : COLOR
+float4 frag3(VertexOutput i) : COLOR
 {
     // Variables
     float4 color = tex2D(_MainTex, i.uv);
@@ -360,7 +360,8 @@ float4 frag5(VertexOutput i) : COLOR
     color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
     
     // Lighting
-    float3 lightColor = saturate(i.amb.rgb * _Brightness * saturate(i.lightModifier));
+    float _AmbientLight = 0.8;
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
     
     // Primary Effects
     // Saturation boost
@@ -386,6 +387,57 @@ float4 frag5(VertexOutput i) : COLOR
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
     return float4(lightColor, _AlphaOverride) * color;
+    //return float4(_LightColor0.rgb, _AlphaOverride) * color;
+}
+
+float4 frag5(VertexOutput i) : COLOR
+{
+    // Variables
+    float4 color = tex2D(_MainTex, i.uv);
+    float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
+    #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
+    clip (color.a - _Cutoff);
+    #endif
+    #if defined(HUESHIFTMODE)
+    float3 colhsv = RGBtoHSV(_Color.rgb);
+    float3 inphsv = RGBtoHSV(color.rgb);
+    inphsv.x = colhsv.x;
+    inphsv.y *= colhsv.y;
+    inphsv.z *= colhsv.z;
+    float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
+    #else
+    float4 shiftcolor = color.rgba * _Color.rgba;
+    #endif
+    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
+    
+    // Lighting
+    float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
+    
+    // Primary Effects
+    // Saturation boost
+    float3 hsvcol = RGBtoHSV(color.rgb);
+    hsvcol.y *= 1 + _SaturationBoost;
+    color.rgb = HSVtoRGB(hsvcol);
+    // Rainbow
+    #if defined(RAINBOW)
+    float4 maskcolor = tex2D(_RainbowMask, i.uv);
+    color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
+    #endif
+    
+    // Secondary Effects
+
+    // Outline
+    #if TINTED_OUTLINE
+    color.rgb *= _outline_color.rgb;
+    #elif COLORED_OUTLINE
+    color.rgb = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
+    #endif
+    // Outline Effects
+    
+    // Combining
+    UNITY_APPLY_FOG(i.fogCoord, color);
+    return float4(lightColor, _AlphaOverride) * color;
+    //return float4(_LightColor0.rgb, _AlphaOverride) * color;
 }
 
 [maxvertexcount(6)]

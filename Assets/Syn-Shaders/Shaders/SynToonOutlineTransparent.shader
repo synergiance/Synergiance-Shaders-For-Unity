@@ -83,7 +83,7 @@ Shader "Synergiance/Toon-Outline/Transparent"
             
 			#pragma vertex vert
 			#pragma geometry geom2
-			#pragma fragment frag5
+			#pragma fragment frag3
             
 			#pragma only_renderers d3d11 glcore gles
 			#pragma target 4.0

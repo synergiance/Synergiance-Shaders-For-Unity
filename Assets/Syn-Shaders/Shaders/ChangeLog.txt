@@ -1,5 +1,8 @@
 Change Log
 
+0.2.8.3:
+Actually fixed outline lighting, turns out it only was affected in certain worlds.
+
 0.2.8.2:
 Fixed a bug with outlines, especially colored outlines, they should appear more colored and less black now.
 Fixed a bug where HSB mode would only apply to the forward pass, this should give more consistent colors.
