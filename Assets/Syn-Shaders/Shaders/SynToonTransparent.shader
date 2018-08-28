@@ -31,6 +31,7 @@ Shader "Synergiance/Toon/Transparent"
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
+        _SaturationBoost ("Saturation Boost", Range(0,5)) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -78,6 +79,7 @@ Shader "Synergiance/Toon/Transparent"
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
             #pragma shader_feature _ OVERRIDE_REALTIME
+            #pragma shader_feature _ HUESHIFTMODE
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -110,6 +112,7 @@ Shader "Synergiance/Toon/Transparent"
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
             #pragma shader_feature _ OVERRIDE_REALTIME
+            #pragma shader_feature _ HUESHIFTMODE
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom

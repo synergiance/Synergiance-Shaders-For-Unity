@@ -31,6 +31,7 @@ Shader "Synergiance/Toon/Cutout"
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
+        _SaturationBoost ("Saturation Boost", Range(0,5)) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0

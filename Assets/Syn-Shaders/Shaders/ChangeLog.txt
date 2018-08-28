@@ -1,5 +1,9 @@
 Change Log
 
+0.2.8:
+You can now oversaturate your models! Saturation boost added.
+HSB mode! Now you can change the color of your textures completely within your materials!
+
 0.2.7:
 Fixed how sphere textures apply, should look better than before this broke (thanks Unity for that)
 Improve support for double sided transparent textures, will now render in two separate passes

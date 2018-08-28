@@ -50,12 +50,12 @@ float3 HUEtoRGB(in float H)
 float3 HSVtoRGB(in float3 HSV)
 {
     float3 RGB = HUEtoRGB(HSV.x);
-    return ((RGB - 1) * HSV.y + 1) * HSV.z;
+    return saturate(((RGB - 1) * HSV.y + 1) * HSV.z);
 }
 
 float3 RGBtoHSV(in float3 RGB)
 {
     float3 HCV = RGBtoHCV(RGB);
     float S = HCV.y / (HCV.z + Epsilon);
-    return float3(HCV.x, S, HCV.z);
+    return saturate(float3(HCV.x, S, HCV.z));
 }

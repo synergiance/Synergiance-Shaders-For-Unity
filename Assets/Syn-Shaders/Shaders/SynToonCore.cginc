@@ -1,16 +1,14 @@
 // SynToon by Synergiance
-// v0.2.7
+// v0.2.8
 
-#define VERSION="v0.2.7"
+#define VERSION="v0.2.8"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
 #include "UnityCG.cginc"
 #include "AutoLight.cginc"
 #include "Lighting.cginc"
-#if defined(RAINBOW)
 #include "HSB.cginc"
-#endif
 
 sampler2D _MainTex;
 sampler2D _BumpMap;
@@ -37,6 +35,7 @@ float _shadowcast_intensity;
 #endif
 float _Cutoff;
 float _AlphaOverride;
+float _SaturationBoost;
 #if defined(RAINBOW)
 sampler2D _RainbowMask;
 float _Speed;
@@ -229,7 +228,17 @@ float4 frag(VertexOutput i) : SV_Target
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
     #endif
-    color = lerp((color.rgba*_Color.rgba),color.rgba,_ColorMask_var.r);
+    #if defined(HUESHIFTMODE)
+    float3 colhsv = RGBtoHSV(_Color.rgb);
+    float3 inphsv = RGBtoHSV(color.rgb);
+    inphsv.x = colhsv.x;
+    inphsv.y *= colhsv.y;
+    inphsv.z *= colhsv.z;
+    float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
+    #else
+    float4 shiftcolor = color.rgba * _Color.rgba;
+    #endif
+    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
     
     // Lighting
     float attenuation = LIGHT_ATTENUATION(i);
@@ -250,6 +259,10 @@ float4 frag(VertexOutput i) : SV_Target
     #endif
     
     // Primary effects
+    // Saturation boost
+    float3 hsvcol = RGBtoHSV(color.rgb);
+    hsvcol.y *= 1 + _SaturationBoost;
+    color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
@@ -293,6 +306,10 @@ float4 frag4(VertexOutput i) : COLOR
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
     float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
     
+    // Saturation boost
+    float3 hsvcol = RGBtoHSV(color.rgb);
+    hsvcol.y *= 1 + _SaturationBoost;
+    color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
@@ -326,6 +343,10 @@ float4 frag5(VertexOutput i) : COLOR
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
     
     // Primary Effects
+    // Saturation boost
+    float3 hsvcol = RGBtoHSV(color.rgb);
+    hsvcol.y *= 1 + _SaturationBoost;
+    color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);

@@ -31,6 +31,7 @@ Shader "Synergiance/Toon-Outline"
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
+        _SaturationBoost ("Saturation Boost", Range(0,5)) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -78,6 +79,7 @@ Shader "Synergiance/Toon-Outline"
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #pragma shader_feature _ HUESHIFTMODE
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -109,6 +111,7 @@ Shader "Synergiance/Toon-Outline"
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #pragma shader_feature _ HUESHIFTMODE
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom2
