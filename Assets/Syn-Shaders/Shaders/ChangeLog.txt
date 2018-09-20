@@ -1,5 +1,12 @@
 Change Log
 
+0.3.0:
+Added a fix for light textures not drawing correctly, this affects point lights, spot lights, and shadow casts
+Now you can disable the overbright protection code I added, this is recommended when you bump the shadow cast intensity up
+Panospheres added, you can define a panosphere and even overlay it
+Known Issues:
+Flat panospheres, screen mode, don't work at all, do not use
+
 0.2.8.3:
 Actually fixed outline lighting, turns out it only was affected in certain worlds.
 

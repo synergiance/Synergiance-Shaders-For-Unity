@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.2.8.3
+// v0.3.0
 
-#define VERSION="v0.2.8.3"
+#define VERSION="v0.3.0"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -9,6 +9,7 @@
 #include "AutoLight.cginc"
 #include "Lighting.cginc"
 #include "HSB.cginc"
+#include "Rotate.cginc"
 
 sampler2D _MainTex;
 sampler2D _BumpMap;
@@ -47,6 +48,12 @@ uniform float4 _outline_color;
 sampler2D _SphereAddTex;
 sampler2D _SphereMulTex;
 uniform float4 _StaticToonLight;
+samplerCUBE _PanoSphereTex;
+sampler2D _PanoFlatTex;
+sampler2D _PanoOverlayTex;
+float _PanoRotationSpeedX;
+float _PanoRotationSpeedY;
+float _PanoBlend;
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -138,14 +145,22 @@ v2g vert(appdata_full v)
     float brightness = lightColor.r * 0.3 + lightColor.g * 0.59 + lightColor.b * 0.11;
     float correctedBrightness = -1 / (brightness * 2 + 1) + 1 + brightness * 0.1;
     o.lightModifier = correctedBrightness / brightness;
+    
     return o;
 }
 
+//float4 calcSpecular(float4 lightDirection);
+//{
+//	float dirDotNormalHalf = max(0, dot(s.Normal, normalize(lightDir + viewDir)));
+//	float dirSpecularWeight = pow( dirDotNormalHalf, _Shininess );
+//	float4 dirSpecular = _SpecularColor * lightColor * dirSpecularWeight;
+//}
+
 float3 calcShadow(float3 position, float3 normal, float atten)
-{// Generate the shadow based on the light direction (and soon take shadow maps into account)
+{// Generate the shadow based on the light direction
     float3 bright = float3(1.0, 1.0, 1.0);
     #if !NO_SHADOW
-    float lightScale = 0;
+    float lightScale = 1;
     #if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
     float3 lightDirection = normalize(_StaticToonLight.rgb);
     #elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
@@ -167,6 +182,10 @@ float3 calcShadow(float3 position, float3 normal, float atten)
     #else
     atten = 1;
     #endif
+    if (abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01)
+    {
+        atten = 1;
+    }
     lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
     #endif
     #if defined(IS_OPAQUE) && !DISABLE_SHADOW
@@ -218,6 +237,31 @@ float3 applySphere(float3 color, float3 view, float3 normal)
     return color;
 }
 
+float3 applyPano(float3 color, float3 view, float2 coord, float2 uv)
+{
+    #if !NO_PANO
+    float3 col;
+    float2 transform = float2(_Time[1] * _PanoRotationSpeedX, _Time[1] * _PanoRotationSpeedY);
+    #if SPHERE_PANO
+    float3 newview = RotatePointAroundOrigin(view, transform);
+    col = texCUBE(_PanoSphereTex, newview);
+    #elif SCREEN_PANO
+    float2 newcoord = coord + transform;
+    col = tex2D(_PanoFlatTex, coord);
+    #endif
+    #if PANOOVERLAY
+    float4 ocol = tex2D(_PanoOverlayTex, uv);
+    #if PANOALPHA
+    col = lerp(col, ocol.rgb, ocol.a);
+    #else
+    col += ocol.rgb;
+    #endif
+    #endif
+    color = lerp(color, col, _PanoBlend);
+    #endif
+    return color;
+}
+
 float4 frag(VertexOutput i) : SV_Target
 {
     // Variables
@@ -249,14 +293,21 @@ float4 frag(VertexOutput i) : SV_Target
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
     float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
+    #if defined(ALLOWOVERBRIGHT)
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness);
+    #else
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
+    #endif
     
     // Pulse
     #if defined(PULSE)
     float4 pulsemask = tex2D(_EmissionPulseMap, i.uv);
     emissive = lerp(emissive, _EmissionPulseColor.rgb*pulsemask.rgb, (sin(_Time[1] * _EmissionSpeed * _EmissionSpeed * _EmissionSpeed) + 1) / 2);
     #endif
+    
+    // Secondary Effects
+    color.rgb = applyPano(color.rgb, viewDirection, i.pos.xy / i.pos.w * 0.5 + 0.5, i.uv);
     
     // Primary effects
     // Saturation boost
@@ -270,8 +321,6 @@ float4 frag(VertexOutput i) : SV_Target
     bright = hueShift(bright, maskcolor.rgb);
     emissive = hueShift(emissive, 1);
     #endif
-    
-    // Secondary Effects
 
     // Outline
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
@@ -308,13 +357,30 @@ float4 frag4(VertexOutput i) : COLOR
     
     // Lighting
     float attenuation = LIGHT_ATTENUATION(i);
+    #if defined (POINT) || defined (SPOT)
+    attenuation = tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
+    #if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
+    attenuation *= SHADOW_ATTENUATION(i) * _shadowcast_intensity + (1 - _shadowcast_intensity);
+    #endif
+    #endif
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
     float3 _BumpMap_var = UnpackNormal(tex2D(_BumpMap,i.uv));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
+    float3 bright = calcShadow(i.posWorld.xyz, normalDirection, 1);
+    #if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
+    bright *= attenuation * _shadowcast_intensity + (1 - _shadowcast_intensity);
+    #elif defined (POINT) || defined (SPOT)
+    bright *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
+    #endif
+    #if defined(ALLOWOVERBRIGHT)
+    float3 lightColor = saturate(i.amb.rgb * _Brightness);
+    #else
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
-    float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
+    #endif
+    
+    color.rgb = applyPano(color.rgb, viewDirection, i.pos.xy / i.pos.w * 0.5 + 0.5, i.uv);
     
     // Saturation boost
     float3 hsvcol = RGBtoHSV(color.rgb);
@@ -361,7 +427,11 @@ float4 frag3(VertexOutput i) : COLOR
     
     // Lighting
     float _AmbientLight = 0.8;
+    #if defined(ALLOWOVERBRIGHT)
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness);
+    #else
     float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
+    #endif
     
     // Primary Effects
     // Saturation boost
@@ -411,7 +481,11 @@ float4 frag5(VertexOutput i) : COLOR
     color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
     
     // Lighting
+    #if defined(ALLOWOVERBRIGHT)
+    float3 lightColor = saturate(i.amb.rgb * _Brightness);
+    #else
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
+    #endif
     
     // Primary Effects
     // Saturation boost
@@ -433,6 +507,10 @@ float4 frag5(VertexOutput i) : COLOR
     color.rgb = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
     #endif
     // Outline Effects
+    
+    #ifdef POINT
+    //lightColor *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
+    #endif
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);

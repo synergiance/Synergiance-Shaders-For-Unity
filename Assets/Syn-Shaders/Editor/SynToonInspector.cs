@@ -52,6 +52,13 @@ public class SynToonInspector : ShaderGUI
         Add,
         Mul
     }
+    
+    public enum PanoMode
+    {
+        None,
+        Sphere,
+        Screen
+    }
 
     MaterialProperty blendMode;
     MaterialProperty mainTexture;
@@ -63,6 +70,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty shadowWidth;
     MaterialProperty shadowFeather;
     MaterialProperty shadowAmbient;
+    MaterialProperty shadowAmbAdd;
     MaterialProperty shadowCastIntensity;
     MaterialProperty shadowTint;
     MaterialProperty shadowRamp;
@@ -87,6 +95,13 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty sphereMulTex;
     MaterialProperty sphereMode;
     MaterialProperty saturationBoost;
+    MaterialProperty panoSphereMode;
+    MaterialProperty panoSphereTex;
+    MaterialProperty panoFlatTex;
+    MaterialProperty panoRotationSpeedX;
+    MaterialProperty panoRotationSpeedY;
+    MaterialProperty panoOverlayTex;
+    MaterialProperty panoBlend;
     
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
@@ -101,6 +116,7 @@ public class SynToonInspector : ShaderGUI
             shadowWidth = FindProperty("_shadow_coverage", props);
             shadowFeather = FindProperty("_shadow_feather", props);
             shadowAmbient = FindProperty("_ShadowAmbient", props);
+            shadowAmbAdd = FindProperty("_ShadowAmbAdd", props);
             shadowCastIntensity = FindProperty("_shadowcast_intensity", props);
             shadowTint = FindProperty("_ShadowTint", props);
             shadowRamp = FindProperty("_ShadowRamp", props);
@@ -125,10 +141,18 @@ public class SynToonInspector : ShaderGUI
             sphereMulTex = FindProperty("_SphereMulTex", props);
             sphereMode = FindProperty("_SphereMode", props);
             saturationBoost = FindProperty("_SaturationBoost", props);
+            panoSphereMode = FindProperty("_PanoMode", props);
+            panoSphereTex = FindProperty("_PanoSphereTex", props);
+            panoFlatTex = FindProperty("_PanoFlatTex", props);
+            panoRotationSpeedX = FindProperty("_PanoRotationSpeedX", props);
+            panoRotationSpeedY = FindProperty("_PanoRotationSpeedY", props);
+            panoOverlayTex = FindProperty("_PanoOverlayTex", props);
+            panoBlend = FindProperty("_PanoBlend", props);
         }
         
         Material material = materialEditor.target as Material;
         
+        bool allowOverbright = Array.IndexOf(material.shaderKeywords, "ALLOWOVERBRIGHT") != -1;
         bool realOverride = Array.IndexOf(material.shaderKeywords, "OVERRIDE_REALTIME") != -1;
         bool shadowDisable = Array.IndexOf(material.shaderKeywords, "DISABLE_SHADOW") != -1;
         bool backfacecull = Array.IndexOf(material.shaderKeywords, "BCKFCECULL") != -1;
@@ -136,6 +160,8 @@ public class SynToonInspector : ShaderGUI
         bool hueMode = Array.IndexOf(material.shaderKeywords, "HUESHIFTMODE") != -1;
         bool pulseEnable = Array.IndexOf(material.shaderKeywords, "PULSE") != -1;
         bool transFix = Array.IndexOf(material.shaderKeywords, "TRANSFIX") != -1;
+        bool panoAlpha = Array.IndexOf(material.shaderKeywords, "PANOALPHA") != -1;
+        bool panoOverlay = Array.IndexOf(material.shaderKeywords, "PANOOVERLAY") != -1;
         
         { //Shader Properties GUI
             EditorGUIUtility.labelWidth = 0f;
@@ -356,6 +382,94 @@ public class SynToonInspector : ShaderGUI
                         break;
                 }
                 EditorGUILayout.Space();
+                
+                GUILayout.Label("Effects", EditorStyles.boldLabel);
+
+                var panoMode = (PanoMode)panoSphereMode.floatValue;
+
+                EditorGUI.BeginChangeCheck();
+                panoMode = (PanoMode)EditorGUILayout.Popup("Panosphere Mode", (int)panoMode, Enum.GetNames(typeof(PanoMode)));
+                
+                if (EditorGUI.EndChangeCheck())
+                {
+                    materialEditor.RegisterPropertyChangeUndo("Panosphere Mode");
+                    panoSphereMode.floatValue = (float)panoMode;
+
+                    foreach (var obj in panoSphereMode.targets)
+                        SetupMaterialWithPanoMode((Material)obj, (PanoMode)material.GetFloat("_PanoMode"));
+
+                }
+                switch (panoMode)
+                {
+                    case PanoMode.Sphere:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Panosphere Texture", "Panosphere Texture (Sphere Directional Mode)"), panoSphereTex);
+                        materialEditor.ShaderProperty(panoBlend, new GUIContent("Blend", "Mix between normal albedo and panosphere"));
+                        materialEditor.ShaderProperty(panoRotationSpeedX, new GUIContent("Rotation Speed (X)", "Rotate the panosphere texture (Set to 0 to turn off)"));
+                        materialEditor.ShaderProperty(panoRotationSpeedY, new GUIContent("Rotation Speed (Y)", "Rotate the panosphere texture (Set to 0 to turn off)"));
+                        EditorGUI.BeginChangeCheck();
+                        panoOverlay = EditorGUILayout.Toggle(new GUIContent("Overlay", "Use an overlay for the panosphere"), panoOverlay);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            if (panoOverlay)
+                                foreach (Material mat in materialEditor.targets)
+                                    mat.EnableKeyword("PANOOVERLAY");
+                            else
+                                foreach (Material mat in materialEditor.targets)
+                                    mat.DisableKeyword("PANOOVERLAY");
+                        }
+                        if (panoOverlay)
+                        {
+                            EditorGUI.indentLevel += 2;
+                            materialEditor.TexturePropertySingleLine(new GUIContent("Texture", "Overlay for panosphere"), panoOverlayTex);
+                            EditorGUI.BeginChangeCheck();
+                            panoAlpha = EditorGUILayout.Toggle(new GUIContent("Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha"), panoAlpha);
+                            EditorGUI.indentLevel -= 2;
+                        }
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case PanoMode.Screen:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Panosphere Texture", "Panosphere Texture (Screen Positional Mode)"), panoFlatTex);
+                        materialEditor.ShaderProperty(panoBlend, new GUIContent("Blend", "Mix between normal albedo and panosphere"));
+                        materialEditor.ShaderProperty(panoRotationSpeedX, new GUIContent("Rotation Speed (X)", "Rotate the panosphere texture (Set to 0 to turn off)"));
+                        materialEditor.ShaderProperty(panoRotationSpeedY, new GUIContent("Rotation Speed (Y)", "Rotate the panosphere texture (Set to 0 to turn off)"));
+                        EditorGUI.BeginChangeCheck();
+                        panoOverlay = EditorGUILayout.Toggle(new GUIContent("Overlay", "Use an overlay for the panosphere"), panoOverlay);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            if (panoOverlay)
+                                foreach (Material mat in materialEditor.targets)
+                                    mat.EnableKeyword("PANOOVERLAY");
+                            else
+                                foreach (Material mat in materialEditor.targets)
+                                    mat.DisableKeyword("PANOOVERLAY");
+                        }
+                        if (panoOverlay)
+                        {
+                            EditorGUI.indentLevel += 2;
+                            materialEditor.TexturePropertySingleLine(new GUIContent("Texture", "Overlay for panosphere"), panoOverlayTex);
+                            EditorGUI.BeginChangeCheck();
+                            panoAlpha = EditorGUILayout.Toggle(new GUIContent("Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha"), panoAlpha);
+                            EditorGUI.indentLevel -= 2;
+                        }
+                        EditorGUILayout.HelpBox("This section does not work, in fact it's super broken, use a cube map instead with the sphere mode", MessageType.Info);
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case PanoMode.None:
+                    default:
+                        break;
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (panoAlpha)
+                        foreach (Material mat in materialEditor.targets)
+                            mat.EnableKeyword("PANOALPHA");
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                            mat.DisableKeyword("PANOALPHA");
+                }
+                EditorGUILayout.Space();
 
                 GUILayout.Label("Advanced Options", EditorStyles.boldLabel);
                 materialEditor.RenderQueueField();
@@ -477,6 +591,7 @@ public class SynToonInspector : ShaderGUI
                 if (!shadowDisable && (BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
                     EditorGUI.indentLevel += 2;
                     materialEditor.ShaderProperty(shadowCastIntensity, new GUIContent("Intensity", "This is how much other objects affect your shadow"));
+                    materialEditor.ShaderProperty(shadowAmbAdd, new GUIContent("Ambient", "Controls casted ambient light, values above zero will cause visible squares around point lights"));
                     EditorGUI.indentLevel -= 2;
                 }
                 
@@ -493,6 +608,22 @@ public class SynToonInspector : ShaderGUI
                         foreach (Material mat in materialEditor.targets)
                         {
                             mat.DisableKeyword("HUESHIFTMODE");
+                        }
+                }
+                
+                EditorGUI.BeginChangeCheck();
+                allowOverbright = !EditorGUILayout.Toggle(new GUIContent("Overbright Protection", "Protects against overbright worlds"), !allowOverbright);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (allowOverbright)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("ALLOWOVERBRIGHT");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("ALLOWOVERBRIGHT");
                         }
                 }
             }
@@ -673,6 +804,30 @@ public class SynToonInspector : ShaderGUI
                 material.DisableKeyword("NO_SPHERE");
                 material.DisableKeyword("ADD_SPHERE");
                 material.EnableKeyword("MUL_SPHERE");
+                break;
+            default:
+                break;
+        }
+    }
+
+    public static void SetupMaterialWithPanoMode(Material material, PanoMode panoMode)
+    {
+        switch ((PanoMode)material.GetFloat("_PanoMode"))
+        {
+            case PanoMode.None:
+                material.EnableKeyword("NO_PANO");
+                material.DisableKeyword("SPHERE_PANO");
+                material.DisableKeyword("SCREEN_PANO");
+                break;
+            case PanoMode.Sphere:
+                material.DisableKeyword("NO_PANO");
+                material.EnableKeyword("SPHERE_PANO");
+                material.DisableKeyword("SCREEN_PANO");
+                break;
+            case PanoMode.Screen:
+                material.DisableKeyword("NO_PANO");
+                material.DisableKeyword("SPHERE_PANO");
+                material.EnableKeyword("SCREEN_PANO");
                 break;
             default:
                 break;
