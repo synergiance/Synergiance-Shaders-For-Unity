@@ -1,5 +1,10 @@
 Change Log
 
+0.3.1:
+Added another level of transparent fix since one seems not to have been enough, I may add a few more in the future.  This will remove your fix setting in the inspector
+Spotlights fixed, lighting should look amaze in forward add, directional lights beware
+Shadow intensity slider will no longer work, at least for now, functionality will be determined when I find out if it's needed
+
 0.3.0:
 Added a fix for light textures not drawing correctly, this affects point lights, spot lights, and shadow casts
 Now you can disable the overbright protection code I added, this is recommended when you bump the shadow cast intensity up

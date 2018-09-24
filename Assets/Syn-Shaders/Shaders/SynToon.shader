@@ -45,6 +45,7 @@ Shader "Synergiance/Toon"
 		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
+		[HideInInspector] _TransFix("__transparent_fix", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
         [HideInInspector] _PanoMode ("__pano_mode", Float) = 0.0

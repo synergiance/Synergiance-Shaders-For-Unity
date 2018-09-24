@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (Outline/Cutout)
+// Synergiance Toon Shader (Outline/TransparentFix2)
 
-Shader "Synergiance/Toon-Outline/Cutout"
+Shader "Synergiance/Toon-Outline/TransparentFix2DS"
 {
 	Properties
 	{
@@ -59,21 +59,22 @@ Shader "Synergiance/Toon-Outline/Cutout"
 	{
 		Tags
 		{
-			"Queue" = "AlphaTest"
+			"Queue" = "Transparent+100"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
-        Cull [_CullMode]
 
-        UsePass "Synergiance/Toon/FORWARD"
+        UsePass "Synergiance/Toon/TransparentDS/BACKSIDE"
         
-        UsePass "Synergiance/Toon/FORWARD_DELTA"
+        UsePass "Synergiance/Toon/TransparentDS/BACKSIDE_DELTA"
+
+        UsePass "Synergiance/Toon/Transparent/FORWARD"
         
-        UsePass "Synergiance/Toon-Outline/OUTLINE"
+        UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
+
+        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE"
         
-        UsePass "Synergiance/Toon-Outline/OUTLINE_DELTA"
-        
-        UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
+        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE_DELTA"
 	}
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"

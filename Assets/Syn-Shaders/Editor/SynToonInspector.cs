@@ -59,12 +59,20 @@ public class SynToonInspector : ShaderGUI
         Sphere,
         Screen
     }
+    
+    public enum TransFix
+    {
+        None,
+        Level1,
+        Level2
+    }
 
     MaterialProperty blendMode;
     MaterialProperty mainTexture;
     MaterialProperty color;
     MaterialProperty colorMask;
     MaterialProperty lightingHack;
+    MaterialProperty transFix;
     MaterialProperty staticLight;
     MaterialProperty shadowMode;
     MaterialProperty shadowWidth;
@@ -111,6 +119,7 @@ public class SynToonInspector : ShaderGUI
             color = FindProperty("_Color", props);
             colorMask = FindProperty("_ColorMask", props);
             lightingHack = FindProperty("_LightingHack", props);
+            transFix = FindProperty("_TransFix", props);
             staticLight = FindProperty("_StaticToonLight", props);
             shadowMode = FindProperty("_ShadowMode", props);
             shadowWidth = FindProperty("_shadow_coverage", props);
@@ -159,7 +168,6 @@ public class SynToonInspector : ShaderGUI
         bool rainbowEnable = Array.IndexOf(material.shaderKeywords, "RAINBOW") != -1;
         bool hueMode = Array.IndexOf(material.shaderKeywords, "HUESHIFTMODE") != -1;
         bool pulseEnable = Array.IndexOf(material.shaderKeywords, "PULSE") != -1;
-        bool transFix = Array.IndexOf(material.shaderKeywords, "TRANSFIX") != -1;
         bool panoAlpha = Array.IndexOf(material.shaderKeywords, "PANOALPHA") != -1;
         bool panoOverlay = Array.IndexOf(material.shaderKeywords, "PANOOVERLAY") != -1;
         
@@ -181,7 +189,7 @@ public class SynToonInspector : ShaderGUI
                     foreach (var obj in blendMode.targets)
                     {
                         SetupMaterialWithBlendMode((Material)obj, (BlendMode)material.GetFloat("_Mode"));
-                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix, !backfacecull);
+                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
                     }
                 }
 
@@ -309,7 +317,7 @@ public class SynToonInspector : ShaderGUI
                     foreach (var obj in outlineMode.targets)
                     {
                         SetupMaterialWithOutlineMode((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"));
-                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix, !backfacecull);
+                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
                     }
 
                 }
@@ -483,39 +491,35 @@ public class SynToonInspector : ShaderGUI
                         {
                             mat.EnableKeyword("BCKFCECULL");
                             mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Back);
-                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix, !backfacecull);
+                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
                         }
                     else
                         foreach (Material mat in materialEditor.targets)
                         {
                             mat.DisableKeyword("BCKFCECULL");
                             mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
-                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix, !backfacecull);
+                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
                         }
                 }
                 
+                var tFix = (TransFix)transFix.floatValue;
                 EditorGUI.BeginChangeCheck();
                 if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) {
-                    transFix = EditorGUILayout.Toggle(new GUIContent("Transparent Fix", "This makes this material render later than other transparent materials"), transFix);
+                    tFix = (TransFix)EditorGUILayout.Popup("Transparent Fix", (int)tFix, Enum.GetNames(typeof(TransFix)));
                 } else {
                     GUI.enabled = false;
-                    transFix = EditorGUILayout.Toggle(new GUIContent("Transparent Fix", "This makes this material render later than other transparent materials"), false);
+                    tFix = (TransFix)EditorGUILayout.Popup("Transparent Fix", (int)tFix, Enum.GetNames(typeof(TransFix)));
                     GUI.enabled = true;
                 }
                 if (EditorGUI.EndChangeCheck())
                 {
-                    if (transFix)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("TRANSFIX");
-                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix, !backfacecull);
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("TRANSFIX");
-                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), transFix, !backfacecull);
-                        }
+                    materialEditor.RegisterPropertyChangeUndo("Transparent Fix");
+                    transFix.floatValue = (float)tFix;
+
+                    foreach (var obj in transFix.targets)
+                    {
+                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
+                    }
                 }
 
                 var lHack = (LightingHack)lightingHack.floatValue;
@@ -834,9 +838,10 @@ public class SynToonInspector : ShaderGUI
         }
     }
     
-    public static void SetupMaterialShaderSelect(Material material, OutlineMode outlineMode, BlendMode blendMode, bool transparentFix, bool doubleSided)
+    public static void SetupMaterialShaderSelect(Material material, OutlineMode outlineMode, BlendMode blendMode, TransFix transparentFix, bool doubleSided)
     {
         string shaderName = "Synergiance/Toon";
+        float transFix = (float)material.GetFloat("_TransFix");
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
             case OutlineMode.Outside:
@@ -863,7 +868,8 @@ public class SynToonInspector : ShaderGUI
                 break;
             case BlendMode.Alphablend:
                 shaderName += "/Transparent";
-                if (transparentFix) shaderName += "Fix";
+                if (transFix > 0) shaderName += "Fix";
+                if (transFix > 1) shaderName += "2";
                 if (doubleSided) shaderName += "DS";
                 break;
             default:

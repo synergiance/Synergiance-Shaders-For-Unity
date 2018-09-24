@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.3.0
+// v0.3.1
 
-#define VERSION="v0.3.0"
+#define VERSION="v0.3.1"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -189,7 +189,8 @@ float3 calcShadow(float3 position, float3 normal, float atten)
     lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
     #endif
     #if defined(IS_OPAQUE) && !DISABLE_SHADOW
-    lightScale *= atten * _shadowcast_intensity + (1 - _shadowcast_intensity);
+    //lightScale *= atten * _shadowcast_intensity + (1 - _shadowcast_intensity);
+    lightScale *= atten;
     #endif
     #if TINTED_SHADOW
     float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
@@ -357,23 +358,25 @@ float4 frag4(VertexOutput i) : COLOR
     
     // Lighting
     float attenuation = LIGHT_ATTENUATION(i);
-    #if defined (POINT) || defined (SPOT)
-    attenuation = tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
-    #if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
-    attenuation *= SHADOW_ATTENUATION(i) * _shadowcast_intensity + (1 - _shadowcast_intensity);
-    #endif
-    #endif
+    //#if defined (POINT) || defined (SPOT)
+    //attenuation = tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
+    //#if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
+    //attenuation *= SHADOW_ATTENUATION(i) * _shadowcast_intensity + (1 - _shadowcast_intensity);
+    //#endif
+    //#endif
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
     float3 _BumpMap_var = UnpackNormal(tex2D(_BumpMap,i.uv));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 bright = calcShadow(i.posWorld.xyz, normalDirection, 1);
-    #if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
-    bright *= attenuation * _shadowcast_intensity + (1 - _shadowcast_intensity);
-    #elif defined (POINT) || defined (SPOT)
-    bright *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
-    #endif
+    bright *= attenuation;
+    //#if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
+    //bright *= attenuation * _shadowcast_intensity + (1 - _shadowcast_intensity);
+    //#elif defined (POINT) || defined (SPOT)
+    //bright *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
+    //bright = 1;
+    //#endif
     #if defined(ALLOWOVERBRIGHT)
     float3 lightColor = saturate(i.amb.rgb * _Brightness);
     #else
