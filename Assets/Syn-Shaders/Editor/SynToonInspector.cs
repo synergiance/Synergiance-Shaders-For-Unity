@@ -99,6 +99,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty rainbowMask;
     MaterialProperty rainbowSpeed;
     MaterialProperty brightness;
+    MaterialProperty gammaLevel;
     MaterialProperty sphereAddTex;
     MaterialProperty sphereMulTex;
     MaterialProperty sphereMode;
@@ -145,6 +146,7 @@ public class SynToonInspector : ShaderGUI
             rainbowMask = FindProperty("_RainbowMask", props);
             rainbowSpeed = FindProperty("_Speed", props);
             brightness = FindProperty("_Brightness", props);
+            gammaLevel = FindProperty("_CorrectionLevel", props);
             alphaOverride = FindProperty("_AlphaOverride", props);
             sphereAddTex = FindProperty("_SphereAddTex", props);
             sphereMulTex = FindProperty("_SphereMulTex", props);
@@ -164,12 +166,15 @@ public class SynToonInspector : ShaderGUI
         bool allowOverbright = Array.IndexOf(material.shaderKeywords, "ALLOWOVERBRIGHT") != -1;
         bool realOverride = Array.IndexOf(material.shaderKeywords, "OVERRIDE_REALTIME") != -1;
         bool shadowDisable = Array.IndexOf(material.shaderKeywords, "DISABLE_SHADOW") != -1;
+        bool shadeEmission = Array.IndexOf(material.shaderKeywords, "SHADEEMISSION") != -1;
+        bool sleepEmission = Array.IndexOf(material.shaderKeywords, "SLEEPEMISSION") != -1;
         bool backfacecull = Array.IndexOf(material.shaderKeywords, "BCKFCECULL") != -1;
         bool rainbowEnable = Array.IndexOf(material.shaderKeywords, "RAINBOW") != -1;
         bool hueMode = Array.IndexOf(material.shaderKeywords, "HUESHIFTMODE") != -1;
         bool pulseEnable = Array.IndexOf(material.shaderKeywords, "PULSE") != -1;
         bool panoAlpha = Array.IndexOf(material.shaderKeywords, "PANOALPHA") != -1;
         bool panoOverlay = Array.IndexOf(material.shaderKeywords, "PANOOVERLAY") != -1;
+        bool gammaCorrect = Array.IndexOf(material.shaderKeywords, "GAMMACORRECT") != -1;
         
         { //Shader Properties GUI
             EditorGUIUtility.labelWidth = 0f;
@@ -208,6 +213,38 @@ public class SynToonInspector : ShaderGUI
                 materialEditor.TexturePropertySingleLine(new GUIContent("Emission", "Emission (RGB)"), emissionMap, emissionColor);
                 
                 EditorGUILayout.Space();
+                EditorGUI.BeginChangeCheck();
+                shadeEmission = EditorGUILayout.Toggle("Shaded Emission", shadeEmission);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (shadeEmission)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("SHADEEMISSION");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("SHADEEMISSION");
+                        }
+                }
+                
+                EditorGUI.BeginChangeCheck();
+                sleepEmission = EditorGUILayout.Toggle("Hide Emission", sleepEmission);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (sleepEmission)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("SLEEPEMISSION");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("SLEEPEMISSION");
+                        }
+                }
+                
                 EditorGUI.BeginChangeCheck();
                 pulseEnable = EditorGUILayout.Toggle("Pulse Emission", pulseEnable);
                 if (EditorGUI.EndChangeCheck())
@@ -629,6 +666,27 @@ public class SynToonInspector : ShaderGUI
                         {
                             mat.DisableKeyword("ALLOWOVERBRIGHT");
                         }
+                }
+                EditorGUI.BeginChangeCheck();
+                gammaCorrect = EditorGUILayout.Toggle(new GUIContent("Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray."), gammaCorrect);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (gammaCorrect)
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.EnableKeyword("GAMMACORRECT");
+                        }
+                    else
+                        foreach (Material mat in materialEditor.targets)
+                        {
+                            mat.DisableKeyword("GAMMACORRECT");
+                        }
+                }
+                if (gammaCorrect)
+                {
+                    EditorGUI.indentLevel += 2;
+                    materialEditor.ShaderProperty(gammaLevel, new GUIContent("Intensity", "Effectiveness of gamma correction."));
+                    EditorGUI.indentLevel -= 2;
                 }
             }
             EditorGUI.EndChangeCheck();

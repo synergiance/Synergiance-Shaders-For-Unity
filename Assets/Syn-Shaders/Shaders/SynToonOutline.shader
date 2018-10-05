@@ -26,6 +26,7 @@ Shader "Synergiance/Toon-Outline"
 		_EmissionPulseMap("Emission Pulse Map", 2D) = "white" {}
 		[HDR]_EmissionPulseColor("Emission Pulse Color", Color) = (0,0,0,1)
         _Brightness("Brightness", Range(0,1)) = 1
+        _CorrectionLevel("Gamma Correct", Range(0,1)) = 1
 		[Normal]_BumpMap("BumpMap", 2D) = "bump" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
@@ -90,6 +91,7 @@ Shader "Synergiance/Toon-Outline"
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT
+            #pragma shader_feature _ GAMMACORRECT
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -123,6 +125,7 @@ Shader "Synergiance/Toon-Outline"
             #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT
+            #pragma shader_feature _ GAMMACORRECT
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom2

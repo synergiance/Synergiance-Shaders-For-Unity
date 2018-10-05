@@ -23,6 +23,7 @@ sampler2D _EmissionPulseMap;
 float4 _EmissionPulseColor;
 #endif
 float _Brightness;
+float _CorrectionLevel;
 float4 _Color;
 #if !NO_SHADOW
 float _ShadowAmbient;
@@ -273,6 +274,9 @@ float4 frag(VertexOutput i) : SV_Target
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
     #endif
+    #if defined(GAMMACORRECT)
+    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
+    #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);
     float3 inphsv = RGBtoHSV(color.rgb);
@@ -307,6 +311,19 @@ float4 frag(VertexOutput i) : SV_Target
     emissive = lerp(emissive, _EmissionPulseColor.rgb*pulsemask.rgb, (sin(_Time[1] * _EmissionSpeed * _EmissionSpeed * _EmissionSpeed) + 1) / 2);
     #endif
     
+    // Shaded Emission
+    #if defined(SHADEEMISSION)
+    emissive *= calcShadow(i.posWorld.xyz, normalDirection, 1);
+    #if !NO_SPHERE
+    emissive = applySphere(emissive, viewDirection, normalDirection);
+    #endif
+    #endif
+    
+    // Hidden Emission
+    #if defined(SLEEPEMISSION)
+    emissive *= smoothstep(0.7, 1.0, 1 - (_LightColor0.r * 0.3 + _LightColor0.g * 0.59 + _LightColor0.b * 0.11));
+    #endif
+    
     // Secondary Effects
     color.rgb = applyPano(color.rgb, viewDirection, i.pos.xy / i.pos.w * 0.5 + 0.5, i.uv);
     
@@ -320,7 +337,7 @@ float4 frag(VertexOutput i) : SV_Target
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
     color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
     bright = hueShift(bright, maskcolor.rgb);
-    emissive = hueShift(emissive, 1);
+    emissive = hueShift(emissive, maskcolor.rgb);
     #endif
 
     // Outline
@@ -343,6 +360,9 @@ float4 frag4(VertexOutput i) : COLOR
     float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
+    #endif
+    #if defined(GAMMACORRECT)
+    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
     #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);
@@ -416,6 +436,9 @@ float4 frag3(VertexOutput i) : COLOR
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
     #endif
+    #if defined(GAMMACORRECT)
+    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
+    #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);
     float3 inphsv = RGBtoHSV(color.rgb);
@@ -470,6 +493,9 @@ float4 frag5(VertexOutput i) : COLOR
     float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
     clip (color.a - _Cutoff);
+    #endif
+    #if defined(GAMMACORRECT)
+    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
     #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);

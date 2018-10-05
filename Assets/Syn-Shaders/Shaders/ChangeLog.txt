@@ -1,5 +1,10 @@
 Change Log
 
+0.3.2:
+Added ability to shade your emission like the rest of your model
+Added ability to turn off emission below a certain light level
+Added gamma correction, this can help fix washed out models
+
 0.3.1:
 Added another level of transparent fix since one seems not to have been enough, I may add a few more in the future.  This will remove your fix setting in the inspector
 Spotlights fixed, lighting should look amaze in forward add, directional lights beware

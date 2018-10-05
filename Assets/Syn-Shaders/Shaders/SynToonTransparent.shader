@@ -26,6 +26,7 @@ Shader "Synergiance/Toon/Transparent"
 		_EmissionPulseMap("Emission Pulse Map", 2D) = "white" {}
 		[HDR]_EmissionPulseColor("Emission Pulse Color", Color) = (0,0,0,1)
         _Brightness("Brightness", Range(0,1)) = 1
+        _CorrectionLevel("Gamma Correct", Range(0,1)) = 1
 		[Normal]_BumpMap("BumpMap", 2D) = "bump" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
@@ -93,6 +94,9 @@ Shader "Synergiance/Toon/Transparent"
             #pragma shader_feature _ PANOOVERLAY
             #pragma shader_feature _ PANOALPHA
             #pragma shader_feature NO_PANO SPHERE_PANO SCREEN_PANO
+            #pragma shader_feature _ SLEEPEMISSION
+            #pragma shader_feature _ SHADEEMISSION
+            #pragma shader_feature _ GAMMACORRECT
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -130,6 +134,7 @@ Shader "Synergiance/Toon/Transparent"
             #pragma shader_feature _ PANOOVERLAY
             #pragma shader_feature _ PANOALPHA
             #pragma shader_feature NO_PANO SPHERE_PANO SCREEN_PANO
+            #pragma shader_feature _ GAMMACORRECT
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom

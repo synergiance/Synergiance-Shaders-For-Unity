@@ -1,6 +1,7 @@
 To Do:
 
 Fix screen mode panosphere
+Fix lighting code
 
 Effects:
 Primary effects, rainbow, wave rainbow, texture swap
@@ -8,7 +9,5 @@ Secondary effects, overlay
 Outline effects, rainbow, wave rainbow (texture swap already needs to swap the outline)
 
 Add ambient light back
-Add toon ramp as a different texture type
-Find a way to make sphere slots share a texture
 Texture encoded settings for atlased models
-Possibly more description
+Textured shadows
