@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.3.1
+// v0.3.3
 
-#define VERSION="v0.3.1"
+#define VERSION="v0.3.3"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -25,6 +25,8 @@ float4 _EmissionPulseColor;
 float _Brightness;
 float _CorrectionLevel;
 float4 _Color;
+float4 _LightColor;
+float _LightOverride;
 #if !NO_SHADOW
 float _ShadowAmbient;
 sampler2D _ShadowRamp;
@@ -122,7 +124,8 @@ v2g vert(appdata_full v)
 	o.pos = UnityObjectToClipPos(v.vertex);
     o.normal = v.normal;
     o.normalDir = normalize(UnityObjectToWorldNormal(v.normal));
-    o.amb = _LightColor0;
+    float3 lcHSV = RGBtoHSV(_LightColor.rgb);
+    o.amb = lerp(_LightColor0, float4(HSVtoRGB(float3(lcHSV.xy, RGBtoHSV(_LightColor0.rgb).z)), _LightColor0.z), _LightOverride);
     o.direct = ShadeSH9(half4(0.0, 1.0, 0.0, 1.0));
     o.indirect = ShadeSH9(half4(0.0, -1.0, 0.0, 1.0));
     o.tangentDir = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz);
@@ -239,7 +242,7 @@ float3 applySphere(float3 color, float3 view, float3 normal)
     return color;
 }
 
-float3 applyPano(float3 color, float3 view, float2 coord, float2 uv)
+float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 {
     #if !NO_PANO
     float3 col;
@@ -248,8 +251,8 @@ float3 applyPano(float3 color, float3 view, float2 coord, float2 uv)
     float3 newview = RotatePointAroundOrigin(view, transform);
     col = texCUBE(_PanoSphereTex, newview);
     #elif SCREEN_PANO
-    float2 newcoord = coord + transform;
-    col = tex2D(_PanoFlatTex, coord);
+    float4 newcoord = UNITY_PROJ_COORD(ComputeScreenPos(coord));
+    col = tex2Dproj(_PanoFlatTex, newcoord);
     #endif
     #if PANOOVERLAY
     float4 ocol = tex2D(_PanoOverlayTex, uv);
@@ -300,9 +303,9 @@ float4 frag(VertexOutput i) : SV_Target
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
     float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
     #if defined(ALLOWOVERBRIGHT)
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness);
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness);
     #else
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
     #endif
     
     // Pulse
@@ -321,11 +324,11 @@ float4 frag(VertexOutput i) : SV_Target
     
     // Hidden Emission
     #if defined(SLEEPEMISSION)
-    emissive *= smoothstep(0.7, 1.0, 1 - (_LightColor0.r * 0.3 + _LightColor0.g * 0.59 + _LightColor0.b * 0.11));
+    emissive *= smoothstep(0.7, 1.0, 1 - (i.amb.r * 0.3 + i.amb.g * 0.59 + i.amb.b * 0.11));
     #endif
     
     // Secondary Effects
-    color.rgb = applyPano(color.rgb, viewDirection, i.pos.xy / i.pos.w * 0.5 + 0.5, i.uv);
+    color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
     
     // Primary effects
     // Saturation boost
@@ -403,7 +406,7 @@ float4 frag4(VertexOutput i) : COLOR
     float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
     #endif
     
-    color.rgb = applyPano(color.rgb, viewDirection, i.pos.xy / i.pos.w * 0.5 + 0.5, i.uv);
+    color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
     
     // Saturation boost
     float3 hsvcol = RGBtoHSV(color.rgb);
@@ -454,9 +457,9 @@ float4 frag3(VertexOutput i) : COLOR
     // Lighting
     float _AmbientLight = 0.8;
     #if defined(ALLOWOVERBRIGHT)
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness);
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness);
     #else
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + _LightColor0.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
     #endif
     
     // Primary Effects

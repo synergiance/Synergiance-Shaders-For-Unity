@@ -1,5 +1,10 @@
 Change Log
 
+0.3.3:
+Added stencil support
+Added lighting color options
+Added custom blending support
+
 0.3.2:
 Added ability to shade your emission like the rest of your model
 Added ability to turn off emission below a certain light level

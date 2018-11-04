@@ -25,11 +25,12 @@ public class SynToonInspector : ShaderGUI
 
     public enum BlendMode
     {
-        Opaque,
-        Cutout,
+        Opaque, // Standard geometry, no blending
+        Cutout, // Alpha tested mode, very aliased
         Fade,   // Old school alpha-blending mode, fresnel does not affect amount of transparency
         Multiply, // Physically plausible transparency mode, implemented as alpha pre-multiply
-        Alphablend // Full alpha blending
+        Alphablend, // Full alpha blending
+        Custom // Custom blending
     }
     
     public enum ShadowMode
@@ -74,6 +75,8 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty lightingHack;
     MaterialProperty transFix;
     MaterialProperty staticLight;
+    MaterialProperty lightColor;
+    MaterialProperty lightOverride;
     MaterialProperty shadowMode;
     MaterialProperty shadowWidth;
     MaterialProperty shadowFeather;
@@ -111,6 +114,19 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty panoRotationSpeedY;
     MaterialProperty panoOverlayTex;
     MaterialProperty panoBlend;
+    MaterialProperty stencilcolorMask;
+    MaterialProperty stencil;
+    MaterialProperty readMask;
+    MaterialProperty writeMask;
+    MaterialProperty stencilComp;
+    MaterialProperty stencilOp;
+    MaterialProperty stencilFail;
+    MaterialProperty stencilZFail;
+    MaterialProperty ztest;
+    MaterialProperty zwrite;
+    MaterialProperty srcBlend;
+    MaterialProperty dstBlend;
+    MaterialProperty blendOp;
     
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
@@ -122,6 +138,8 @@ public class SynToonInspector : ShaderGUI
             lightingHack = FindProperty("_LightingHack", props);
             transFix = FindProperty("_TransFix", props);
             staticLight = FindProperty("_StaticToonLight", props);
+            lightColor = FindProperty("_LightColor", props);
+            lightOverride = FindProperty("_LightOverride", props);
             shadowMode = FindProperty("_ShadowMode", props);
             shadowWidth = FindProperty("_shadow_coverage", props);
             shadowFeather = FindProperty("_shadow_feather", props);
@@ -159,6 +177,19 @@ public class SynToonInspector : ShaderGUI
             panoRotationSpeedY = FindProperty("_PanoRotationSpeedY", props);
             panoOverlayTex = FindProperty("_PanoOverlayTex", props);
             panoBlend = FindProperty("_PanoBlend", props);
+            stencilcolorMask = ShaderGUI.FindProperty("_stencilcolormask", props);
+            stencil = ShaderGUI.FindProperty("_Stencil", props);
+            readMask = ShaderGUI.FindProperty("_ReadMask", props);
+            writeMask = ShaderGUI.FindProperty("_WriteMask", props);
+            stencilComp = ShaderGUI.FindProperty("_StencilComp", props);
+            stencilOp = ShaderGUI.FindProperty("_StencilOp", props);
+            stencilFail = ShaderGUI.FindProperty("_StencilFail", props);
+            stencilZFail = ShaderGUI.FindProperty("_StencilZFail", props);
+            zwrite = ShaderGUI.FindProperty("_ZWrite", props);
+            ztest = ShaderGUI.FindProperty("_ZTest", props);
+            srcBlend = ShaderGUI.FindProperty("_SrcBlend", props);
+            dstBlend = ShaderGUI.FindProperty("_DstBlend", props);
+            blendOp = ShaderGUI.FindProperty("_BlendOp", props);
         }
         
         Material material = materialEditor.target as Material;
@@ -203,9 +234,9 @@ public class SynToonInspector : ShaderGUI
 
                 materialEditor.TexturePropertySingleLine(new GUIContent("Main Texture", "Main Color Texture (RGB)"), mainTexture, color);
                 EditorGUI.indentLevel += 2;
-                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Cutout) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend))
+                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Cutout) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom))
                     materialEditor.ShaderProperty(alphaCutoff, new GUIContent("Alpha Cutoff", "Material will clip here.  Drag to the left if you're losing detail.  Recommended value for alphablend: 0.1"), 2);
-                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend)
+                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom))
                     materialEditor.ShaderProperty(alphaOverride, new GUIContent("Alpha Override", "Overrides a texture's alpha (useful for very faint textures)"), 2);
                 materialEditor.TexturePropertySingleLine(new GUIContent("Color Mask", "Masks Color Tinting (G)"), colorMask);
                 EditorGUI.indentLevel -= 2;
@@ -541,7 +572,7 @@ public class SynToonInspector : ShaderGUI
                 
                 var tFix = (TransFix)transFix.floatValue;
                 EditorGUI.BeginChangeCheck();
-                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) {
+                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom)) {
                     tFix = (TransFix)EditorGUILayout.Popup("Transparent Fix", (int)tFix, Enum.GetNames(typeof(TransFix)));
                 } else {
                     GUI.enabled = false;
@@ -607,6 +638,8 @@ public class SynToonInspector : ShaderGUI
                             mat.DisableKeyword("OVERRIDE_REALTIME");
                         }
                 }
+                materialEditor.ShaderProperty(lightColor, new GUIContent("Light Color", "Light will become this color depending on the slider below"));
+                materialEditor.ShaderProperty(lightOverride, new GUIContent("Light Override", "Turn this slider to the right to use the color above"));
                 
                 EditorGUI.BeginChangeCheck();
                 if ((BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
@@ -688,6 +721,26 @@ public class SynToonInspector : ShaderGUI
                     materialEditor.ShaderProperty(gammaLevel, new GUIContent("Intensity", "Effectiveness of gamma correction."));
                     EditorGUI.indentLevel -= 2;
                 }
+                
+                EditorGUILayout.Space();
+                GUILayout.Label("Stencil Options", EditorStyles.boldLabel);
+                materialEditor.ShaderProperty(stencilcolorMask, stencilcolorMask.displayName, 2);
+                materialEditor.ShaderProperty(stencil, stencil.displayName, 2);
+                materialEditor.ShaderProperty(stencilComp, stencilComp.displayName, 2);
+                materialEditor.ShaderProperty(stencilOp, stencilOp.displayName, 2);
+                materialEditor.ShaderProperty(stencilFail, stencilFail.displayName, 2);
+                materialEditor.ShaderProperty(stencilZFail, stencilZFail.displayName, 2);
+                materialEditor.ShaderProperty(ztest, ztest.displayName, 2);
+                materialEditor.ShaderProperty(zwrite, zwrite.displayName, 2);
+                
+                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom)
+                {
+                  EditorGUILayout.Space();
+                  GUILayout.Label("Blending Options", EditorStyles.boldLabel);
+                  materialEditor.ShaderProperty(srcBlend, srcBlend.displayName, 2);
+                  materialEditor.ShaderProperty(dstBlend, dstBlend.displayName, 2);
+                  materialEditor.ShaderProperty(blendOp, blendOp.displayName, 2);
+                }
             }
             EditorGUI.EndChangeCheck();
         }
@@ -701,7 +754,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetOverrideTag("RenderType", "Opaque");
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-                material.SetInt("_ZWrite", 1);
+                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
+                //material.SetInt("_ZWrite", 1);
                 material.DisableKeyword("_ALPHATEST_ON");
                 material.DisableKeyword("_ALPHABLEND_ON");
                 material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
@@ -711,7 +765,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetOverrideTag("RenderType", "TransparentCutout");
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-                material.SetInt("_ZWrite", 1);
+                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
+                //material.SetInt("_ZWrite", 1);
                 material.EnableKeyword("_ALPHATEST_ON");
                 material.DisableKeyword("_ALPHABLEND_ON");
                 material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
@@ -721,7 +776,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetOverrideTag("RenderType", "Transparent");
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetInt("_ZWrite", 0);
+                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
+                //material.SetInt("_ZWrite", 0);
                 material.DisableKeyword("_ALPHATEST_ON");
                 material.EnableKeyword("_ALPHABLEND_ON");
                 material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
@@ -731,7 +787,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetOverrideTag("RenderType", "Transparent");
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetInt("_ZWrite", 0);
+                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
+                //material.SetInt("_ZWrite", 0);
                 material.DisableKeyword("_ALPHATEST_ON");
                 material.DisableKeyword("_ALPHABLEND_ON");
                 material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
@@ -741,7 +798,16 @@ public class SynToonInspector : ShaderGUI
                 material.SetOverrideTag("RenderType", "Transparent");
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetInt("_ZWrite", 1);
+                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
+                //material.SetInt("_ZWrite", 1);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.EnableKeyword("_ALPHABLEND_ON");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                break;
+            case BlendMode.Custom:
+                material.SetOverrideTag("RenderType", "Transparent");
+                //material.SetInt("_ZWrite", 1);
                 material.DisableKeyword("_ALPHATEST_ON");
                 material.EnableKeyword("_ALPHABLEND_ON");
                 material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
@@ -925,6 +991,12 @@ public class SynToonInspector : ShaderGUI
                 if (doubleSided) shaderName += "DS";
                 break;
             case BlendMode.Alphablend:
+                shaderName += "/Transparent";
+                if (transFix > 0) shaderName += "Fix";
+                if (transFix > 1) shaderName += "2";
+                if (doubleSided) shaderName += "DS";
+                break;
+            case BlendMode.Custom:
                 shaderName += "/Transparent";
                 if (transFix > 0) shaderName += "Fix";
                 if (transFix > 1) shaderName += "2";

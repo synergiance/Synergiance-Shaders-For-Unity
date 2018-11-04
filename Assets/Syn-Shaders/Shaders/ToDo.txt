@@ -2,6 +2,9 @@ To Do:
 
 Fix screen mode panosphere
 Fix lighting code
+UV Scrolling
+Triangle manipulation
+Tesselation?
 
 Effects:
 Primary effects, rainbow, wave rainbow, texture swap

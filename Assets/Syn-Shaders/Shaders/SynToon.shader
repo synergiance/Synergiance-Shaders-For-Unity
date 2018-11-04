@@ -9,6 +9,8 @@ Shader "Synergiance/Toon"
 		_ColorMask("ColorMask", 2D) = "black" {}
         _RainbowMask ("Rainbow Mask", 2D) = "white" {}
         _Speed("Speed", Range(0,10)) = 3
+		_LightColor("Light Color", Color) = (1,1,1,1)
+		_LightOverride("Light Override", Range(0,1)) = 0
         _ShadowTint("Shadow Tint", Color) = (0.75,0.75,0.75,1)
         _ShadowRamp("Toon Texture", 2D) = "white" {}
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0
@@ -50,10 +52,24 @@ Shader "Synergiance/Toon"
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
         [HideInInspector] _PanoMode ("__pano_mode", Float) = 0.0
-		[HideInInspector] _SrcBlend ("__src", Float) = 1.0
-		[HideInInspector] _DstBlend ("__dst", Float) = 0.0
-		[HideInInspector] _ZWrite ("__zw", Float) = 1.0
+		
+        [Enum(UnityEngine.Rendering.BlendOp)] _BlendOp ("Blending Operation", Int) = 0
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source Blend", Int) = 1
+		[Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Destination Blend", Int) = 0
+		//[HideInInspector] _ZWrite ("__zw", Float) = 1.0
         [HideInInspector] _CullMode ("__zw", Float) = 0.0
+        
+        // Stencil
+		[IntRange] _Stencil ("Stencil ID (0-255)", Range(0,255)) = 0
+		_ReadMask ("ReadMask (0-255)", Int) = 255
+		_WriteMask ("WriteMask (0-255)", Int) = 255
+		[Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 0
+		[Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Int) = 0
+		[Enum(UnityEngine.Rendering.StencilOp)] _StencilFail ("Stencil Fail", Int) = 0
+		[Enum(UnityEngine.Rendering.StencilOp)] _StencilZFail ("Stencil ZFail", Int) = 0
+		[Enum(Off,0,On,1)] _ZWrite("ZWrite", Int) = 1
+		[Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Int) = 4
+		[Enum(None,0,Alpha,1,Red,8,Green,4,Blue,2,RGB,14,RGBA,15)] _stencilcolormask("Color Mask", Int) = 15 
 	}
 
 	SubShader
@@ -65,6 +81,20 @@ Shader "Synergiance/Toon"
             //"RenderType" = "Opaque"
 		}
         Cull [_CullMode]
+		ColorMask [_stencilcolormask]
+        ZTest [_ZTest]
+        BlendOp [_BlendOp]
+        
+		Stencil
+		{
+			Ref [_Stencil]
+			ReadMask [_ReadMask]
+			WriteMask [_WriteMask]
+			Comp [_StencilComp]
+			Pass [_StencilOp]
+			Fail [_StencilFail]
+			ZFail [_StencilZFail]
+		}
 
 		Pass
 		{
