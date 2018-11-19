@@ -116,8 +116,8 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty panoBlend;
     MaterialProperty stencilcolorMask;
     MaterialProperty stencil;
-    MaterialProperty readMask;
-    MaterialProperty writeMask;
+    //MaterialProperty readMask;
+    //MaterialProperty writeMask;
     MaterialProperty stencilComp;
     MaterialProperty stencilOp;
     MaterialProperty stencilFail;
@@ -179,8 +179,8 @@ public class SynToonInspector : ShaderGUI
             panoBlend = FindProperty("_PanoBlend", props);
             stencilcolorMask = ShaderGUI.FindProperty("_stencilcolormask", props);
             stencil = ShaderGUI.FindProperty("_Stencil", props);
-            readMask = ShaderGUI.FindProperty("_ReadMask", props);
-            writeMask = ShaderGUI.FindProperty("_WriteMask", props);
+            //readMask = ShaderGUI.FindProperty("_ReadMask", props);
+            //writeMask = ShaderGUI.FindProperty("_WriteMask", props);
             stencilComp = ShaderGUI.FindProperty("_StencilComp", props);
             stencilOp = ShaderGUI.FindProperty("_StencilOp", props);
             stencilFail = ShaderGUI.FindProperty("_StencilFail", props);
