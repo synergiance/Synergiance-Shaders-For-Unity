@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.3.3.1
+// v0.3.4
 
-#define VERSION="v0.3.3.1"
+#define VERSION="v0.3.4"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -51,12 +51,19 @@ uniform float4 _outline_color;
 sampler2D _SphereAddTex;
 sampler2D _SphereMulTex;
 uniform float4 _StaticToonLight;
+float _OverlayMode;
+float _OverlayBlendMode;
 samplerCUBE _PanoSphereTex;
 sampler2D _PanoFlatTex;
 sampler2D _PanoOverlayTex;
 float _PanoRotationSpeedX;
 float _PanoRotationSpeedY;
 float _PanoBlend;
+sampler2D _SpecularMap;
+float _SpecularPower;
+float3 _SpecularColor;
+float _UVScrollX;
+float _UVScrollY;
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -153,12 +160,14 @@ v2g vert(appdata_full v)
     return o;
 }
 
-//float4 calcSpecular(float4 lightDirection);
-//{
-//	float dirDotNormalHalf = max(0, dot(s.Normal, normalize(lightDir + viewDir)));
-//	float dirSpecularWeight = pow( dirDotNormalHalf, _Shininess );
-//	float4 dirSpecular = _SpecularColor * lightColor * dirSpecularWeight;
-//}
+float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 lightColor, float2 uv)
+{
+	float3 specularIntensity = tex2D(_SpecularMap, uv).rgb * _SpecularColor.rgb;
+	float3 halfVector = normalize(lightDir + viewDir);
+	float3 specular = pow( saturate( dot( normalDir, halfVector)), _SpecularPower);
+	specular = specular * specularIntensity * lightColor;
+	return specular;
+}
 
 float3 calcShadow(float3 position, float3 normal, float atten)
 {// Generate the shadow based on the light direction
@@ -244,26 +253,54 @@ float3 applySphere(float3 color, float3 view, float3 normal)
 
 float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 {
-    #if !NO_PANO
-    float3 col;
-    float2 transform = float2(_Time[1] * _PanoRotationSpeedX, _Time[1] * _PanoRotationSpeedY);
-    #if SPHERE_PANO
-    float3 newview = RotatePointAroundOrigin(view, transform);
-    col = texCUBE(_PanoSphereTex, newview);
-    #elif SCREEN_PANO
-    float4 newcoord = UNITY_PROJ_COORD(ComputeScreenPos(coord));
-    col = tex2Dproj(_PanoFlatTex, newcoord);
-    #endif
-    #if PANOOVERLAY
-    float4 ocol = tex2D(_PanoOverlayTex, uv);
-    #if PANOALPHA
-    col = lerp(col, ocol.rgb, ocol.a);
-    #else
-    col += ocol.rgb;
-    #endif
-    #endif
-    color = lerp(color, col, _PanoBlend);
-    #endif
+	if (_OverlayMode > 0) // has overlay
+	{
+		float4 col;
+		float2 transform = float2(_Time[1] * _PanoRotationSpeedX, _Time[1] * _PanoRotationSpeedY);
+		if (_OverlayMode == 1) // Panosphere (Rotation)
+		{
+			float3 newview = RotatePointAroundOrigin(view, transform);
+			col = texCUBE(_PanoSphereTex, newview);
+		}
+		else if (_OverlayMode == 2) // Panosphere (Screen)
+		{
+			float4 newcoord = UNITY_PROJ_COORD(ComputeScreenPos(coord));
+			col = tex2Dproj(_PanoFlatTex, newcoord);
+		}
+		else if (_OverlayMode == 3) // UV Scroll
+		{
+			float2 newcoord = uv + transform / 2;
+			col = tex2D(_PanoFlatTex, newcoord);
+		}
+		#if PANOOVERLAY
+		float4 ocol = tex2D(_PanoOverlayTex, uv);
+		#if PANOALPHA
+		col.rgb = lerp(col.rgb, ocol.rgb, ocol.a);
+		#else
+		col.rgb += ocol.rgb;
+		#endif
+		#endif
+		if (_OverlayBlendMode == 1) // Add
+		{
+			col.rgb += color;
+		}
+		if (_OverlayBlendMode == 2) // Multiply
+		{
+			col.rgb *= color;
+		}
+		if (_OverlayBlendMode == 3) // Alphablend
+		{
+			col.rgb = lerp(color, col.rgb, col.a);
+		}
+		if (_OverlayBlendMode == 4) // Set Hue
+		{
+			float3 hue1 = RGBtoHSV(col.rgb);
+			float3 hue2 = RGBtoHSV(color);
+			hue2.r = hue1.r;
+			col.rgb = HSVtoRGB(hue2);
+		}
+		color = lerp(color, col, _PanoBlend);
+	}
     return color;
 }
 
@@ -350,10 +387,12 @@ float4 frag(VertexOutput i) : SV_Target
     #if !NO_SPHERE
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
     #endif
+	
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright * lightColor, i.uv);
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-    return float4(bright * lightColor, _AlphaOverride) * color + float4(emissive, 0);
+    return float4(bright * lightColor, _AlphaOverride) * color + float4(emissive + specular, 0);
 }
 
 float4 frag4(VertexOutput i) : COLOR
@@ -425,10 +464,12 @@ float4 frag4(VertexOutput i) : COLOR
     #if !NO_SPHERE
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
     #endif
+	
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright * lightColor, i.uv);
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-    return float4(bright * lightColor, _AlphaOverride) * color;
+    return float4(bright * lightColor, _AlphaOverride) * color + float4(specular, 0);
 }
 
 float4 frag3(VertexOutput i) : COLOR

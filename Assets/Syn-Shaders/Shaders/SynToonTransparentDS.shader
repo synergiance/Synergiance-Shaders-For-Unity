@@ -42,6 +42,11 @@ Shader "Synergiance/Toon/TransparentDS"
         _PanoRotationSpeedY ("Rotation (Y)", Float) = 0
         _PanoOverlayTex ("Panosphere Overlay", 2D) = "black" {}
         _PanoBlend ("Blend", Range(0,1)) = 1
+		_SpecularMap ("Specular Map", 2D) = "white" {}
+		_SpecularPower ("Specular Power", Float) = 1
+		[HDR]_SpecularColor ("Specular Color", Color) = (0,0,0,1)
+		_UVScrollX ("UV Scroll (x)", Float) = 0
+		_UVScrollY ("UV Scroll (Y)", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -51,7 +56,8 @@ Shader "Synergiance/Toon/TransparentDS"
 		[HideInInspector] _TransFix("__transparent_fix", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
-        [HideInInspector] _PanoMode ("__pano_mode", Float) = 0.0
+        [HideInInspector] _OverlayMode ("Overlay Mode", Float) = 0.0
+        [HideInInspector] _OverlayBlendMode ("Blend Mode", Float) = 0.0
 		
         [Enum(UnityEngine.Rendering.BlendOp)] _BlendOp ("Blending Operation", Int) = 0
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source Blend", Int) = 1
@@ -123,7 +129,6 @@ Shader "Synergiance/Toon/TransparentDS"
             #pragma shader_feature _ ALLOWOVERBRIGHT
             #pragma shader_feature _ PANOOVERLAY
             #pragma shader_feature _ PANOALPHA
-            #pragma shader_feature NO_PANO SPHERE_PANO SCREEN_PANO
             #pragma shader_feature _ SLEEPEMISSION
             #pragma shader_feature _ SHADEEMISSION
             #pragma shader_feature _ GAMMACORRECT
@@ -163,7 +168,6 @@ Shader "Synergiance/Toon/TransparentDS"
             #pragma shader_feature _ ALLOWOVERBRIGHT
             #pragma shader_feature _ PANOOVERLAY
             #pragma shader_feature _ PANOALPHA
-            #pragma shader_feature NO_PANO SPHERE_PANO SCREEN_PANO
             #pragma shader_feature _ GAMMACORRECT
 			#include "SynToonCore.cginc"
 			#pragma vertex vert

@@ -1,5 +1,12 @@
 Change Log
 
+0.3.4:
+Added specular support, use the specular power to adjust, and make sure to set the color to something other than pure black.
+Changed Panosphere to Overlays.  Panospheres will still be available, but will be able to be blended in multiple ways.
+Added UV scrolling overlays, these use the same new blend modes as panospheres, enjoy!
+Issues:
+Interface might "forget" you have a panosphere set.  Click the Overlay Mode dropdown to select again.
+
 0.3.3.1:
 Removed a warning in the editor
 
