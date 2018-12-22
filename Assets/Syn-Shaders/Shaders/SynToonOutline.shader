@@ -27,7 +27,7 @@ Shader "Synergiance/Toon-Outline"
 		_EmissionSpeed("Emission Speed", Range(0,10)) = 3
 		_EmissionPulseMap("Emission Pulse Map", 2D) = "white" {}
 		[HDR]_EmissionPulseColor("Emission Pulse Color", Color) = (0,0,0,1)
-        _Brightness("Brightness", Range(0,1)) = 1
+        _Brightness("Brightness", Range(0,10)) = 1
         _CorrectionLevel("Gamma Correct", Range(0,1)) = 1
 		[Normal]_BumpMap("BumpMap", 2D) = "bump" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5

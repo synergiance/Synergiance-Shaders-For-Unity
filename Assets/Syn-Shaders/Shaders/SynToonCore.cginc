@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.3.4
+// v0.3.4.2-dev1
 
-#define VERSION="v0.3.4"
+#define VERSION="v0.3.4.2-dev1"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -255,7 +255,7 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 {
 	if (_OverlayMode > 0) // has overlay
 	{
-		float4 col;
+		float4 col = float4(1,1,1,1);
 		float2 transform = float2(_Time[1] * _PanoRotationSpeedX, _Time[1] * _PanoRotationSpeedY);
 		if (_OverlayMode == 1) // Panosphere (Rotation)
 		{
@@ -340,9 +340,9 @@ float4 frag(VertexOutput i) : SV_Target
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
     float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
     #if defined(ALLOWOVERBRIGHT)
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness);
+    float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness;
     #else
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
+    float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
     
     // Pulse
@@ -375,7 +375,7 @@ float4 frag(VertexOutput i) : SV_Target
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
-    color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
+    color.rgb = hueShift(color.rgb, maskcolor.rgb);
     bright = hueShift(bright, maskcolor.rgb);
     emissive = hueShift(emissive, maskcolor.rgb);
     #endif
@@ -440,9 +440,9 @@ float4 frag4(VertexOutput i) : COLOR
     //bright = 1;
     //#endif
     #if defined(ALLOWOVERBRIGHT)
-    float3 lightColor = saturate(i.amb.rgb * _Brightness);
+    float3 lightColor = saturate(i.amb.rgb) * _Brightness;
     #else
-    float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
+    float3 lightColor = saturate(i.amb.rgb * i.lightModifier * saturate(i.lightModifier) * 0.5) * _Brightness;
     #endif
     
     color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
@@ -454,7 +454,7 @@ float4 frag4(VertexOutput i) : COLOR
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
-    color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
+    color.rgb = hueShift(color.rgb, maskcolor.rgb);
     bright = hueShift(bright, maskcolor.rgb);
     #endif
 
@@ -498,9 +498,9 @@ float4 frag3(VertexOutput i) : COLOR
     // Lighting
     float _AmbientLight = 0.8;
     #if defined(ALLOWOVERBRIGHT)
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness);
+    float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness;
     #else
-    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness * ((i.lightModifier + 1) / 2));
+    float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
     
     // Primary Effects
@@ -511,7 +511,7 @@ float4 frag3(VertexOutput i) : COLOR
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
-    color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
+    color.rgb = hueShift(color.rgb, maskcolor.rgb);
     #endif
     
     // Secondary Effects
@@ -555,9 +555,9 @@ float4 frag5(VertexOutput i) : COLOR
     
     // Lighting
     #if defined(ALLOWOVERBRIGHT)
-    float3 lightColor = saturate(i.amb.rgb * _Brightness);
+    float3 lightColor = saturate(i.amb.rgb) * _Brightness;
     #else
-    float3 lightColor = saturate(i.amb.rgb * _Brightness * i.lightModifier * saturate(i.lightModifier) * 0.5);
+    float3 lightColor = saturate(i.amb.rgb * i.lightModifier * saturate(i.lightModifier) * 0.5) * _Brightness;
     #endif
     
     // Primary Effects
@@ -568,7 +568,7 @@ float4 frag5(VertexOutput i) : COLOR
     // Rainbow
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
-    color = float4(hueShift(color.rgb, maskcolor.rgb),color.a);
+    color.rgb = hueShift(color.rgb, maskcolor.rgb);
     #endif
     
     // Secondary Effects
