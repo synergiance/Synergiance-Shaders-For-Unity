@@ -1,5 +1,9 @@
 Change Log
 
+0.3.4.2:
+Apparently skipped a number
+Upped the cap of the Brightness slider from 1 to 10, this can be used for models with baked highlights.
+
 0.3.4:
 Added specular support, use the specular power to adjust, and make sure to set the color to something other than pure black.
 Changed Panosphere to Overlays.  Panospheres will still be available, but will be able to be blended in multiple ways.
