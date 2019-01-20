@@ -1,5 +1,9 @@
 Change Log
 
+0.4.0.1:
+Fixed bug where toon map wasn't showing up in the editor.
+Fixed compile error.
+
 0.4:
 Added texture shadows support.  Models with a shadowed texture and a lit texture will work here.
 Added support for multiple toon gradient ramps, all with full color.  This can be used on MMD toon textures, just make sure the toon atlas is set to clamp. This feature is for atlasers.  The red channel in the map corresponds to which toon you're using.

@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.4
+// v0.4.0.1
 
-#define VERSION="v0.4"
+#define VERSION="v0.4.0.1"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -388,7 +388,7 @@ float4 frag(VertexOutput i) : SV_Target
     // Shaded Emission
     #if defined(SHADEEMISSION)
 	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
-		emshade = calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb);
+		float4 emshade = calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb);
 		emissive *= lerp(emshade.rgb, float3(1.0, 1.0, 1.0), emshade.a);
 	} else {
 		emissive *= calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb).rgb;

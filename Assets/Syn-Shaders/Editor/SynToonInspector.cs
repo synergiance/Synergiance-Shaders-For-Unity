@@ -405,6 +405,7 @@ public class SynToonInspector : ShaderGUI
                         //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
                         materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), shadowRamp);
 						materialEditor.ShaderProperty(shadowRampDirection, shadowRampDirection.displayName);
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), shadowTexture);
                         //materialEditor.TexturePropertySingleLine(new GUIContent("Control Texture", "(RG) Red controls height offset, Green controls width offset.  The opposite axis will be ignored in this mode."), shadowControl);
                         EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
                         EditorGUI.indentLevel -= 2;
