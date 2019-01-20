@@ -1,5 +1,11 @@
 Change Log
 
+0.4:
+Added texture shadows support.  Models with a shadowed texture and a lit texture will work here.
+Added support for multiple toon gradient ramps, all with full color.  This can be used on MMD toon textures, just make sure the toon atlas is set to clamp. This feature is for atlasers.  The red channel in the map corresponds to which toon you're using.
+Added a new Auto shadow mode.  Setting this will give a pretty decent shadowed look to the entire material.  This is safe to use for atlassed models, and will work just as well as it does on a non atlassed model.
+Specular shouldn't light models up from the other side anymore.
+
 0.3.4.2:
 Apparently skipped a number
 Upped the cap of the Brightness slider from 1 to 10, this can be used for models with baked highlights.

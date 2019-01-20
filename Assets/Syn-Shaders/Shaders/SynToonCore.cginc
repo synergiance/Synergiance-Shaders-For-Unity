@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.3.4.2
+// v0.4
 
-#define VERSION="v0.3.4.2"
+#define VERSION="v0.4"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -27,16 +27,16 @@ float _CorrectionLevel;
 float4 _Color;
 float4 _LightColor;
 float _LightOverride;
-#if !NO_SHADOW
 float _ShadowAmbient;
 sampler2D _ShadowRamp;
+sampler2D _ShadowTexture;
+int _ShadowRampDirection;
+int _ShadowTextureMode;
 float4 _ShadowTint;
 float _shadow_coverage;
 float _shadow_feather;
-#if defined(IS_OPAQUE) && !DISABLE_SHADOW
 float _shadowcast_intensity;
-#endif
-#endif
+float _ShadowIntensity;
 float _Cutoff;
 float _AlphaOverride;
 float _SaturationBoost;
@@ -64,6 +64,8 @@ float _SpecularPower;
 float3 _SpecularColor;
 float _UVScrollX;
 float _UVScrollY;
+float _SphereMode;
+float _ShadowMode;
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -160,59 +162,91 @@ v2g vert(appdata_full v)
     return o;
 }
 
-float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 lightColor, float2 uv)
+float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 lightColor, float2 uv, float atten)
 {
 	float3 specularIntensity = tex2D(_SpecularMap, uv).rgb * _SpecularColor.rgb;
 	float3 halfVector = normalize(lightDir + viewDir);
 	float3 specular = pow( saturate( dot( normalDir, halfVector)), _SpecularPower);
-	specular = specular * specularIntensity * lightColor;
+	specular = specular * specularIntensity * lightColor * atten;
 	return specular;
 }
 
-float3 calcShadow(float3 position, float3 normal, float atten)
+float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3 color)
 {// Generate the shadow based on the light direction
-    float3 bright = float3(1.0, 1.0, 1.0);
-    #if !NO_SHADOW
-    float lightScale = 1;
-    #if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
-    float3 lightDirection = normalize(_StaticToonLight.rgb);
-    #elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
-    float3 lightDirection = normalize(_StaticToonLight.rgb - position);
-    #else // Normal lighting
-    float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
-    lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
-    #endif
-    #if !NORMAL_LIGHTING
-    #if !OVERRIDE_REALTIME
-    if (!(abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01))
-    {
-        lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
-    }
-    else
-    {
-        atten = 1;
-    }
-    #else
-    atten = 1;
-    #endif
-    if (abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01)
-    {
-        atten = 1;
-    }
-    lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
-    #endif
-    #if defined(IS_OPAQUE) && !DISABLE_SHADOW
-    //lightScale *= atten * _shadowcast_intensity + (1 - _shadowcast_intensity);
-    lightScale *= atten;
-    #endif
-    #if TINTED_SHADOW
-    float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
-    bright = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
-    #elif RAMP_SHADOW
-    bright = tex2D(_ShadowRamp, float2(lightScale, lightScale)).rgb;
-    #else
-    #endif
-    #endif
+    float4 bright = float4(1.0, 1.0, 1.0, 1);
+	if (_ShadowMode > 0) {
+		float lightScale = 1;
+		#if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
+		float3 lightDirection = normalize(_StaticToonLight.rgb);
+		#elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
+		float3 lightDirection = normalize(_StaticToonLight.rgb - position);
+		#else // Normal lighting
+		float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
+		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+		#endif
+		#if !NORMAL_LIGHTING
+		#if !OVERRIDE_REALTIME
+		if (!(abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01))
+		{
+			lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
+		}
+		else
+		{
+			atten = 1;
+		}
+		#else
+		atten = 1;
+		#endif
+		if (abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01)
+		{
+			atten = 1;
+		}
+		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+		#endif
+		#if defined(IS_OPAQUE) && !DISABLE_SHADOW
+		//lightScale *= atten * _shadowcast_intensity + (1 - _shadowcast_intensity);
+		lightScale *= atten;
+		#endif
+		bright.a = lightScale;
+		switch (_ShadowMode) {
+			case 1: // Tinted Shadow
+				{
+					float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
+					bright.rgb = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
+				}
+				break;
+			case 2: // Ramp Shadow
+				{ bright.rgb = tex2D(_ShadowRamp, float2(lightScale, lightScale)).rgb; }
+				break;
+			case 3: // Texture Shadow
+				{
+					bright.rgb = tex2D(_ShadowTexture, uv);
+					if (_ShadowTextureMode) { // Tint
+						float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
+						bright.rgb = lerp(bright.rgb, float3(1.0, 1.0, 1.0), lightContrib);
+					} else { // Texture
+						bright.a = lightScale;
+					}
+				}
+				break;
+			case 4: // Multiple Shadows
+				if (_ShadowRampDirection) { // Horizontal
+					bright.rgb = tex2D(_ShadowRamp, float2(lightScale, tex2D(_ShadowTexture, uv).r)).rgb;
+				} else { // Vertical
+					bright.rgb = tex2D(_ShadowRamp, float2(tex2D(_ShadowTexture, uv).r, lightScale)).rgb;
+				}
+				break;
+			case 5: // Auto Shadow
+				{
+					float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale));
+					float3 tintColor = lerp(bright.rgb, pow(color, 2), _ShadowIntensity)* lerp(float3(0,0,0), _ShadowTint, _ShadowAmbient);
+					bright.rgb = lerp(tintColor, float3(1.0, 1.0, 1.0), lightContrib);
+				}
+				break;
+			default:
+				break;
+		}
+	}
     return bright;
 }
 
@@ -234,7 +268,7 @@ float3 artsyOutline(float3 color, float3 view, float3 normal)
 
 float3 applySphere(float3 color, float3 view, float3 normal)
 {// Applies add and multiply spheres
-    #if !NO_SPHERE
+    #if !NO_SPHERE //_SphereMode
     float3 tangent = normalize(cross(view, float3(0.0, 1.0, 0.0)));
     float3 bitangent = normalize(cross(tangent, view));
 	float3 viewNormal = normalize(mul(float3x3(tangent, bitangent, view), normal));
@@ -338,7 +372,7 @@ float4 frag(VertexOutput i) : SV_Target
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
-    float3 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation);
+    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation, i.uv, color.rgb);
     #if defined(ALLOWOVERBRIGHT)
     float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness;
     #else
@@ -353,8 +387,13 @@ float4 frag(VertexOutput i) : SV_Target
     
     // Shaded Emission
     #if defined(SHADEEMISSION)
-    emissive *= calcShadow(i.posWorld.xyz, normalDirection, 1);
-    #if !NO_SPHERE
+	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+		emshade = calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb);
+		emissive *= lerp(emshade.rgb, float3(1.0, 1.0, 1.0), emshade.a);
+	} else {
+		emissive *= calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb).rgb;
+	}
+    #if !NO_SPHERE //_SphereMode
     emissive = applySphere(emissive, viewDirection, normalDirection);
     #endif
     #endif
@@ -376,7 +415,7 @@ float4 frag(VertexOutput i) : SV_Target
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
     color.rgb = hueShift(color.rgb, maskcolor.rgb);
-    bright = hueShift(bright, maskcolor.rgb);
+    bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
     emissive = hueShift(emissive, maskcolor.rgb);
     #endif
 
@@ -384,15 +423,19 @@ float4 frag(VertexOutput i) : SV_Target
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     emissive = artsyOutline(emissive, viewDirection, normalDirection);
     
-    #if !NO_SPHERE
+    #if !NO_SPHERE //_SphereMode
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
     #endif
 	
-	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright * lightColor, i.uv);
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a);
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-    return float4(bright * lightColor, _AlphaOverride) * color + float4(emissive + specular, 0);
+	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+		return float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
+	} else {
+		return float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(emissive + specular, 0);
+	}
 }
 
 float4 frag4(VertexOutput i) : COLOR
@@ -431,8 +474,8 @@ float4 frag4(VertexOutput i) : COLOR
     float3 _BumpMap_var = UnpackNormal(tex2D(_BumpMap,i.uv));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
-    float3 bright = calcShadow(i.posWorld.xyz, normalDirection, 1);
-    bright *= attenuation;
+    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, color.rgb);
+    bright.rgb *= attenuation;
     //#if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
     //bright *= attenuation * _shadowcast_intensity + (1 - _shadowcast_intensity);
     //#elif defined (POINT) || defined (SPOT)
@@ -455,21 +498,25 @@ float4 frag4(VertexOutput i) : COLOR
     #if defined(RAINBOW)
     float4 maskcolor = tex2D(_RainbowMask, i.uv);
     color.rgb = hueShift(color.rgb, maskcolor.rgb);
-    bright = hueShift(bright, maskcolor.rgb);
+    bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
     #endif
 
     // Outline
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     
-    #if !NO_SPHERE
+    #if !NO_SPHERE //_SphereMode
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
     #endif
 	
-	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright * lightColor, i.uv);
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a);
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-    return float4(bright * lightColor, _AlphaOverride) * color + float4(specular, 0);
+	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+		return float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
+	} else {
+		return float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
+	}
 }
 
 float4 frag3(VertexOutput i) : COLOR

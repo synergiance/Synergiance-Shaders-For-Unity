@@ -13,11 +13,15 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 		_LightOverride("Light Override", Range(0,1)) = 0
         _ShadowTint("Shadow Tint", Color) = (0.75,0.75,0.75,1)
         _ShadowRamp("Toon Texture", 2D) = "white" {}
-        _ShadowAmbient("Ambient Light", Range(0,1)) = 0
+        _ShadowTexture("Shadow Texture", 2D) = "black" {}
+        [Enum(Vertical,0,Horizontal,1)] _ShadowRampDirection("Ramp Direction", Int) = 1
+        [Enum(Texture,0,Tint,1)] _ShadowTextureMode("Texture Tint", Int) = 1
+        _ShadowAmbient("Ambient Light", Range(0,1)) = 0.8
         _ShadowAmbAdd("Ambient", Range(0,1)) = 0
         _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
         _shadow_feather("Shadow Feather", Range(0,1)) = 0.2
         _shadowcast_intensity("Shadow cast intensity", Range(0,1)) = 0.75
+        _ShadowIntensity("Shadow Intensity", Range(0,1)) = 0.1
 		_outline_width("outline_width", Range(0,1)) = 0.2
 		_outline_color("outline_color", Color) = (0.5,0.5,0.5,1)
 		_outline_feather("outline_width", Range(0,1)) = 0.5
@@ -34,6 +38,8 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
+		_SphereMultiTex("Sphere (Multiple)", 2D) = "white" {}
+		[Enum(1x2,2,2x2,4,2x4,8,3x3,9,4x4,16,3x6,18,5x5,25)] _SphereNum("Number of Spheres", Int) = 4
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
         _SaturationBoost ("Saturation Boost", Range(0,5)) = 0
         _PanoSphereTex ("Panosphere Texture", Cube) = "" {}

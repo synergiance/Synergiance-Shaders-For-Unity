@@ -37,7 +37,10 @@ public class SynToonInspector : ShaderGUI
     {
         None,
         Tint,
-        Toon
+        Toon,
+		Texture,
+		Multiple,
+		Auto
     }
     
     public enum LightingHack
@@ -51,7 +54,8 @@ public class SynToonInspector : ShaderGUI
     {
         None,
         Add,
-        Mul
+        Multiply//,
+		//Multiple
     }
     
     public enum OverlayMode
@@ -93,8 +97,12 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty shadowAmbient;
     MaterialProperty shadowAmbAdd;
     MaterialProperty shadowCastIntensity;
+    MaterialProperty shadowIntensity;
     MaterialProperty shadowTint;
     MaterialProperty shadowRamp;
+	MaterialProperty shadowTexture;
+    MaterialProperty shadowRampDirection;
+	MaterialProperty shadowTextureMode;
     MaterialProperty outlineMode;
     MaterialProperty outlineWidth;
     MaterialProperty outlineFeather;
@@ -160,8 +168,12 @@ public class SynToonInspector : ShaderGUI
             shadowAmbient = FindProperty("_ShadowAmbient", props);
             shadowAmbAdd = FindProperty("_ShadowAmbAdd", props);
             shadowCastIntensity = FindProperty("_shadowcast_intensity", props);
+            shadowIntensity = FindProperty("_ShadowIntensity", props);
             shadowTint = FindProperty("_ShadowTint", props);
             shadowRamp = FindProperty("_ShadowRamp", props);
+            shadowTexture = FindProperty("_ShadowTexture", props);
+            shadowRampDirection = FindProperty("_ShadowRampDirection", props);
+            shadowTextureMode = FindProperty("_ShadowTextureMode", props);
             outlineMode = FindProperty("_OutlineMode", props);
             outlineColorMode = FindProperty("_OutlineColorMode", props);
             outlineWidth = FindProperty("_outline_width", props);
@@ -362,11 +374,6 @@ public class SynToonInspector : ShaderGUI
                     materialEditor.RegisterPropertyChangeUndo("Shadow Mode");
                     shadowMode.floatValue = (float)sMode;
 
-                    foreach (var obj in shadowMode.targets)
-                    {
-                        SetupMaterialWithShadowMode((Material)obj, (ShadowMode)material.GetFloat("_ShadowMode"));
-                    }
-
                 }
                 switch (sMode)
                 {
@@ -374,7 +381,7 @@ public class SynToonInspector : ShaderGUI
                         EditorGUI.indentLevel += 2;
                         materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
                         materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
-                        materialEditor.ShaderProperty(shadowAmbient, new GUIContent("Ambient Light", "Slide to the left for shadow light, to the right for direct light"));
+                        //materialEditor.ShaderProperty(shadowAmbient, new GUIContent("Ambient Light", "Slide to the left for shadow light, to the right for direct light"));
                         materialEditor.ShaderProperty(shadowTint, new GUIContent("Tint Color", "This will tint your shadows, try pinkish colors for skin"));
                         EditorGUI.indentLevel -= 2;
                         break;
@@ -383,6 +390,32 @@ public class SynToonInspector : ShaderGUI
                         //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
                         materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), shadowRamp);
                         EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case ShadowMode.Texture:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
+                        materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), shadowTexture);
+						materialEditor.ShaderProperty(shadowTextureMode, shadowTextureMode.displayName);
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case ShadowMode.Multiple:
+                        EditorGUI.indentLevel += 2;
+                        //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), shadowRamp);
+						materialEditor.ShaderProperty(shadowRampDirection, shadowRampDirection.displayName);
+                        //materialEditor.TexturePropertySingleLine(new GUIContent("Control Texture", "(RG) Red controls height offset, Green controls width offset.  The opposite axis will be ignored in this mode."), shadowControl);
+                        EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
+                        EditorGUI.indentLevel -= 2;
+                        break;
+                    case ShadowMode.Auto:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
+                        materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
+						materialEditor.ShaderProperty(shadowIntensity, new GUIContent("Intensity", "Slide to the right to make shadows more noticeable"));
+                        materialEditor.ShaderProperty(shadowAmbient, new GUIContent("Ambient Light", "Slide to the left for shadow light, to the right for direct light"));
+                        materialEditor.ShaderProperty(shadowTint, new GUIContent("Ambiant Color", "This is the ambient light tint, use it lightly"));
                         EditorGUI.indentLevel -= 2;
                         break;
                     case ShadowMode.None:
@@ -468,11 +501,16 @@ public class SynToonInspector : ShaderGUI
                         materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (Add)"), sphereAddTex);
                         EditorGUI.indentLevel -= 2;
                         break;
-                    case SphereMode.Mul:
+                    case SphereMode.Multiply:
                         EditorGUI.indentLevel += 2;
                         materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (Multiply)"), sphereMulTex);
                         EditorGUI.indentLevel -= 2;
                         break;
+                    //case SphereMode.Multiple:
+                    //    EditorGUI.indentLevel += 2;
+                    //    materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Textures", "Sphere Texture (Map)"), sphereMulTex);
+                    //    EditorGUI.indentLevel -= 2;
+                    //    break;
                     case SphereMode.None:
                     default:
                         break;
@@ -932,30 +970,6 @@ public class SynToonInspector : ShaderGUI
         }
     }
     
-    public static void SetupMaterialWithShadowMode(Material material, ShadowMode shadowMode)
-    {
-        switch ((ShadowMode)material.GetFloat("_ShadowMode"))
-        {
-            case ShadowMode.None:
-                material.EnableKeyword("NO_SHADOW");
-                material.DisableKeyword("TINTED_SHADOW");
-                material.DisableKeyword("RAMP_SHADOW");
-                break;
-            case ShadowMode.Tint:
-                material.DisableKeyword("NO_SHADOW");
-                material.EnableKeyword("TINTED_SHADOW");
-                material.DisableKeyword("RAMP_SHADOW");
-                break;
-            case ShadowMode.Toon:
-                material.DisableKeyword("NO_SHADOW");
-                material.DisableKeyword("TINTED_SHADOW");
-                material.EnableKeyword("RAMP_SHADOW");
-                break;
-            default:
-                break;
-        }
-    }
-    
     public static void SetupMaterialWithLightingHack(Material material, LightingHack lightingHack)
     {
         switch ((LightingHack)material.GetFloat("_LightingHack"))
@@ -994,11 +1008,16 @@ public class SynToonInspector : ShaderGUI
                 material.EnableKeyword("ADD_SPHERE");
                 material.DisableKeyword("MUL_SPHERE");
                 break;
-            case SphereMode.Mul:
+            case SphereMode.Multiply:
                 material.DisableKeyword("NO_SPHERE");
                 material.DisableKeyword("ADD_SPHERE");
                 material.EnableKeyword("MUL_SPHERE");
                 break;
+            //case SphereMode.Multiple:
+            //    material.DisableKeyword("NO_SPHERE");
+            //    material.DisableKeyword("ADD_SPHERE");
+            //    material.DisableKeyword("MUL_SPHERE");
+            //    break;
             default:
                 break;
         }
