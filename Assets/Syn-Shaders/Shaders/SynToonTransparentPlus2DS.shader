@@ -34,6 +34,7 @@ Shader "Synergiance/Toon/TransparentFix2DS"
         _Brightness("Brightness", Range(0,10)) = 1
         _CorrectionLevel("Gamma Correct", Range(0,1)) = 1
 		[Normal]_BumpMap("BumpMap", 2D) = "bump" {}
+		_OcclusionMap("Occlusion Map", 2D) = "white" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}

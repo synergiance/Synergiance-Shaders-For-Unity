@@ -1,5 +1,8 @@
 Change Log
 
+0.4.1:
+Added ambient occlusion maps support
+
 0.4.0.1:
 Fixed bug where toon map wasn't showing up in the editor.
 Fixed compile error.

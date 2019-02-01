@@ -114,6 +114,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty emissionPulseMap;
     MaterialProperty emissionPulseColor;
     MaterialProperty normalMap;
+    MaterialProperty occlusionMap;
     MaterialProperty alphaCutoff;
     MaterialProperty alphaOverride;
     //MaterialProperty rainbowMode;
@@ -185,6 +186,7 @@ public class SynToonInspector : ShaderGUI
             emissionPulseMap = FindProperty("_EmissionPulseMap", props);
             emissionPulseColor = FindProperty("_EmissionPulseColor", props);
             normalMap = FindProperty("_BumpMap", props);
+            occlusionMap = FindProperty("_OcclusionMap", props);
             alphaCutoff = FindProperty("_Cutoff", props);
             //rainbowMode = FindProperty("_RainbowMode", props);
             rainbowMask = FindProperty("_RainbowMask", props);
@@ -271,6 +273,7 @@ public class SynToonInspector : ShaderGUI
                 materialEditor.TexturePropertySingleLine(new GUIContent("Color Mask", "Masks Color Tinting (G)"), colorMask);
                 EditorGUI.indentLevel -= 2;
                 materialEditor.TexturePropertySingleLine(new GUIContent("Normal Map", "Normal Map (RGB)"), normalMap);
+                materialEditor.TexturePropertySingleLine(new GUIContent("Occlusion Map", "Occlusion Map (RGB)"), occlusionMap);
                 materialEditor.TexturePropertySingleLine(new GUIContent("Emission", "Emission (RGB)"), emissionMap, emissionColor);
                 materialEditor.TexturePropertySingleLine(new GUIContent("Specular Map", "Specular Map (RGB)"), specMap, specCol);
                 materialEditor.ShaderProperty(specPow, new GUIContent("Specular Power", "This is how shiny this material will be."), 2);
