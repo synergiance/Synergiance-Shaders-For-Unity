@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.4.1-dev1
+// v0.4.1
 
-#define VERSION="v0.4.1-dev1"
+#define VERSION="v0.4.1"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -49,8 +49,12 @@ uniform float _outline_width;
 uniform float _outline_feather;
 uniform float4 _outline_color;
 //sampler2D _ToonTex;
-sampler2D _SphereAddTex;
-sampler2D _SphereMulTex;
+Texture2D _SphereAddTex;
+Texture2D _SphereMulTex;
+Texture2D _SphereMultiTex;
+Texture2D _SphereAtlas;
+SamplerState sampler_SphereAtlas;
+int _SphereNum;
 uniform float4 _StaticToonLight;
 float _OverlayMode;
 float _OverlayBlendMode;
@@ -89,6 +93,8 @@ struct v2g
 	float4 pos : CLIP_POS;
 	LIGHTING_COORDS(6,7)
 	UNITY_FOG_COORDS(11)
+	//float2 uv2 : TEXCOORD12;
+	//float2 uv3 : TEXCOORD13;
 };
 
 struct VertexOutput
@@ -111,6 +117,8 @@ struct VertexOutput
 	bool is_outline : IS_OUTLINE;
 	LIGHTING_COORDS(6,7)
 	UNITY_FOG_COORDS(11)
+	//float2 uv2 : TEXCOORD12;
+	//float2 uv3 : TEXCOORD13;
 };
 
 float grayscaleSH9(float3 normalDirection)
@@ -143,7 +151,7 @@ v2g vert(appdata_full v)
     o.posWorld = mul(unity_ObjectToWorld, v.vertex);
     o.vertex = v.vertex;
     o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
-    o.uv1 = v.texcoord1;
+    o.uv1 = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 	TRANSFER_VERTEX_TO_FRAGMENT(o);
 	UNITY_TRANSFER_FOG(o, o.pos);
     
@@ -175,7 +183,7 @@ float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 li
 float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3 color)
 {// Generate the shadow based on the light direction
     float4 bright = float4(1.0, 1.0, 1.0, 1);
-	if (_ShadowMode > 0) {
+	[branch] if (_ShadowMode > 0) {
 		float lightScale = 1;
 		#if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
 		float3 lightDirection = normalize(_StaticToonLight.rgb);
@@ -188,7 +196,7 @@ float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3
 		#endif
 		#if !NORMAL_LIGHTING
 		#if !OVERRIDE_REALTIME
-		if (!(abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01))
+		[flatten] if (!(abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01))
 		{
 			lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
 		}
@@ -199,7 +207,7 @@ float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3
 		#else
 		atten = 1;
 		#endif
-		if (abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01)
+		[flatten] if (abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01)
 		{
 			atten = 1;
 		}
@@ -210,7 +218,7 @@ float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3
 		lightScale *= atten;
 		#endif
 		bright.a = lightScale;
-		switch (_ShadowMode) {
+		[branch] switch (_ShadowMode) {
 			case 1: // Tinted Shadow
 				{
 					float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2D(_OcclusionMap, uv).r;
@@ -226,7 +234,7 @@ float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3
 			case 3: // Texture Shadow
 				{
 					bright.rgb = tex2D(_ShadowTexture, uv);
-					if (_ShadowTextureMode) { // Tint
+					[branch] if (_ShadowTextureMode) { // Tint
 						float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2D(_OcclusionMap, uv);
 						bright.rgb = lerp(bright.rgb, float3(1.0, 1.0, 1.0), lightContrib);
 					} else { // Texture
@@ -235,7 +243,7 @@ float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3
 				}
 				break;
 			case 4: // Multiple Shadows
-				if (_ShadowRampDirection) { // Horizontal
+				[branch] if (_ShadowRampDirection) { // Horizontal
 					bright.rgb = tex2D(_ShadowRamp, float2(lightScale * tex2D(_OcclusionMap, uv).r, tex2D(_ShadowTexture, uv).r)).rgb;
 				} else { // Vertical
 					bright.rgb = tex2D(_ShadowRamp, float2(tex2D(_ShadowTexture, uv).r, lightScale * tex2D(_OcclusionMap, uv).r)).rgb;
@@ -271,43 +279,61 @@ float3 artsyOutline(float3 color, float3 view, float3 normal)
     return color;
 }
 
-float3 applySphere(float3 color, float3 view, float3 normal)
+float3 applySphere(float3 color, float3 view, float3 normal, float2 uv)
 {// Applies add and multiply spheres
-    #if !NO_SPHERE //_SphereMode
-    float3 tangent = normalize(cross(view, float3(0.0, 1.0, 0.0)));
-    float3 bitangent = normalize(cross(tangent, view));
-	float3 viewNormal = normalize(mul(float3x3(tangent, bitangent, view), normal));
-	float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
-    //float2 sphereUv = capCoord * 0.5 + 0.5;
-    #if ADD_SPHERE
-	float4 sphereAdd = tex2D( _SphereAddTex, sphereUv );
-    color += sphereAdd.rgb;
-    #elif MUL_SPHERE
-	float4 sphereMul = tex2D( _SphereMulTex, sphereUv );
-    color *= sphereMul.rgb;
-    #endif
-    #endif
+	[branch] if (_SphereMode > 0) { // Don't execute without sphere mode set
+		float3 tangent = normalize(cross(view, float3(0.0, 1.0, 0.0)));
+		float3 bitangent = normalize(cross(tangent, view));
+		float3 viewNormal = normalize(mul(float3x3(tangent, bitangent, view), normal));
+		float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
+		//float2 sphereUv = capCoord * 0.5 + 0.5;
+		[branch] if (_SphereMode == 1) { // Add
+			float4 sphereAdd = _SphereAddTex.Sample(sampler_SphereAtlas, sphereUv);
+			color += sphereAdd.rgb;
+		} else if (_SphereMode == 2) { // Multiply
+			float4 sphereMul = _SphereMulTex.Sample(sampler_SphereAtlas, sphereUv);
+			color *= sphereMul.rgb;
+		} else { // Multiple
+			uint w, h;
+			[branch] switch(_SphereNum) {
+				case 2:  { w = 2; h = 1; } break;
+				case 4:  { w = 2; h = 2; } break;
+				case 8:  { w = 4; h = 2; } break;
+				case 9:  { w = 3; h = 3; } break;
+				case 16: { w = 4; h = 4; } break;
+				case 18: { w = 6; h = 3; } break;
+				case 25: { w = 5; h = 5; } break;
+				default: { w = 1; h = 1; } break;
+			}
+			float2 dim = float2(w, h);
+			float4 atlCol = sqrt(_SphereAtlas.Sample(sampler_SphereAtlas, uv));
+			float2 sel = atlCol.rg;
+			sel.g = 1 - sel.g;
+			sel *= dim;
+			sel = clamp(floor(sel), float2(0, 0), dim - 1) / dim;
+			sphereUv /= float2(w, h);
+			sphereUv += sel;
+			float4 sphCol = _SphereMultiTex.Sample(sampler_SphereAtlas, sphereUv);
+			float3 dbgCol = lerp(atlCol.rgb, float3(sel, 0), 0.75);
+			color = lerp(lerp(color + sphCol.rgb, color * sphCol.rgb, atlCol.b), dbgCol, 0);
+		}
+	}
     return color;
 }
 
 float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 {
-	if (_OverlayMode > 0) // has overlay
+	[branch] if (_OverlayMode > 0) // has overlay
 	{
 		float4 col = float4(1,1,1,1);
 		float2 transform = float2(_Time[1] * _PanoRotationSpeedX, _Time[1] * _PanoRotationSpeedY);
-		if (_OverlayMode == 1) // Panosphere (Rotation)
-		{
+		[branch] if (_OverlayMode == 1) { // Panosphere (Rotation)
 			float3 newview = RotatePointAroundOrigin(view, transform);
 			col = texCUBE(_PanoSphereTex, newview);
-		}
-		else if (_OverlayMode == 2) // Panosphere (Screen)
-		{
+		} else if   (_OverlayMode == 2) { // Panosphere (Screen)
 			float4 newcoord = UNITY_PROJ_COORD(ComputeScreenPos(coord));
 			col = tex2Dproj(_PanoFlatTex, newcoord);
-		}
-		else if (_OverlayMode == 3) // UV Scroll
-		{
+		} else if   (_OverlayMode == 3) { // UV Scroll
 			float2 newcoord = uv + transform / 2;
 			col = tex2D(_PanoFlatTex, newcoord);
 		}
@@ -319,20 +345,13 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 		col.rgb += ocol.rgb;
 		#endif
 		#endif
-		if (_OverlayBlendMode == 1) // Add
-		{
+		[branch] if (_OverlayBlendMode == 1) { // Add
 			col.rgb += color;
-		}
-		if (_OverlayBlendMode == 2) // Multiply
-		{
+		} else if   (_OverlayBlendMode == 2) { // Multiply
 			col.rgb *= color;
-		}
-		if (_OverlayBlendMode == 3) // Alphablend
-		{
+		} else if   (_OverlayBlendMode == 3) { // Alphablend
 			col.rgb = lerp(color, col.rgb, col.a);
-		}
-		if (_OverlayBlendMode == 4) // Set Hue
-		{
+		} else if   (_OverlayBlendMode == 4) { // Set Hue
 			float3 hue1 = RGBtoHSV(col.rgb);
 			float3 hue2 = RGBtoHSV(color);
 			hue2.r = hue1.r;
@@ -354,7 +373,7 @@ float4 frag(VertexOutput i) : SV_Target
     clip (color.a - _Cutoff);
     #endif
     #if defined(GAMMACORRECT)
-    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
+    color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
     #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);
@@ -383,6 +402,7 @@ float4 frag(VertexOutput i) : SV_Target
     #else
     float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
+	lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
     
     // Pulse
     #if defined(PULSE)
@@ -392,15 +412,13 @@ float4 frag(VertexOutput i) : SV_Target
     
     // Shaded Emission
     #if defined(SHADEEMISSION)
-	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
 		float4 emshade = calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb);
 		emissive *= lerp(emshade.rgb, float3(1.0, 1.0, 1.0), emshade.a);
 	} else {
 		emissive *= calcShadow(i.posWorld.xyz, normalDirection, 1, i.uv, emissive.rgb).rgb;
 	}
-    #if !NO_SPHERE //_SphereMode
-    emissive = applySphere(emissive, viewDirection, normalDirection);
-    #endif
+    emissive = applySphere(emissive, viewDirection, normalDirection, i.uv);
     #endif
     
     // Hidden Emission
@@ -428,15 +446,14 @@ float4 frag(VertexOutput i) : SV_Target
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     emissive = artsyOutline(emissive, viewDirection, normalDirection);
     
-    #if !NO_SPHERE //_SphereMode
-    color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
-    #endif
+    // Sphere
+	color.rgb = applySphere(color.rgb, viewDirection, normalDirection, i.uv);
 	
 	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a) * tex2D(_OcclusionMap, i.uv).r;
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
 		return float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
 	} else {
 		return float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(emissive + specular, 0);
@@ -452,7 +469,7 @@ float4 frag4(VertexOutput i) : COLOR
     clip (color.a - _Cutoff);
     #endif
     #if defined(GAMMACORRECT)
-    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
+    color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
     #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);
@@ -509,15 +526,14 @@ float4 frag4(VertexOutput i) : COLOR
     // Outline
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
     
-    #if !NO_SPHERE //_SphereMode
-    color.rgb = applySphere(color.rgb, viewDirection, normalDirection);
-    #endif
+	// Sphere
+    color.rgb = applySphere(color.rgb, viewDirection, normalDirection, i.uv);
 	
 	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a) * tex2D(_OcclusionMap, i.uv).r;
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-	if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
 		return float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
 	} else {
 		return float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
@@ -533,7 +549,7 @@ float4 frag3(VertexOutput i) : COLOR
     clip (color.a - _Cutoff);
     #endif
     #if defined(GAMMACORRECT)
-    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
+    color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
     #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);
@@ -554,6 +570,7 @@ float4 frag3(VertexOutput i) : COLOR
     #else
     float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
+	lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
     
     // Primary Effects
     // Saturation boost
@@ -591,7 +608,7 @@ float4 frag5(VertexOutput i) : COLOR
     clip (color.a - _Cutoff);
     #endif
     #if defined(GAMMACORRECT)
-    color.rgb *= lerp(1, color.rgb, _CorrectionLevel);
+    color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
     #endif
     #if defined(HUESHIFTMODE)
     float3 colhsv = RGBtoHSV(_Color.rgb);

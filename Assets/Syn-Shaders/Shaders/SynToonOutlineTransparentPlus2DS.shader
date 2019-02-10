@@ -40,6 +40,7 @@ Shader "Synergiance/Toon-Outline/TransparentFix2DS"
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
 		_SphereMultiTex("Sphere (Multiple)", 2D) = "white" {}
+		[Gamma]_SphereAtlas("Sphere Atlas Texture", 2D) = "black" {}
 		[Enum(1x2,2,2x2,4,2x4,8,3x3,9,4x4,16,3x6,18,5x5,25)] _SphereNum("Number of Spheres", Int) = 4
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
         _SaturationBoost ("Saturation Boost", Range(0,5)) = 0

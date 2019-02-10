@@ -54,8 +54,8 @@ public class SynToonInspector : ShaderGUI
     {
         None,
         Add,
-        Multiply//,
-		//Multiple
+        Multiply,
+		Multiple
     }
     
     public enum OverlayMode
@@ -124,7 +124,10 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty gammaLevel;
     MaterialProperty sphereAddTex;
     MaterialProperty sphereMulTex;
+    MaterialProperty sphereMultiTex;
+    MaterialProperty sphereAtlasTex;
     MaterialProperty sphereMode;
+    MaterialProperty sphereNum;
     MaterialProperty saturationBoost;
     MaterialProperty overlayBlendMode;
     MaterialProperty panoSphereMode;
@@ -196,7 +199,10 @@ public class SynToonInspector : ShaderGUI
             alphaOverride = FindProperty("_AlphaOverride", props);
             sphereAddTex = FindProperty("_SphereAddTex", props);
             sphereMulTex = FindProperty("_SphereMulTex", props);
+            sphereMultiTex = FindProperty("_SphereMultiTex", props);
+            sphereAtlasTex = FindProperty("_SphereAtlas", props);
             sphereMode = FindProperty("_SphereMode", props);
+            sphereNum = FindProperty("_SphereNum", props);
             saturationBoost = FindProperty("_SaturationBoost", props);
             overlayBlendMode = FindProperty("_OverlayBlendMode", props);
             panoSphereMode = FindProperty("_OverlayMode", props);
@@ -492,29 +498,26 @@ public class SynToonInspector : ShaderGUI
                     materialEditor.RegisterPropertyChangeUndo("Sphere Mode");
                     sphereMode.floatValue = (float)sphMode;
 
-                    foreach (var obj in sphereMode.targets)
-                    {
-                        SetupMaterialWithSphereMode((Material)obj, (SphereMode)material.GetFloat("_SphereMode"));
-                    }
-
                 }
                 switch (sphMode)
                 {
                     case SphereMode.Add:
                         EditorGUI.indentLevel += 2;
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (Add)"), sphereAddTex);
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (RGB Additive Shine)"), sphereAddTex);
                         EditorGUI.indentLevel -= 2;
                         break;
                     case SphereMode.Multiply:
                         EditorGUI.indentLevel += 2;
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (Multiply)"), sphereMulTex);
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (RGB Multiplied Metallic)"), sphereMulTex);
                         EditorGUI.indentLevel -= 2;
                         break;
-                    //case SphereMode.Multiple:
-                    //    EditorGUI.indentLevel += 2;
-                    //    materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Textures", "Sphere Texture (Map)"), sphereMulTex);
-                    //    EditorGUI.indentLevel -= 2;
-                    //    break;
+                    case SphereMode.Multiple:
+                        EditorGUI.indentLevel += 2;
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Textures", "Sphere Texture (RGB Map)"), sphereMultiTex);
+                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Atlas", "Sphere Atlas (RG Sphere Select XY, B Metallic)"), sphereAtlasTex);
+						materialEditor.ShaderProperty(sphereNum, "Sphere Layout");
+                        EditorGUI.indentLevel -= 2;
+                        break;
                     case SphereMode.None:
                     default:
                         break;
@@ -998,35 +1001,6 @@ public class SynToonInspector : ShaderGUI
         }
     }
 
-    public static void SetupMaterialWithSphereMode(Material material, SphereMode sphereMode)
-    {
-        switch ((SphereMode)material.GetFloat("_SphereMode"))
-        {
-            case SphereMode.None:
-                material.EnableKeyword("NO_SPHERE");
-                material.DisableKeyword("ADD_SPHERE");
-                material.DisableKeyword("MUL_SPHERE");
-                break;
-            case SphereMode.Add:
-                material.DisableKeyword("NO_SPHERE");
-                material.EnableKeyword("ADD_SPHERE");
-                material.DisableKeyword("MUL_SPHERE");
-                break;
-            case SphereMode.Multiply:
-                material.DisableKeyword("NO_SPHERE");
-                material.DisableKeyword("ADD_SPHERE");
-                material.EnableKeyword("MUL_SPHERE");
-                break;
-            //case SphereMode.Multiple:
-            //    material.DisableKeyword("NO_SPHERE");
-            //    material.DisableKeyword("ADD_SPHERE");
-            //    material.DisableKeyword("MUL_SPHERE");
-            //    break;
-            default:
-                break;
-        }
-    }
-    
     public static void SetupMaterialShaderSelect(Material material, OutlineMode outlineMode, BlendMode blendMode, TransFix transparentFix, bool doubleSided)
     {
         string shaderName = "Synergiance/Toon";
