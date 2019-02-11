@@ -1,5 +1,9 @@
 Change Log
 
+0.4.1.1:
+Disabled lightmap support until I can fix the bugs in it
+Fixed bug where materials would appear black under certain situations
+
 0.4.1:
 Added ambient occlusion maps support
 Added sphere atlasing

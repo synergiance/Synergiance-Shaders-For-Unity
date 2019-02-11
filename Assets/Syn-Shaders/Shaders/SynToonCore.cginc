@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.4.1
+// v0.4.1.1
 
-#define VERSION="v0.4.1"
+#define VERSION="v0.4.1.1"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -190,9 +190,15 @@ float4 calcShadow(float3 position, float3 normal, float atten, float2 uv, float3
 		#elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
 		float3 lightDirection = normalize(_StaticToonLight.rgb - position);
 		#else // Normal lighting
-		float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
-		// The following line is currently broken and commented out.  Please look into it
-		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+		[flatten] if (!(abs(_WorldSpaceLightPos0.x + _WorldSpaceLightPos0.y + _WorldSpaceLightPos0.z) <= 0.01))
+		{
+			float3 lightDirection = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - position, _WorldSpaceLightPos0.w));
+			lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
+		}
+		else
+		{
+			atten = 1;
+		}
 		#endif
 		#if !NORMAL_LIGHTING
 		#if !OVERRIDE_REALTIME
@@ -402,7 +408,7 @@ float4 frag(VertexOutput i) : SV_Target
     #else
     float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
-	lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
+	//lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
     
     // Pulse
     #if defined(PULSE)
@@ -570,7 +576,7 @@ float4 frag3(VertexOutput i) : COLOR
     #else
     float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
-	lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
+	//lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
     
     // Primary Effects
     // Saturation boost
