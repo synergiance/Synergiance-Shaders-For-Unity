@@ -1,5 +1,4 @@
 // Written by Synergiance
-// Major edit from Cubed's FlatLitToon
 
 using UnityEditor;
 using UnityEngine;
@@ -103,6 +102,7 @@ public class SynToonInspector : ShaderGUI
 	MaterialProperty shadowTexture;
     MaterialProperty shadowRampDirection;
 	MaterialProperty shadowTextureMode;
+	MaterialProperty shadowUV;
     MaterialProperty outlineMode;
     MaterialProperty outlineWidth;
     MaterialProperty outlineFeather;
@@ -128,6 +128,7 @@ public class SynToonInspector : ShaderGUI
     MaterialProperty sphereAtlasTex;
     MaterialProperty sphereMode;
     MaterialProperty sphereNum;
+    MaterialProperty sphereUV;
     MaterialProperty saturationBoost;
     MaterialProperty overlayBlendMode;
     MaterialProperty panoSphereMode;
@@ -178,6 +179,7 @@ public class SynToonInspector : ShaderGUI
             shadowTexture = FindProperty("_ShadowTexture", props);
             shadowRampDirection = FindProperty("_ShadowRampDirection", props);
             shadowTextureMode = FindProperty("_ShadowTextureMode", props);
+            shadowUV = FindProperty("_ShadowUV", props);
             outlineMode = FindProperty("_OutlineMode", props);
             outlineColorMode = FindProperty("_OutlineColorMode", props);
             outlineWidth = FindProperty("_outline_width", props);
@@ -203,6 +205,7 @@ public class SynToonInspector : ShaderGUI
             sphereAtlasTex = FindProperty("_SphereAtlas", props);
             sphereMode = FindProperty("_SphereMode", props);
             sphereNum = FindProperty("_SphereNum", props);
+            sphereUV = FindProperty("_SphereUV", props);
             saturationBoost = FindProperty("_SaturationBoost", props);
             overlayBlendMode = FindProperty("_OverlayBlendMode", props);
             panoSphereMode = FindProperty("_OverlayMode", props);
@@ -407,6 +410,7 @@ public class SynToonInspector : ShaderGUI
                         materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
                         materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), shadowTexture);
 						materialEditor.ShaderProperty(shadowTextureMode, shadowTextureMode.displayName);
+						materialEditor.ShaderProperty(shadowUV, "UV Map");
                         EditorGUI.indentLevel -= 2;
                         break;
                     case ShadowMode.Multiple:
@@ -415,6 +419,7 @@ public class SynToonInspector : ShaderGUI
                         materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), shadowRamp);
 						materialEditor.ShaderProperty(shadowRampDirection, shadowRampDirection.displayName);
                         materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), shadowTexture);
+						materialEditor.ShaderProperty(shadowUV, "UV Map");
                         //materialEditor.TexturePropertySingleLine(new GUIContent("Control Texture", "(RG) Red controls height offset, Green controls width offset.  The opposite axis will be ignored in this mode."), shadowControl);
                         EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
                         EditorGUI.indentLevel -= 2;
@@ -516,6 +521,7 @@ public class SynToonInspector : ShaderGUI
                         materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Textures", "Sphere Texture (RGB Map)"), sphereMultiTex);
                         materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Atlas", "Sphere Atlas (RG Sphere Select XY, B Metallic)"), sphereAtlasTex);
 						materialEditor.ShaderProperty(sphereNum, "Sphere Layout");
+						materialEditor.ShaderProperty(sphereUV, "UV Map");
                         EditorGUI.indentLevel -= 2;
                         break;
                     case SphereMode.None:

@@ -1,5 +1,11 @@
 Change Log
 
+0.4.1.2:
+Added meta pass for lightmap generation
+Added support for up to 4 uv maps
+Fixed and re-enabled lightmap support
+Fixed outlines not being affected by attenuation
+
 0.4.1.1:
 Disabled lightmap support until I can fix the bugs in it
 Fixed bug where materials would appear black under certain situations

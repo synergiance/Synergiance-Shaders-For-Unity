@@ -16,6 +16,7 @@ Shader "Synergiance/Toon-Outline"
         _ShadowTexture("Shadow Texture", 2D) = "black" {}
         [Enum(Vertical,0,Horizontal,1)] _ShadowRampDirection("Ramp Direction", Int) = 1
         [Enum(Texture,0,Tint,1)] _ShadowTextureMode("Texture Tint", Int) = 1
+		[Enum(UV1,0,UV2,1,UV3,2,UV4,3)] _ShadowUV("Shadow Atlas UV Map", Int) = 0
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0.8
         _ShadowAmbAdd("Ambient", Range(0,1)) = 0
         _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
@@ -42,6 +43,7 @@ Shader "Synergiance/Toon-Outline"
 		_SphereMultiTex("Sphere (Multiple)", 2D) = "white" {}
 		[Gamma]_SphereAtlas("Sphere Atlas Texture", 2D) = "black" {}
 		[Enum(1x2,2,2x2,4,2x4,8,3x3,9,4x4,16,3x6,18,5x5,25)] _SphereNum("Number of Spheres", Int) = 4
+		[Enum(UV1,0,UV2,1,UV3,2,UV4,3)] _SphereUV("Sphere Atlas UV Map", Int) = 0
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
         _SaturationBoost ("Saturation Boost", Range(0,5)) = 0
         _PanoSphereTex ("Panosphere Texture", Cube) = "" {}
@@ -109,6 +111,8 @@ Shader "Synergiance/Toon-Outline"
 			Fail [_StencilFail]
 			ZFail [_StencilZFail]
 		}
+		
+		UsePass "Synergiance/Toon/META"
 
         UsePass "Synergiance/Toon/FORWARD"
         
@@ -129,6 +133,7 @@ Shader "Synergiance/Toon-Outline"
 			}
 
 			CGPROGRAM
+			#pragma multi_compile LIGHTMAP_ON LIGHTMAP_OFF
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
@@ -163,6 +168,7 @@ Shader "Synergiance/Toon-Outline"
 			ZTest LEqual
 
 			CGPROGRAM
+			#pragma multi_compile LIGHTMAP_ON LIGHTMAP_OFF
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
