@@ -611,7 +611,7 @@ public class SynToonInspector : ShaderGUI
                             panoAlpha = EditorGUILayout.Toggle(new GUIContent("Use Alpha Channel", "Blending for the second overlay, unchecked is add, checked is alpha"), panoAlpha);
                             EditorGUI.indentLevel -= 2;
                         }
-                        EditorGUILayout.HelpBox("This section does not work, in fact it's super broken, use a cube map instead with the sphere mode", MessageType.Info);
+                        EditorGUILayout.HelpBox("This section will work now, but isn't fully tested.  Please report any bugs to me (Synergiance) in the discord for this shader (https://discord.gg/rvpGU5E) under #bug-reports.", MessageType.Info);
                         EditorGUI.indentLevel -= 2;
                         break;
                     case OverlayMode.UVScroll:

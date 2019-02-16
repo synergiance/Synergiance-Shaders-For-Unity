@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.4.1.2
+// v0.4.1.3
 
-#define VERSION="v0.4.1.2"
+#define VERSION="v0.4.1.3"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -97,6 +97,9 @@ struct v2g
 	UNITY_FOG_COORDS(11)
 	float2 uv2 : TEXCOORD12;
 	float2 uv3 : TEXCOORD13;
+	#if defined(VERTEXLIGHT_ON)
+		float3 vertexLightColor : TEXCOORD14;
+	#endif
 };
 
 struct VertexOutput
@@ -121,6 +124,9 @@ struct VertexOutput
 	UNITY_FOG_COORDS(11)
 	float2 uv2 : TEXCOORD12;
 	float2 uv3 : TEXCOORD13;
+	#if defined(VERTEXLIGHT_ON)
+		float3 vertexLightColor : TEXCOORD14;
+	#endif
 };
 
 float grayscaleSH9(float3 normalDirection)
@@ -175,6 +181,15 @@ v2g vert(appdata_full v)
     float brightness = lightColor.r * 0.3 + lightColor.g * 0.59 + lightColor.b * 0.11;
     float correctedBrightness = -1 / (brightness * 2 + 1) + 1 + brightness * 0.1;
     o.lightModifier = correctedBrightness / brightness;
+	
+	#if defined(VERTEXLIGHT_ON)
+		o.vertexLightColor = Shade4PointLights(
+			unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0,
+			unity_LightColor[0].rgb, unity_LightColor[1].rgb,
+			unity_LightColor[2].rgb, unity_LightColor[3].rgb,
+			unity_4LightAtten0, o.posWorld, o.normalDir
+		);
+	#endif
     
     return o;
 }
@@ -261,9 +276,9 @@ float4 calcShadow(float3 position, float3 normal, float atten, float4 uvs, float
 				break;
 			case 4: // Multiple Shadows
 				[branch] if (_ShadowRampDirection) { // Horizontal
-					bright.rgb = tex2D(_ShadowRamp, float2(lightScale * tex2D(_OcclusionMap, uv).r, tex2D(_ShadowTexture, uv1).r)).rgb;
+					bright.rgb = tex2D(_ShadowRamp, float2(lightScale * tex2D(_OcclusionMap, uv).r, GammaToLinearSpace(tex2D(_ShadowTexture, uv1)).r)).rgb;
 				} else { // Vertical
-					bright.rgb = tex2D(_ShadowRamp, float2(tex2D(_ShadowTexture, uv1).r, lightScale * tex2D(_OcclusionMap, uv).r)).rgb;
+					bright.rgb = tex2D(_ShadowRamp, float2(GammaToLinearSpace(tex2D(_ShadowTexture, uv1)).r, lightScale * tex2D(_OcclusionMap, uv).r)).rgb;
 				}
 				break;
 			case 5: // Auto Shadow
@@ -323,7 +338,7 @@ float3 applySphere(float3 color, float3 view, float3 normal, float2 uv)
 				default: { w = 1; h = 1; } break;
 			}
 			float2 dim = float2(w, h);
-			float4 atlCol = sqrt(_SphereAtlas.Sample(sampler_SphereAtlas, uv));
+			float3 atlCol = GammaToLinearSpace(_SphereAtlas.Sample(sampler_SphereAtlas, uv));
 			float2 sel = atlCol.rg;
 			sel.g = 1 - sel.g;
 			sel *= dim;
@@ -349,7 +364,7 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 			col = texCUBE(_PanoSphereTex, newview);
 		} else if   (_OverlayMode == 2) { // Panosphere (Screen)
 			float4 newcoord = UNITY_PROJ_COORD(ComputeScreenPos(coord));
-			col = tex2Dproj(_PanoFlatTex, newcoord);
+			col = tex2D(_PanoFlatTex, float2(2, -2) * newcoord.xy / _ScreenParams.xy);
 		} else if   (_OverlayMode == 3) { // UV Scroll
 			float2 newcoord = uv + transform / 2;
 			col = tex2D(_PanoFlatTex, newcoord);
@@ -404,7 +419,7 @@ float4 frag(VertexOutput i) : SV_Target
     #endif
     color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
 	
-	float4 uvShadow;
+	float4 uvShadow = float4(0, 0, 0, 0);
 	uvShadow.xy = i.uv;
 	[branch] switch(_ShadowUV) {
 		case 0: { uvShadow.zw = i.uv;  } break;
@@ -412,7 +427,7 @@ float4 frag(VertexOutput i) : SV_Target
 		case 2: { uvShadow.zw = i.uv2; } break;
 		case 3: { uvShadow.zw = i.uv3; } break;
 	}
-	float2 uvSphere;
+	float2 uvSphere = float2(0, 0);
 	[branch] switch(_SphereUV) {
 		case 0: { uvSphere = i.uv;  } break;
 		case 1: { uvSphere = i.uv1; } break;
@@ -435,9 +450,14 @@ float4 frag(VertexOutput i) : SV_Target
     #else
 		float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap * ((i.lightModifier + 1) / 2)) * _Brightness;
     #endif
+	float3 ambient = float3(0, 0, 0);
 	#ifdef LIGHTMAP_ON
-		lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
+		ambient += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
 	#endif
+	#if defined(VERTEXLIGHT_ON)
+		ambient += i.vertexLightColor;
+	#endif
+	//ambient += max(0, ShadeSH9(float4(normalDirection, 1)));
     
     // Pulse
     #if defined(PULSE)
@@ -487,11 +507,11 @@ float4 frag(VertexOutput i) : SV_Target
 	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a) * tex2D(_OcclusionMap, i.uv).r;
     
     // Combining
-    UNITY_APPLY_FOG(i.fogCoord, color);
+	UNITY_APPLY_FOG(i.fogCoord, color);
 	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
-		return float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
+		return float4(lightColor + ambient, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
 	} else {
-		return float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(emissive + specular, 0);
+		return float4(bright.rgb * lightColor + ambient, _AlphaOverride) * color + float4(emissive + specular, 0);
 	}
 }
 
@@ -518,7 +538,7 @@ float4 frag4(VertexOutput i) : COLOR
     #endif
     color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
 	
-	float4 uvShadow;
+	float4 uvShadow = float4(0, 0, 0, 0);
 	uvShadow.xy = i.uv;
 	[branch] switch(_ShadowUV) {
 		case 0: { uvShadow.zw = i.uv;  } break;
@@ -526,7 +546,7 @@ float4 frag4(VertexOutput i) : COLOR
 		case 2: { uvShadow.zw = i.uv2; } break;
 		case 3: { uvShadow.zw = i.uv3; } break;
 	}
-	float2 uvSphere;
+	float2 uvSphere = float2(0, 0);
 	[branch] switch(_SphereUV) {
 		case 0: { uvSphere = i.uv;  } break;
 		case 1: { uvSphere = i.uv1; } break;
@@ -753,6 +773,10 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
 			o.fogCoord = IN[ii].fogCoord;
 		#endif
+		
+		#if defined(VERTEXLIGHT_ON)
+			o.vertexLightColor = IN[ii].vertexLightColor;
+		#endif
 
 		tristream.Append(o);
 	}
@@ -805,6 +829,10 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		// Pass-through the fog coordinates if this pass has shadows.
 		#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
 			o.fogCoord = IN[ii].fogCoord;
+		#endif
+		
+		#if defined(VERTEXLIGHT_ON)
+			o.vertexLightColor = IN[ii].vertexLightColor;
 		#endif
 
 		tristream.Append(o);

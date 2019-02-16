@@ -1,5 +1,11 @@
 Change Log
 
+0.4.1.3:
+Corrected lightmap implementation so it only renders in the base pass
+Added support for vertex lights
+Fixed screen space overlays
+Fixed scaling for encoded atlas coordinates
+
 0.4.1.2:
 Added meta pass for lightmap generation
 Added support for up to 4 uv maps

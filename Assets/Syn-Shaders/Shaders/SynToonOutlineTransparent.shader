@@ -132,7 +132,6 @@ Shader "Synergiance/Toon-Outline/Transparent"
 			}
 
 			CGPROGRAM
-			#pragma multi_compile LIGHTMAP_ON LIGHTMAP_OFF
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
@@ -164,7 +163,6 @@ Shader "Synergiance/Toon-Outline/Transparent"
             Cull Front
 
 			CGPROGRAM
-			#pragma multi_compile LIGHTMAP_ON LIGHTMAP_OFF
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
