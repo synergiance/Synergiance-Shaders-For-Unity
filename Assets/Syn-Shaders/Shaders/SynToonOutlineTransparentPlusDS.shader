@@ -57,6 +57,8 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 		[HDR]_SpecularColor ("Specular Color", Color) = (0,0,0,1)
 		_UVScrollX ("UV Scroll (x)", Float) = 0
 		_UVScrollY ("UV Scroll (Y)", Float) = 0
+		_ProbeStrength ("Probe Strength", Range(0,1)) = 0
+		_ProbeClarity ("Probe Clarity", Range(0,1)) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0

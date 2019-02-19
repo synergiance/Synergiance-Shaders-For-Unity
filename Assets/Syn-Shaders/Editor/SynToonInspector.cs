@@ -154,6 +154,8 @@ public class SynToonInspector : ShaderGUI
 	MaterialProperty specPow;
 	MaterialProperty specMap;
 	MaterialProperty specCol;
+	MaterialProperty probeStrength;
+	MaterialProperty probeClarity;
     
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
@@ -231,6 +233,8 @@ public class SynToonInspector : ShaderGUI
             specPow = ShaderGUI.FindProperty("_SpecularPower", props);
             specMap = ShaderGUI.FindProperty("_SpecularMap", props);
 			specCol = ShaderGUI.FindProperty("_SpecularColor", props);
+			probeStrength = ShaderGUI.FindProperty("_ProbeStrength", props);
+			probeClarity = ShaderGUI.FindProperty("_ProbeClarity", props);
         }
         
         Material material = materialEditor.target as Material;
@@ -757,6 +761,12 @@ public class SynToonInspector : ShaderGUI
                 }
                 materialEditor.ShaderProperty(lightColor, new GUIContent("Light Color", "Light will become this color depending on the slider below"));
                 materialEditor.ShaderProperty(lightOverride, new GUIContent("Light Override", "Turn this slider to the right to use the color above"));
+				materialEditor.ShaderProperty(probeStrength, new GUIContent("Probe Strength", "Strength of reflection probes on this material"));
+				if (material.GetFloat("_ProbeStrength") > 0) {
+					EditorGUI.indentLevel += 1;
+					materialEditor.ShaderProperty(probeClarity, new GUIContent("Probe Clarity", "Clarity of reflection probes on this material"));
+					EditorGUI.indentLevel -= 1;
+				}
                 
                 EditorGUI.BeginChangeCheck();
                 if ((BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
