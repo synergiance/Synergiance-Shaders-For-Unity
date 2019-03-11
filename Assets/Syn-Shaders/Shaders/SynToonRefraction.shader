@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (Outline/TransparentFix)
+// Synergiance Toon Shader (Refraction)
 
-Shader "Synergiance/Toon-Outline/TransparentFix"
+Shader "Synergiance/Toon/Refraction"
 {
 	Properties
 	{
@@ -64,7 +64,7 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
-		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
+		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[HideInInspector] _TransFix("__transparent_fix", Float) = 0.0
@@ -96,10 +96,11 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 	{
 		Tags
 		{
-			"Queue" = "Transparent+50"
+			"Queue" = "Transparent+3000"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
+        Cull [_CullMode]
 		ColorMask [_stencilcolormask]
         ZTest [_ZTest]
         BlendOp [_BlendOp]
@@ -115,18 +116,59 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 			ZFail [_StencilZFail]
 		}
 		
+		GrabPass { "_RefractGrab" }
+		
 		UsePass "Synergiance/Toon/META"
 
-        UsePass "Synergiance/Toon/Transparent/FORWARD"
+		Pass
+		{
+			Name "FORWARD"
+            
+            Blend One Zero
+            ZWrite [_ZWrite]
+            
+			Tags
+			{
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
+            #pragma shader_feature _ ARTSY_OUTLINE
+            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
+            #pragma shader_feature PULSE
+            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
+            #pragma shader_feature _ DISABLE_SHADOW
+            #pragma shader_feature _ OVERRIDE_REALTIME
+            #pragma shader_feature _ HUESHIFTMODE
+            #pragma shader_feature _ ALLOWOVERBRIGHT
+            #pragma shader_feature _ PANOOVERLAY
+            #pragma shader_feature _ PANOALPHA
+            #pragma shader_feature _ SLEEPEMISSION
+            #pragma shader_feature _ SHADEEMISSION
+            #pragma shader_feature _ GAMMACORRECT
+            #define IS_OPAQUE
+			#define REFRACTION
+            #include "SynToonCore.cginc"
+            
+			#pragma vertex vert
+			#pragma geometry geom
+			#pragma fragment frag
+            
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+            
+			ENDCG
+		}
         
         UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
-
-        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE"
-        
-        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE_DELTA"
 		
 		UsePass "Synergiance/Toon/Transparent/DEFERRED"
 	}
+    
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"
 }

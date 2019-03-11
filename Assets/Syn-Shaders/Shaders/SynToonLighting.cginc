@@ -83,46 +83,46 @@ float GetLightScale(float3 position, float3 normal, float atten) {
 }
 
 float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
-	float2 uv  = uvs.xy;
-	float2 uv1 = uvs.zw;
+	float4 uv  = float4(uvs.xy, 0, 0);
+	float4 uv1 = float4(uvs.zw, 0, 0);
     float4 bright = float4(1.0, 1.0, 1.0, lightScale);
 	[branch] switch (_ShadowMode) {
 		case 1: // Tinted Shadow
 			{
-				float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2D(_OcclusionMap, uv).r;
+				float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2Dlod(_OcclusionMap, uv).r;
 				bright.rgb = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
 			}
 			break;
 		case 2: // Ramp Shadow
 			{
-				lightScale *= tex2D(_OcclusionMap, uv).r;
-				bright.rgb = tex2D(_ShadowRamp, float2(lightScale, lightScale)).rgb;
+				lightScale *= tex2Dlod(_OcclusionMap, uv).r;
+				bright.rgb = tex2Dlod(_ShadowRamp, float4(lightScale, lightScale, 0, 0)).rgb;
 			}
 			break;
 		case 3: // Texture Shadow
 			{
-				bright.rgb = tex2D(_ShadowTexture, uv1);
+				bright.rgb = tex2Dlod(_ShadowTexture, uv1);
 				[branch] if (_ShadowTextureMode) { // Tint
-					float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2D(_OcclusionMap, uv);
+					float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2Dlod(_OcclusionMap, uv);
 					bright.rgb = lerp(bright.rgb, float3(1.0, 1.0, 1.0), lightContrib);
 				} else { // Texture
-					bright.a = lightScale * tex2D(_OcclusionMap, uv).r;
+					bright.a = lightScale * tex2Dlod(_OcclusionMap, uv).r;
 				}
 			}
 			break;
 		case 4: // Multiple Shadows
 			{
-				lightScale *= tex2D(_OcclusionMap, uv).r;
+				lightScale *= tex2Dlod(_OcclusionMap, uv).r;
 				[branch] if (_ShadowRampDirection) { // Horizontal
-					bright.rgb = tex2D(_ShadowRamp, float2(lightScale * tex2D(_OcclusionMap, uv).r, LinearToGammaSpace(tex2D(_ShadowTexture, uv1)).r)).rgb;
+					bright.rgb = tex2Dlod(_ShadowRamp, float4(lightScale * tex2Dlod(_OcclusionMap, uv).r, LinearToGammaSpace(tex2Dlod(_ShadowTexture, uv1)).r, 0, 0)).rgb;
 				} else { // Vertical
-					bright.rgb = tex2D(_ShadowRamp, float2(LinearToGammaSpace(tex2D(_ShadowTexture, uv1)).r, lightScale * tex2D(_OcclusionMap, uv).r)).rgb;
+					bright.rgb = tex2Dlod(_ShadowRamp, float4(LinearToGammaSpace(tex2Dlod(_ShadowTexture, uv1)).r, lightScale * tex2Dlod(_OcclusionMap, uv).r, 0, 0)).rgb;
 				}
 			}
 			break;
 		case 5: // Auto Shadow
 			{
-				float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2D(_OcclusionMap, uv).r;
+				float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2Dlod(_OcclusionMap, uv).r;
 				float3 tintColor = lerp(bright.rgb, pow(color, 2), _ShadowIntensity) * lerp(float3(0,0,0), _ShadowTint, _ShadowAmbient);
 				bright.rgb = lerp(tintColor, float3(1.0, 1.0, 1.0), lightContrib);
 			}

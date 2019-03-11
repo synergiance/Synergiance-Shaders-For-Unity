@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.4.2
+// v0.4.3
 
-#define VERSION="v0.4.2"
+#define VERSION="v0.4.3"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -77,6 +77,9 @@ float _ProbeStrength;
 float _ProbeClarity;
 
 #include "SynToonLighting.cginc"
+#if defined(REFRACTION)
+#include "Refraction.cginc"
+#endif
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -93,7 +96,6 @@ struct v2g
     float3 normalDir : TEXCOORD3;
     float3 tangentDir : TEXCOORD4;
     float3 bitangentDir : TEXCOORD5;
-    float4 lightData : TEXCOORD8;
     float3 reflectionMap : TEXCOORD9;
     float lightModifier : TEXCOORD10;
 	float4 pos : CLIP_POS;
@@ -102,7 +104,7 @@ struct v2g
 	float2 uv2 : TEXCOORD12;
 	float2 uv3 : TEXCOORD13;
 	#if defined(VERTEXLIGHT_ON)
-		float3 vertexLightColor : TEXCOORD14;
+		float3 vertexLightColor : TEXCOORD8;
 	#endif
 };
 
@@ -119,7 +121,6 @@ struct VertexOutput
 	float3 normalDir : TEXCOORD3;
 	float3 tangentDir : TEXCOORD4;
 	float3 bitangentDir : TEXCOORD5;
-    float4 lightData : TEXCOORD8; //
     float3 reflectionMap : TEXCOORD9; //
     float lightModifier : TEXCOORD10; //
 	float4 col : COLOR3;
@@ -129,7 +130,18 @@ struct VertexOutput
 	float2 uv2 : TEXCOORD12;
 	float2 uv3 : TEXCOORD13;
 	#if defined(VERTEXLIGHT_ON)
-		float3 vertexLightColor : TEXCOORD14;
+		float3 vertexLightColor : TEXCOORD8;
+	#endif
+};
+
+struct FragmentOutput {
+	#if defined(DEFERRED_PASS)
+		float4 gBuffer0 : SV_Target0;
+		float4 gBuffer1 : SV_Target1;
+		float4 gBuffer2 : SV_Target2;
+		float4 gBuffer3 : SV_Target3;
+	#else
+		float4 color : SV_Target;
 	#endif
 };
 
@@ -172,12 +184,6 @@ v2g vert(appdata_full v)
 	UNITY_TRANSFER_FOG(o, o.pos);
 	o.uv2 = v.texcoord2.xy;
 	o.uv3 = v.texcoord3.xy;
-    
-    // Calc
-    o.lightData.r = dot(_LightColor0.rgb, grayscale_vector);       // grayscalelightcolor
-    o.lightData.g = grayscaleSH9(float3(0.0, -1.0, 0.0));          // bottomIndirectLighting
-    o.lightData.b = grayscaleSH9(float3(0.0, 1.0, 0.0));           // topIndirectLighting
-    o.lightData.a = o.lightData.b + o.lightData.r - o.lightData.g; // lightDifference
     
     float4 objPos = mul(unity_ObjectToWorld, float4(0,0,0,1));
     o.reflectionMap = DecodeHDR(UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, normalize((_WorldSpaceCameraPos - objPos.rgb)), 7), unity_SpecCube0_HDR)* 0.02;
@@ -306,14 +312,16 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
     return color;
 }
 
-float4 frag(VertexOutput i) : SV_Target
+FragmentOutput frag(VertexOutput i)
 {
     // Variables
     float4 color = tex2D(_MainTex, i.uv);
     float4 _EmissionMap_var = tex2D(_EmissionMap, i.uv);
     float3 emissive = (_EmissionMap_var.rgb*_EmissionColor.rgb);
     float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
-    #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
+	#if defined(DEFERRED_PASS) && !defined(IS_OPAQUE)
+		clip (color.a - 0.8);
+    #elif defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
     #if defined(GAMMACORRECT)
@@ -420,11 +428,25 @@ float4 frag(VertexOutput i) : SV_Target
     
     // Combining
 	UNITY_APPLY_FOG(i.fogCoord, color);
-	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
-		return float4(lightColor + ambient, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
-	} else {
-		return float4(bright.rgb * lightColor + ambient, _AlphaOverride) * color + float4(emissive + specular, 0);
-	}
+	FragmentOutput output;
+	#if defined(DEFERRED_PASS)
+		output.gBuffer0.rgb = color.rgb;
+		output.gBuffer0.a = tex2D(_OcclusionMap, i.uv).r;
+		output.gBuffer1.rgb = _SpecularColor.rgb;
+		output.gBuffer1.a = _SpecularPower * 0.01;
+		output.gBuffer2 = float4(normalDirection.xyz * 0.5 + 0.5, 1);
+		output.gBuffer3 = float4(emissive, 1);
+	#else
+		[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
+			output.color = float4(lightColor + ambient, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
+		} else {
+			output.color = float4(bright.rgb * lightColor + ambient, _AlphaOverride) * color + float4(emissive + specular, 0);
+		}
+		#if defined(REFRACTION)
+			output.color = float4(lerp(refractGrab(normalDirection, i.pos, viewDirection), output.color.rgb, output.color.a), 1);
+		#endif
+	#endif
+	return output;
 }
 
 float4 frag4(VertexOutput i) : COLOR
@@ -667,7 +689,6 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         o.amb = IN[ii].amb;
         o.direct = IN[ii].direct;
         o.indirect = IN[ii].indirect;
-        o.lightData = IN[ii].lightData;
         o.reflectionMap = IN[ii].reflectionMap;
         o.lightModifier = IN[ii].lightModifier;
 
@@ -724,7 +745,6 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         o.amb = IN[ii].amb;
         o.direct = IN[ii].direct;
         o.indirect = IN[ii].indirect;
-        o.lightData = IN[ii].lightData;
         o.reflectionMap = IN[ii].reflectionMap;
         o.lightModifier = IN[ii].lightModifier;
 

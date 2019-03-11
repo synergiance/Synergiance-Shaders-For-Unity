@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (Outline/TransparentFix)
+// Synergiance Toon Shader (Refraction Outline)
 
-Shader "Synergiance/Toon-Outline/TransparentFix"
+Shader "Synergiance/Toon-Outline/Refraction"
 {
 	Properties
 	{
@@ -96,10 +96,11 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 	{
 		Tags
 		{
-			"Queue" = "Transparent+50"
+			"Queue" = "Transparent+3000"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
+        Cull [_CullMode]
 		ColorMask [_stencilcolormask]
         ZTest [_ZTest]
         BlendOp [_BlendOp]
@@ -115,9 +116,11 @@ Shader "Synergiance/Toon-Outline/TransparentFix"
 			ZFail [_StencilZFail]
 		}
 		
+		GrabPass { "_RefractGrab" }
+		
 		UsePass "Synergiance/Toon/META"
 
-        UsePass "Synergiance/Toon/Transparent/FORWARD"
+        UsePass "Synergiance/Toon/Refraction/FORWARD"
         
         UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
 

@@ -1,5 +1,11 @@
 Change Log
 
+0.4.3:
+Added deferred pass for screenspace effects
+Added refraction and chromatic aborration
+Removed unneeded code
+Changed labels on the sphere maps from HxW to WxH, this should be less confusing
+
 0.4.2:
 Added support for reflection probes
 Adjusted vertex lights algorithm for more consistent lighting

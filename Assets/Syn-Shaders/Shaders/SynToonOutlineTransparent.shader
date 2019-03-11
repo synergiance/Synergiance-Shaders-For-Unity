@@ -42,7 +42,7 @@ Shader "Synergiance/Toon-Outline/Transparent"
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
 		_SphereMultiTex("Sphere (Multiple)", 2D) = "white" {}
 		[Gamma]_SphereAtlas("Sphere Atlas Texture", 2D) = "black" {}
-		[Enum(1x2,2,2x2,4,2x4,8,3x3,9,4x4,16,3x6,18,5x5,25)] _SphereNum("Number of Spheres", Int) = 4
+		[Enum(2x1,2,2x2,4,4x2,8,3x3,9,4x4,16,6x3,18,5x5,25)] _SphereNum("Number of Spheres", Int) = 4
 		[Enum(UV1,0,UV2,1,UV3,2,UV4,3)] _SphereUV("Sphere Atlas UV Map", Int) = 0
         _StaticToonLight ("Static Light", Vector) = (1,1.5,1.5,0)
         _SaturationBoost ("Saturation Boost", Range(0,5)) = 0
@@ -59,6 +59,8 @@ Shader "Synergiance/Toon-Outline/Transparent"
 		_UVScrollY ("UV Scroll (Y)", Float) = 0
 		_ProbeStrength ("Probe Strength", Range(0,1)) = 0
 		_ProbeClarity ("Probe Clarity", Range(0,1)) = 0
+		_ChromaticAberration("Chromatic Aberration", Range( 0 , 0.3)) = 0.1
+		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -137,10 +139,10 @@ Shader "Synergiance/Toon-Outline/Transparent"
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
-            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT
             #pragma shader_feature _ GAMMACORRECT
+			#define _ALPHABLEND_ON
             #include "SynToonCore.cginc"
             
 			#pragma vertex vert
@@ -168,10 +170,10 @@ Shader "Synergiance/Toon-Outline/Transparent"
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
-            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT
             #pragma shader_feature _ GAMMACORRECT
+			#define _ALPHABLEND_ON
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom2
@@ -185,6 +187,8 @@ Shader "Synergiance/Toon-Outline/Transparent"
             
             ENDCG
         }
+		
+		UsePass "Synergiance/Toon/Transparent/DEFERRED"
 	}
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"

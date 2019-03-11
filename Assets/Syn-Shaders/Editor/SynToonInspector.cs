@@ -29,7 +29,8 @@ public class SynToonInspector : ShaderGUI
         Fade,   // Old school alpha-blending mode, fresnel does not affect amount of transparency
         Multiply, // Physically plausible transparency mode, implemented as alpha pre-multiply
         Alphablend, // Full alpha blending
-        Custom // Custom blending
+        Custom, // Custom blending
+		Refract // Use refraction and grab passes instead of blending
     }
     
     public enum ShadowMode
@@ -156,6 +157,8 @@ public class SynToonInspector : ShaderGUI
 	MaterialProperty specCol;
 	MaterialProperty probeStrength;
 	MaterialProperty probeClarity;
+	MaterialProperty refractionIndex;
+	MaterialProperty chromaticAbberation;
     
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
     {
@@ -235,6 +238,8 @@ public class SynToonInspector : ShaderGUI
 			specCol = ShaderGUI.FindProperty("_SpecularColor", props);
 			probeStrength = ShaderGUI.FindProperty("_ProbeStrength", props);
 			probeClarity = ShaderGUI.FindProperty("_ProbeClarity", props);
+			refractionIndex = ShaderGUI.FindProperty("_IndexofRefraction", props);
+			chromaticAbberation = ShaderGUI.FindProperty("_ChromaticAberration", props);
         }
         
         Material material = materialEditor.target as Material;
@@ -281,8 +286,13 @@ public class SynToonInspector : ShaderGUI
                 EditorGUI.indentLevel += 2;
                 if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Cutout) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom))
                     materialEditor.ShaderProperty(alphaCutoff, new GUIContent("Alpha Cutoff", "Material will clip here.  Drag to the left if you're losing detail.  Recommended value for alphablend: 0.1"), 2);
-                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom))
+                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Refract))
                     materialEditor.ShaderProperty(alphaOverride, new GUIContent("Alpha Override", "Overrides a texture's alpha (useful for very faint textures)"), 2);
+                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Refract)
+				{
+                    materialEditor.ShaderProperty(refractionIndex, new GUIContent("Index of Refraction", "How much to refract everything behind"), 2);
+                    materialEditor.ShaderProperty(chromaticAbberation, new GUIContent("Chromatic Abberation", "Strength of chromatic abberation effect"), 2);
+				}
                 materialEditor.TexturePropertySingleLine(new GUIContent("Color Mask", "Masks Color Tinting (G)"), colorMask);
                 EditorGUI.indentLevel -= 2;
                 materialEditor.TexturePropertySingleLine(new GUIContent("Normal Map", "Normal Map (RGB)"), normalMap);
@@ -882,10 +892,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
                 material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                //material.SetInt("_ZWrite", 1);
+                material.SetInt("_ZWrite", 1);
                 material.DisableKeyword("_ALPHATEST_ON");
-                material.DisableKeyword("_ALPHABLEND_ON");
-                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
                 break;
             case BlendMode.Cutout:
@@ -893,10 +901,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
                 material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                //material.SetInt("_ZWrite", 1);
+                material.SetInt("_ZWrite", 1);
                 material.EnableKeyword("_ALPHATEST_ON");
-                material.DisableKeyword("_ALPHABLEND_ON");
-                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
                 break;
             case BlendMode.Fade:
@@ -904,10 +910,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                //material.SetInt("_ZWrite", 0);
+                material.SetInt("_ZWrite", 0);
                 material.DisableKeyword("_ALPHATEST_ON");
-                material.EnableKeyword("_ALPHABLEND_ON");
-                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                 break;
             case BlendMode.Multiply:
@@ -915,10 +919,8 @@ public class SynToonInspector : ShaderGUI
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                //material.SetInt("_ZWrite", 0);
+                material.SetInt("_ZWrite", 0);
                 material.DisableKeyword("_ALPHATEST_ON");
-                material.DisableKeyword("_ALPHABLEND_ON");
-                material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
                 material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                 break;
             case BlendMode.Alphablend:
@@ -926,19 +928,21 @@ public class SynToonInspector : ShaderGUI
                 material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                //material.SetInt("_ZWrite", 1);
+                material.SetInt("_ZWrite", 1);
                 material.DisableKeyword("_ALPHATEST_ON");
-                material.EnableKeyword("_ALPHABLEND_ON");
-                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                 break;
             case BlendMode.Custom:
                 material.SetOverrideTag("RenderType", "Transparent");
-                //material.SetInt("_ZWrite", 1);
+                material.SetInt("_ZWrite", 1);
                 material.DisableKeyword("_ALPHATEST_ON");
-                material.EnableKeyword("_ALPHABLEND_ON");
-                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                break;
+            case BlendMode.Refract:
+                material.SetOverrideTag("RenderType", "Transparent");
+                material.SetInt("_ZWrite", 1);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 1;
                 break;
         }
     }
@@ -1056,6 +1060,9 @@ public class SynToonInspector : ShaderGUI
                 if (transFix > 0) shaderName += "Fix";
                 if (transFix > 1) shaderName += "2";
                 if (doubleSided) shaderName += "DS";
+                break;
+            case BlendMode.Refract:
+                shaderName += "/Refraction";
                 break;
             default:
                 break;
