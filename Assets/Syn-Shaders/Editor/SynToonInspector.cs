@@ -1,953 +1,823 @@
-// Written by Synergiance
+// Syn's MMD Toon Shader
 
 using UnityEditor;
 using UnityEngine;
-using System.Collections.Generic;
-using System.Linq;
-using System;
+using UnityEngine.Rendering;
 
-public class SynToonInspector : ShaderGUI
-{
-    public enum OutlineMode
-    {
-        None,
-        Artsy,
-        Outside,
-        Screenspace
+public class SynToonInspector : ShaderGUI {
+	
+	static string version = "0.4.4";
+    
+	public enum OutlineMode {
+        None, Artsy, Normal, Screenspace
     }
     
-    public enum OutlineColorMode
-    {
-        Tinted,
-        Colored
+    public enum OutlineColorMode {
+        Tinted, Colored
     }
+    
+    public enum ShadowMode {
+        None, Tint, Toon, Texture, Multiple, Auto
+    }
+    
+    public enum LightingHack {
+        None, World, Local
+    }
+    
+    public enum SphereMode {
+        None, Add, Multiply, Multiple
+    }
+    
+    public enum OverlayMode {
+        None, PanoSphere, PanoScreen, UVScroll
+    }
+    
+    public enum TransFix {
+        None, Level1, Level2
+    }
+	
+	enum RenderingMode {
+		Opaque, Cutout, Fade, Multiply, Alphablend, Custom, Refract
+	}
+	
+	struct RenderingSettings {
+		public BlendMode srcBlend, dstBlend;
+		public BlendOp operation;
+		public bool zWrite, showShadows, showCutoff, showOverride, showRefract, showTransFix, showCustom;
+		
+		public static RenderingSettings[] modes = {
+			new RenderingSettings() {
+				srcBlend = BlendMode.One,
+				dstBlend = BlendMode.Zero,
+				operation = BlendOp.Add,
+				zWrite = true,
+				showShadows = true,
+				showCutoff = false,
+				showOverride = false,
+				showRefract = false,
+				showTransFix = false,
+				showCustom = false
+			},
+			new RenderingSettings() {
+				srcBlend = BlendMode.One,
+				dstBlend = BlendMode.Zero,
+				operation = BlendOp.Add,
+				zWrite = true,
+				showShadows = true,
+				showCutoff = true,
+				showOverride = false,
+				showRefract = false,
+				showTransFix = false,
+				showCustom = false
+			},
+			new RenderingSettings() {
+				srcBlend = BlendMode.SrcAlpha,
+				dstBlend = BlendMode.OneMinusSrcAlpha,
+				operation = BlendOp.Add,
+				zWrite = false,
+				showShadows = false,
+				showCutoff = true,
+				showOverride = true,
+				showRefract = false,
+				showTransFix = true,
+				showCustom = false
+			},
+			new RenderingSettings() {
+				srcBlend = BlendMode.One,
+				dstBlend = BlendMode.OneMinusSrcAlpha,
+				operation = BlendOp.Add,
+				zWrite = false,
+				showShadows = false,
+				showCutoff = true,
+				showOverride = true,
+				showRefract = false,
+				showTransFix = true,
+				showCustom = false
+			},
+			new RenderingSettings() {
+				srcBlend = BlendMode.SrcAlpha,
+				dstBlend = BlendMode.OneMinusSrcAlpha,
+				operation = BlendOp.Add,
+				zWrite = true,
+				showShadows = false,
+				showCutoff = true,
+				showOverride = true,
+				showRefract = false,
+				showTransFix = true,
+				showCustom = false
+			},
+			new RenderingSettings() {
+				srcBlend = BlendMode.SrcAlpha,
+				dstBlend = BlendMode.OneMinusSrcAlpha,
+				operation = BlendOp.Add,
+				zWrite = false,
+				showShadows = false,
+				showCutoff = true,
+				showOverride = true,
+				showRefract = false,
+				showTransFix = true,
+				showCustom = true
+			},
+			new RenderingSettings() {
+				srcBlend = BlendMode.One,
+				dstBlend = BlendMode.Zero,
+				operation = BlendOp.Add,
+				zWrite = true,
+				showShadows = false,
+				showCutoff = false,
+				showOverride = true,
+				showRefract = true,
+				showTransFix = false,
+				showCustom = false
+			}
+		};
+	}
+	
+	Material target;
+	MaterialEditor editor;
+	MaterialProperty[] properties;
+	RenderingSettings renderSettings;
+	
+	static GUIContent staticLabel = new GUIContent();
+	static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
+	
+	static GUIContent MakeLabel(string text, string tooltip = null) {
+		staticLabel.text = text;
+		staticLabel.tooltip = tooltip;
+		return staticLabel;
+	}
+	
+	static GUIContent MakeLabel(MaterialProperty property, string tooltip = null) {
+		staticLabel.text = property.displayName;
+		staticLabel.tooltip = tooltip;
+		return staticLabel;
+	}
+	
+	MaterialProperty FindProperty(string name) {
+		return FindProperty(name, properties);
+	}
+	
+	void RecordAction(string label) {
+		editor.RegisterPropertyChangeUndo(label);
+	}
+	
+	bool IsKeywordEnabled(string keyword) {
+		return target.IsKeywordEnabled(keyword);
+	}
+	
+	void SetKeyword(string keyword, bool state) {
+		if (state) {
+			foreach (Material m in editor.targets) {
+				m.EnableKeyword(keyword);
+			}
+		} else {
+			foreach (Material m in editor.targets) {
+				m.DisableKeyword(keyword);
+			}
+		}
+	}
+	
+	bool KeywordToggle(string keyword, GUIContent display) {
+		EditorGUI.BeginChangeCheck();
+		bool state = EditorGUILayout.Toggle(display, IsKeywordEnabled(keyword));
+		if (EditorGUI.EndChangeCheck()) SetKeyword(keyword, state);
+		return state;
+	}
+	
+	bool KeywordToggle(string keyword, string display) {
+		return KeywordToggle(keyword, MakeLabel(display));
+	}
+	
+	bool ReverseKeywordToggle(string keyword, GUIContent display) {
+		EditorGUI.BeginChangeCheck();
+		bool state = !EditorGUILayout.Toggle(display, !IsKeywordEnabled(keyword));
+		if (EditorGUI.EndChangeCheck()) SetKeyword(keyword, state);
+		return !state;
+	}
+	
+	bool ReverseKeywordToggle(string keyword, string display) {
+		return ReverseKeywordToggle(keyword, MakeLabel(display));
+	}
+	
+	void ShaderProperty(string enumName) {
+		MaterialProperty enumProp = FindProperty(enumName);
+		editor.ShaderProperty(enumProp, MakeLabel(enumProp));
+	}
+	
+	void ShaderProperty(string enumName, string display) {
+		editor.ShaderProperty(FindProperty(enumName), MakeLabel(display));
+	}
+	
+	void ShaderProperty(string enumName, string display, string display2) {
+		editor.ShaderProperty(FindProperty(enumName), MakeLabel(display, display2));
+	}
+	
+	void Vec2Prop(string label, MaterialProperty prop1, MaterialProperty prop2) {
+		Vec2Prop(MakeLabel(label), prop1, prop2);
+	}
+	
+	void Vec2Prop(GUIContent label, MaterialProperty prop1, MaterialProperty prop2) {
+		EditorGUI.BeginChangeCheck();
+		EditorGUI.showMixedValue = prop1.hasMixedValue || prop2.hasMixedValue;
+		Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop1), EditorStyles.layerMaskField, new GUILayoutOption[0]);
+		Vector2 vec2 = EditorGUI.Vector2Field(controlRect, label, new Vector2(prop1.floatValue, prop2.floatValue));
+		EditorGUI.showMixedValue = false;
+		if (EditorGUI.EndChangeCheck()) {
+			prop1.floatValue = vec2.x;
+			prop2.floatValue = vec2.y;
+		}
+	}
+	
+	public override void OnGUI(MaterialEditor editor, MaterialProperty[] properties) {
+		this.target = editor.target as Material;
+		this.editor = editor;
+		this.properties = properties;
+		DoRenderingMode();
+		DoMain();
+		//DoSecondary();
+		DoOptions();
+		DoEffects();
+		DoAdvanced();
+		DoStencil();
+		if (renderSettings.showCustom) DoCustom();
+		EditorGUILayout.Space();
+		GUILayout.Label("Version: " + version);
+	}
+	
+	void DoRenderingMode() {
+		MaterialProperty blendMode = FindProperty("_Mode");
+		EditorGUI.showMixedValue = blendMode.hasMixedValue;
+		RenderingMode mode = (RenderingMode)blendMode.floatValue;
+		
+		EditorGUI.BeginChangeCheck();
+		mode = (RenderingMode)EditorGUILayout.EnumPopup(MakeLabel("Rendering Mode"), mode);
+		if (EditorGUI.EndChangeCheck()) {
+			RecordAction("Rendering Mode");
+			SetKeyword("_ALPHATEST_ON", mode == RenderingMode.Cutout);
+			blendMode.floatValue = (float)mode;
+			
+			renderSettings = RenderingSettings.modes[(int)mode];
+			foreach (Material m in editor.targets) {
+				m.SetInt("_SrcBlend", (int)renderSettings.srcBlend);
+				m.SetInt("_DstBlend", (int)renderSettings.dstBlend);
+				m.SetInt("_BlendOp", (int)renderSettings.operation);
+				m.SetInt("_ZWrite", renderSettings.zWrite ? 1 : 0);
+				SetupMaterialShaderSelect(m);
+			}
+		}
+		
+		EditorGUI.showMixedValue = false;
+	}
+	
+	void DoMain() {
+		GUILayout.Label("Main Maps", EditorStyles.boldLabel);
+		
+		MaterialProperty mainTex = FindProperty("_MainTex");
+		editor.TexturePropertySingleLine(MakeLabel(mainTex, "Main Color Texture (RGB)"), mainTex, FindProperty("_Color"));
+		EditorGUI.indentLevel += 2;
+		if (renderSettings.showCutoff) DoAlphaCutoff();
+		if (renderSettings.showOverride) DoAlphaOverride();
+		if (renderSettings.showRefract) DoRefract();
+		DoColorMask();
+		EditorGUI.indentLevel -= 2;
+		//DoMetallic();
+		//DoSmoothness();
+		DoNormals();
+		DoOcclusion();
+		DoSpecular();
+		DoEmission();
+		DoRainbow();
+		//DoDetailMask();
+		editor.TextureScaleOffsetProperty(mainTex);
+		DoBrightnessSaturation();
+	}
+	
+	void DoSecondary() {
+		GUILayout.Label("Secondary Maps", EditorStyles.boldLabel);
+	}
+	
+	void DoOptions() {
+		EditorGUILayout.Space();
+		GUILayout.Label("Options", EditorStyles.boldLabel);
+		
+		DoShadows();
+		EditorGUILayout.Space();
+		DoOutline();
+		EditorGUILayout.Space();
+		DoSpheres();
+	}
+	
+	void DoEffects() {
+		EditorGUILayout.Space();
+		GUILayout.Label("Effects", EditorStyles.boldLabel);
+		
+		DoPano();
+	}
+	
+	void DoAdvanced() {
+		EditorGUILayout.Space();
+		GUILayout.Label("Advanced Options", EditorStyles.boldLabel);
+		
+		editor.RenderQueueField();
+		DoDoubleSided();
+		DoTransFix();
+		DoLightingHack();
+		DoReflectionProbes();
+		DoCastShadows();
+		
+		KeywordToggle("HUESHIFTMODE", MakeLabel("HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost"));
+		ReverseKeywordToggle("ALLOWOVERBRIGHT", MakeLabel("Overbright Protection", "Protects against overbright worlds"));
+		if (KeywordToggle("GAMMACORRECT", MakeLabel("Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray."))) {
+			EditorGUI.indentLevel += 2;
+			ShaderProperty("_CorrectionLevel", "Intensity", "Effectiveness of gamma correction.");
+			EditorGUI.indentLevel -= 2;
+		}
+		
+		DoBatchDisable();
+	}
+	
+	void DoAlphaCutoff() {
+		ShaderProperty("_Cutoff", "Alpha Cutoff", "Material will clip here.  Drag to the left if you're losing detail.  Recommended value for alphablend: 0.1");
+	}
+	
+	void DoAlphaOverride() {
+		ShaderProperty("_AlphaOverride", "Alpha Override", "Overrides a texture's alpha (useful for very faint textures)");
+	}
+	
+	void DoRefract() {
+		ShaderProperty("_IndexofRefraction", "Index of Refraction", "How much to refract everything behind");
+		ShaderProperty("_ChromaticAberration", "Chromatic Abberation", "Strength of chromatic abberation effect");
+	}
+	
+	void DoColorMask() {
+		editor.TexturePropertySingleLine(MakeLabel("Color Mask", "Masks Color Tinting (B)"), FindProperty("_ColorMask"));
+	}
+	
+	void DoNormals() {
+		MaterialProperty map = FindProperty("_BumpMap");
+		Texture tex = map.textureValue;
+		EditorGUI.BeginChangeCheck();
+		editor.TexturePropertySingleLine(MakeLabel("Normal Map"), map, /*tex ? FindProperty("_BumpScale") :*/ null);
+		/*
+		if (EditorGUI.EndChangeCheck() && tex != map.textureValue) {
+			SetKeyword("_NORMAL_MAP", map.textureValue);
+		}
+		*/
+	}
+	
+	void DoRainbow() {
+		EditorGUI.BeginChangeCheck();
+		EditorGUI.indentLevel += 2;
+		bool rainbow = EditorGUILayout.Toggle("Rainbow", IsKeywordEnabled("RAINBOW"));
+		EditorGUI.indentLevel -= 2;
+		if (EditorGUI.EndChangeCheck()) SetKeyword("RAINBOW", rainbow);
+		if (rainbow) editor.TexturePropertySingleLine(MakeLabel("Rainbow Mask", "Rainbow Mask (RGB) with Rainbow Speed"), FindProperty("_RainbowMask"), FindProperty("_Speed"));
+	}
+	
+	void DoEmission() {
+		MaterialProperty map = FindProperty("_EmissionMap");
+		Texture tex = map.textureValue;
+		bool shadeEmission = false;
+		bool sleepEmission = false;
+		bool pulseEnable   = false;
+		EditorGUI.BeginChangeCheck();
+		editor.TexturePropertyWithHDRColor(MakeLabel("Emission", "Emission (RGB)"), map, FindProperty("_EmissionColor"), emissionConfig, false);
+		if (IsKeywordEnabled("PULSE")) editor.TexturePropertySingleLine(MakeLabel("Emission Pulse", "Emission Pulse (RGB) and Pulse Speed"), FindProperty("_EmissionPulseMap"), FindProperty("_EmissionPulseColor"), FindProperty("_EmissionSpeed"));
+		EditorGUI.indentLevel += 2;
+		pulseEnable   = EditorGUILayout.Toggle("Pulse Emission",  IsKeywordEnabled("PULSE"));
+		shadeEmission = EditorGUILayout.Toggle("Shaded Emission", IsKeywordEnabled("SHADEEMISSION"));
+		sleepEmission = EditorGUILayout.Toggle("Sleep Emission",  IsKeywordEnabled("SLEEPEMISSION"));
+		EditorGUI.indentLevel -= 2;
+		if (EditorGUI.EndChangeCheck()) {
+			SetKeyword("PULSE",         pulseEnable);
+			SetKeyword("SHADEEMISSION", shadeEmission);
+			SetKeyword("SLEEPEMISSION", sleepEmission);
+			/*
+			if (tex != map.textureValue) {
+				SetKeyword("_EMISSION_MAP", map.textureValue);
+			}
+			*/
+		}
+	}
+	
+	void DoOcclusion() {
+		MaterialProperty map = FindProperty("_OcclusionMap");
+		Texture tex = map.textureValue;
+		EditorGUI.BeginChangeCheck();
+		editor.TexturePropertySingleLine(MakeLabel(map, "Occlusion (G)"), map, /*tex ? FindProperty("_OcclusionStrength") :*/ null);
+		/*
+		if (EditorGUI.EndChangeCheck() && tex != map.textureValue) {
+			SetKeyword("_OCCLUSION_MAP", map.textureValue);
+		}
+		*/
+	}
+	
+	void DoSpecular() {
+		editor.TexturePropertySingleLine(MakeLabel("Specular", "Specular Map (RGB) with Specular Power"), FindProperty("_SpecularMap"), FindProperty("_SpecularColor"), FindProperty("_SpecularPower"));
+	}
+	
+	void DoBrightnessSaturation() {
+		ShaderProperty("_Brightness", "Brightness", "How much light gets to your model.  This can have a better effect than darkening the color");
+		ShaderProperty("_SaturationBoost", "Saturation Boost", "This will boost the saturation, don't turn it up too high unless you know what you're doing");
+	}
+	
+	void DoShadows() {
+		MaterialProperty shadowMode = FindProperty("_ShadowMode");
+		ShadowMode sMode = (ShadowMode)shadowMode.floatValue;
 
-    public enum BlendMode
-    {
-        Opaque, // Standard geometry, no blending
-        Cutout, // Alpha tested mode, very aliased
-        Fade,   // Old school alpha-blending mode, fresnel does not affect amount of transparency
-        Multiply, // Physically plausible transparency mode, implemented as alpha pre-multiply
-        Alphablend, // Full alpha blending
-        Custom, // Custom blending
-		Refract // Use refraction and grab passes instead of blending
-    }
-    
-    public enum ShadowMode
-    {
-        None,
-        Tint,
-        Toon,
-		Texture,
-		Multiple,
-		Auto
-    }
-    
-    public enum LightingHack
-    {
-        None,
-        World,
-        Local
-    }
-    
-    public enum SphereMode
-    {
-        None,
-        Add,
-        Multiply,
-		Multiple
-    }
-    
-    public enum OverlayMode
-    {
-        None,
-        PanoSphere,
-        PanoScreen,
-		UVScroll
-    }
-    
-    public enum OverlayBlendMode
-    {
-        None,
-		Add,
-		Multiply,
-        Alphablend,
-        Hue
-    }
-    
-    public enum TransFix
-    {
-        None,
-        Level1,
-        Level2
-    }
+		EditorGUI.BeginChangeCheck();
+		sMode = (ShadowMode)EditorGUILayout.EnumPopup(MakeLabel("Shadow Mode"), sMode);
+		
+		if (EditorGUI.EndChangeCheck())
+		{
+			RecordAction("Shadow Mode");
+			shadowMode.floatValue = (float)sMode;
 
-    MaterialProperty blendMode;
-    MaterialProperty mainTexture;
-    MaterialProperty color;
-    MaterialProperty colorMask;
-    MaterialProperty lightingHack;
-    MaterialProperty transFix;
-    MaterialProperty staticLight;
-    MaterialProperty lightColor;
-    MaterialProperty lightOverride;
-    MaterialProperty shadowMode;
-    MaterialProperty shadowWidth;
-    MaterialProperty shadowFeather;
-    MaterialProperty shadowAmbient;
-    MaterialProperty shadowAmbAdd;
-    MaterialProperty shadowCastIntensity;
-    MaterialProperty shadowIntensity;
-    MaterialProperty shadowTint;
-    MaterialProperty shadowRamp;
-	MaterialProperty shadowTexture;
-    MaterialProperty shadowRampDirection;
-	MaterialProperty shadowTextureMode;
-	MaterialProperty shadowUV;
-    MaterialProperty outlineMode;
-    MaterialProperty outlineWidth;
-    MaterialProperty outlineFeather;
-    MaterialProperty outlineColor;
-    MaterialProperty outlineColorMode;
-    MaterialProperty emissionMap;
-    MaterialProperty emissionColor;
-    MaterialProperty emissionSpeed;
-    MaterialProperty emissionPulseMap;
-    MaterialProperty emissionPulseColor;
-    MaterialProperty normalMap;
-    MaterialProperty occlusionMap;
-    MaterialProperty alphaCutoff;
-    MaterialProperty alphaOverride;
-    //MaterialProperty rainbowMode;
-    MaterialProperty rainbowMask;
-    MaterialProperty rainbowSpeed;
-    MaterialProperty brightness;
-    MaterialProperty gammaLevel;
-    MaterialProperty sphereAddTex;
-    MaterialProperty sphereMulTex;
-    MaterialProperty sphereMultiTex;
-    MaterialProperty sphereAtlasTex;
-    MaterialProperty sphereMode;
-    MaterialProperty sphereNum;
-    MaterialProperty sphereUV;
-    MaterialProperty saturationBoost;
-    MaterialProperty overlayBlendMode;
-    MaterialProperty panoSphereMode;
-    MaterialProperty panoSphereTex;
-    MaterialProperty panoFlatTex;
-    MaterialProperty panoRotationSpeedX;
-    MaterialProperty panoRotationSpeedY;
-    MaterialProperty panoOverlayTex;
-    MaterialProperty panoBlend;
-    MaterialProperty stencilcolorMask;
-    MaterialProperty stencil;
-    //MaterialProperty readMask;
-    //MaterialProperty writeMask;
-    MaterialProperty stencilComp;
-    MaterialProperty stencilOp;
-    MaterialProperty stencilFail;
-    MaterialProperty stencilZFail;
-    MaterialProperty ztest;
-    MaterialProperty zwrite;
-    MaterialProperty srcBlend;
-    MaterialProperty dstBlend;
-    MaterialProperty blendOp;
-	MaterialProperty specPow;
-	MaterialProperty specMap;
-	MaterialProperty specCol;
-	MaterialProperty probeStrength;
-	MaterialProperty probeClarity;
-	MaterialProperty refractionIndex;
-	MaterialProperty chromaticAbberation;
-    
-    public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
-    {
-        { //Find Properties
-            blendMode = FindProperty("_Mode", props);
-            mainTexture = FindProperty("_MainTex", props);
-            color = FindProperty("_Color", props);
-            colorMask = FindProperty("_ColorMask", props);
-            lightingHack = FindProperty("_LightingHack", props);
-            transFix = FindProperty("_TransFix", props);
-            staticLight = FindProperty("_StaticToonLight", props);
-            lightColor = FindProperty("_LightColor", props);
-            lightOverride = FindProperty("_LightOverride", props);
-            shadowMode = FindProperty("_ShadowMode", props);
-            shadowWidth = FindProperty("_shadow_coverage", props);
-            shadowFeather = FindProperty("_shadow_feather", props);
-            shadowAmbient = FindProperty("_ShadowAmbient", props);
-            shadowAmbAdd = FindProperty("_ShadowAmbAdd", props);
-            shadowCastIntensity = FindProperty("_shadowcast_intensity", props);
-            shadowIntensity = FindProperty("_ShadowIntensity", props);
-            shadowTint = FindProperty("_ShadowTint", props);
-            shadowRamp = FindProperty("_ShadowRamp", props);
-            shadowTexture = FindProperty("_ShadowTexture", props);
-            shadowRampDirection = FindProperty("_ShadowRampDirection", props);
-            shadowTextureMode = FindProperty("_ShadowTextureMode", props);
-            shadowUV = FindProperty("_ShadowUV", props);
-            outlineMode = FindProperty("_OutlineMode", props);
-            outlineColorMode = FindProperty("_OutlineColorMode", props);
-            outlineWidth = FindProperty("_outline_width", props);
-            outlineFeather = FindProperty("_outline_feather", props);
-            outlineColor = FindProperty("_outline_color", props);
-            emissionMap = FindProperty("_EmissionMap", props);
-            emissionColor = FindProperty("_EmissionColor", props);
-            emissionSpeed = FindProperty("_EmissionSpeed", props);
-            emissionPulseMap = FindProperty("_EmissionPulseMap", props);
-            emissionPulseColor = FindProperty("_EmissionPulseColor", props);
-            normalMap = FindProperty("_BumpMap", props);
-            occlusionMap = FindProperty("_OcclusionMap", props);
-            alphaCutoff = FindProperty("_Cutoff", props);
-            //rainbowMode = FindProperty("_RainbowMode", props);
-            rainbowMask = FindProperty("_RainbowMask", props);
-            rainbowSpeed = FindProperty("_Speed", props);
-            brightness = FindProperty("_Brightness", props);
-            gammaLevel = FindProperty("_CorrectionLevel", props);
-            alphaOverride = FindProperty("_AlphaOverride", props);
-            sphereAddTex = FindProperty("_SphereAddTex", props);
-            sphereMulTex = FindProperty("_SphereMulTex", props);
-            sphereMultiTex = FindProperty("_SphereMultiTex", props);
-            sphereAtlasTex = FindProperty("_SphereAtlas", props);
-            sphereMode = FindProperty("_SphereMode", props);
-            sphereNum = FindProperty("_SphereNum", props);
-            sphereUV = FindProperty("_SphereUV", props);
-            saturationBoost = FindProperty("_SaturationBoost", props);
-            overlayBlendMode = FindProperty("_OverlayBlendMode", props);
-            panoSphereMode = FindProperty("_OverlayMode", props);
-            panoSphereTex = FindProperty("_PanoSphereTex", props);
-            panoFlatTex = FindProperty("_PanoFlatTex", props);
-            panoRotationSpeedX = FindProperty("_PanoRotationSpeedX", props);
-            panoRotationSpeedY = FindProperty("_PanoRotationSpeedY", props);
-            panoOverlayTex = FindProperty("_PanoOverlayTex", props);
-            panoBlend = FindProperty("_PanoBlend", props);
-            stencilcolorMask = ShaderGUI.FindProperty("_stencilcolormask", props);
-            stencil = ShaderGUI.FindProperty("_Stencil", props);
-            //readMask = ShaderGUI.FindProperty("_ReadMask", props);
-            //writeMask = ShaderGUI.FindProperty("_WriteMask", props);
-            stencilComp = ShaderGUI.FindProperty("_StencilComp", props);
-            stencilOp = ShaderGUI.FindProperty("_StencilOp", props);
-            stencilFail = ShaderGUI.FindProperty("_StencilFail", props);
-            stencilZFail = ShaderGUI.FindProperty("_StencilZFail", props);
-            zwrite = ShaderGUI.FindProperty("_ZWrite", props);
-            ztest = ShaderGUI.FindProperty("_ZTest", props);
-            srcBlend = ShaderGUI.FindProperty("_SrcBlend", props);
-            dstBlend = ShaderGUI.FindProperty("_DstBlend", props);
-            blendOp = ShaderGUI.FindProperty("_BlendOp", props);
-            specPow = ShaderGUI.FindProperty("_SpecularPower", props);
-            specMap = ShaderGUI.FindProperty("_SpecularMap", props);
-			specCol = ShaderGUI.FindProperty("_SpecularColor", props);
-			probeStrength = ShaderGUI.FindProperty("_ProbeStrength", props);
-			probeClarity = ShaderGUI.FindProperty("_ProbeClarity", props);
-			refractionIndex = ShaderGUI.FindProperty("_IndexofRefraction", props);
-			chromaticAbberation = ShaderGUI.FindProperty("_ChromaticAberration", props);
-        }
-        
-        Material material = materialEditor.target as Material;
-        
-        bool allowOverbright = Array.IndexOf(material.shaderKeywords, "ALLOWOVERBRIGHT") != -1;
-        bool realOverride = Array.IndexOf(material.shaderKeywords, "OVERRIDE_REALTIME") != -1;
-        bool shadowDisable = Array.IndexOf(material.shaderKeywords, "DISABLE_SHADOW") != -1;
-        bool shadeEmission = Array.IndexOf(material.shaderKeywords, "SHADEEMISSION") != -1;
-        bool sleepEmission = Array.IndexOf(material.shaderKeywords, "SLEEPEMISSION") != -1;
-        bool backfacecull = Array.IndexOf(material.shaderKeywords, "BCKFCECULL") != -1;
-        bool rainbowEnable = Array.IndexOf(material.shaderKeywords, "RAINBOW") != -1;
-        bool hueMode = Array.IndexOf(material.shaderKeywords, "HUESHIFTMODE") != -1;
-        bool pulseEnable = Array.IndexOf(material.shaderKeywords, "PULSE") != -1;
-        bool panoAlpha = Array.IndexOf(material.shaderKeywords, "PANOALPHA") != -1;
-        bool panoOverlay = Array.IndexOf(material.shaderKeywords, "PANOOVERLAY") != -1;
-        bool gammaCorrect = Array.IndexOf(material.shaderKeywords, "GAMMACORRECT") != -1;
-        
-        { //Shader Properties GUI
-            EditorGUIUtility.labelWidth = 0f;
-            
-            EditorGUI.BeginChangeCheck();
-            {
-                EditorGUI.showMixedValue = blendMode.hasMixedValue;
-                var bMode = (BlendMode)blendMode.floatValue;
+		}
+		EditorGUI.indentLevel += 2;
+		switch (sMode)
+		{
+			case ShadowMode.Tint:
+				DoShadowTint();
+				break;
+			case ShadowMode.Toon:
+				DoShadowToon();
+				break;
+			case ShadowMode.Texture:
+				DoShadowTexture();
+				break;
+			case ShadowMode.Multiple:
+				DoShadowMultiple();
+				break;
+			case ShadowMode.Auto:
+				DoShadowAuto();
+				break;
+			case ShadowMode.None:
+			default:
+				break;
+		}
+		EditorGUI.indentLevel -= 2;
+	}
+	
+	void DoShadowTint() {
+		ShaderProperty("_shadow_coverage", "Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
+		ShaderProperty("_shadow_feather", "Blur", "Slide to the left for crisp toons, to the right for smooth shading");
+		ShaderProperty("_ShadowTint", "Tint Color", "This will tint your shadows, try pinkish colors for skin");
+	}
+	
+	void DoShadowToon() {
+		EditorGUI.indentLevel -= 2;
+		editor.TexturePropertySingleLine(MakeLabel("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), FindProperty("_ShadowRamp"));
+		EditorGUI.indentLevel += 2;
+		EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
+	}
+	
+	void DoShadowTexture() {
+		ShaderProperty("_shadow_coverage", "Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
+		ShaderProperty("_shadow_feather", "Blur", "Slide to the left for crisp toons, to the right for smooth shading");
+		EditorGUI.indentLevel -= 2;
+		editor.TexturePropertySingleLine(MakeLabel("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), FindProperty("_ShadowTexture"), FindProperty("_ShadowUV"));
+		EditorGUI.indentLevel += 2;
+		ShaderProperty("_ShadowTextureMode");
+	}
+	
+	void DoShadowMultiple() {
+		EditorGUI.indentLevel -= 2;
+		editor.TexturePropertySingleLine(MakeLabel("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), FindProperty("_ShadowRamp"));
+		EditorGUI.indentLevel += 2;
+		ShaderProperty("_ShadowRampDirection");
+		EditorGUI.indentLevel -= 2;
+		editor.TexturePropertySingleLine(MakeLabel("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), FindProperty("_ShadowTexture"), FindProperty("_ShadowUV"));
+		EditorGUI.indentLevel += 2;
+		EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
+	}
+	
+	void DoShadowAuto() {
+		ShaderProperty("_shadow_coverage", "Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
+		ShaderProperty("_shadow_feather", "Blur", "Slide to the left for crisp toons, to the right for smooth shading");
+		ShaderProperty("_ShadowIntensity", "Intensity", "Slide to the right to make shadows more noticeable");
+		ShaderProperty("_ShadowAmbient", "Ambient Light", "Slide to the left for shadow light, to the right for direct light");
+		ShaderProperty("_ShadowTint", "Ambiant Color", "This is the ambient light tint, use it lightly");
+	}
+	
+	void DoOutline() {
+		MaterialProperty outlineMode = FindProperty("_OutlineMode");
+		OutlineMode oMode = (OutlineMode)outlineMode.floatValue;
 
-                EditorGUI.BeginChangeCheck();
-                bMode = (BlendMode)EditorGUILayout.Popup("Rendering Mode", (int)bMode, Enum.GetNames(typeof(BlendMode)));
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Rendering Mode");
-                    blendMode.floatValue = (float)bMode;
+		EditorGUI.BeginChangeCheck();
+		oMode = (OutlineMode)EditorGUILayout.EnumPopup(MakeLabel("Outline Mode"), oMode);
+		
+		if (EditorGUI.EndChangeCheck())
+		{
+			RecordAction("Outline Mode");
+			outlineMode.floatValue = (float)oMode;
+			
+			foreach (var obj in outlineMode.targets)
+			{
+				SetupMaterialWithOutlineMode((Material)obj);
+				SetupMaterialShaderSelect((Material)obj);
+			}
+		}
+		EditorGUI.indentLevel += 2;
+		switch (oMode)
+		{
+			case OutlineMode.Artsy:
+				DoOutlineArtsy();
+				break;
+			case OutlineMode.Normal:
+			case OutlineMode.Screenspace:
+				DoOutlineNormal();
+				break;
+			case OutlineMode.None:
+			default:
+				break;
+		}
+		EditorGUI.indentLevel -= 2;
+	}
+	
+	void DoOutlineArtsy() {
+		DoOutlineNormal();
+		ShaderProperty("_outline_feather", "Blur", "Smoothness of the outline. You can go from very crisp to very blurry");
+		EditorGUILayout.HelpBox("This mode may or may not look good on your model.  Try \"Normal\" or \"Screenspace\" if this doesn't look the way you want it to.", MessageType.Info);
+	}
+	
+	void DoOutlineNormal() {
+		MaterialProperty outlineColorMode = FindProperty("_OutlineColorMode");
+		OutlineColorMode ocMode = (OutlineColorMode)outlineColorMode.floatValue;
+		EditorGUI.BeginChangeCheck();
+		ocMode = (OutlineColorMode)EditorGUILayout.EnumPopup(MakeLabel("Color Mode"), ocMode);
+		if (EditorGUI.EndChangeCheck()) {
+			RecordAction("Color Mode");
+			outlineColorMode.floatValue = (float)ocMode;
+			
+			foreach (var obj in outlineColorMode.targets)
+			{
+				SetupMaterialWithOutlineColorMode((Material)obj);
+			}
+		}
+		EditorGUI.indentLevel -= 2;
+		editor.TexturePropertySingleLine(MakeLabel("Color", "This is the color of the outline"), FindProperty("_outline_tex"), FindProperty("_outline_color"));
+		EditorGUI.indentLevel += 2;
+		ShaderProperty("_outline_width", "Width", "This is the width of the outline");
+	}
+	
+	void DoSpheres() {
+		MaterialProperty sphereMode = FindProperty("_SphereMode");
+		SphereMode sphMode = (SphereMode)sphereMode.floatValue;
 
-                    foreach (var obj in blendMode.targets)
-                    {
-                        SetupMaterialWithBlendMode((Material)obj, (BlendMode)material.GetFloat("_Mode"));
-                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
-                    }
-                }
+		EditorGUI.BeginChangeCheck();
+		sphMode = (SphereMode)EditorGUILayout.EnumPopup(MakeLabel("Sphere Mode"), sphMode);
+		
+		if (EditorGUI.EndChangeCheck())
+		{
+			RecordAction("Sphere Mode");
+			sphereMode.floatValue = (float)sphMode;
 
-                EditorGUI.showMixedValue = false;
-                EditorGUILayout.Space();
+		}
+		switch (sphMode)
+		{
+			case SphereMode.Add:
+				DoSphereAdd();
+				break;
+			case SphereMode.Multiply:
+				DoSphereMultiply();
+				break;
+			case SphereMode.Multiple:
+				DoSphereMultiple();
+				break;
+			case SphereMode.None:
+			default:
+				break;
+		}
+	}
+	
+	void DoSphereAdd() {
+		editor.TexturePropertySingleLine(MakeLabel("Sphere Texture", "Sphere Texture (RGB Additive Shine)"), FindProperty("_SphereAddTex"));
+	}
+	
+	void DoSphereMultiply() {
+		editor.TexturePropertySingleLine(MakeLabel("Sphere Texture", "Sphere Texture (RGB Multiplied Metallic)"), FindProperty("_SphereMulTex"));
+	}
+	
+	void DoSphereMultiple() {
+		editor.TexturePropertySingleLine(MakeLabel("Sphere Textures", "Sphere Texture (RGB Map) with Layout"), FindProperty("_SphereMultiTex"), FindProperty("_SphereNum"));
+		editor.TexturePropertySingleLine(MakeLabel("Sphere Atlas", "Sphere Atlas (RG Sphere Select XY, B Metallic)"), FindProperty("_SphereAtlas"), FindProperty("_SphereUV"));
+	}
+	
+	void DoPano() {
+		MaterialProperty panoSphereMode = FindProperty("_OverlayMode");
+		OverlayMode panoMode = (OverlayMode)panoSphereMode.floatValue;
 
-                materialEditor.TexturePropertySingleLine(new GUIContent("Main Texture", "Main Color Texture (RGB)"), mainTexture, color);
-                EditorGUI.indentLevel += 2;
-                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Cutout) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom))
-                    materialEditor.ShaderProperty(alphaCutoff, new GUIContent("Alpha Cutoff", "Material will clip here.  Drag to the left if you're losing detail.  Recommended value for alphablend: 0.1"), 2);
-                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Refract))
-                    materialEditor.ShaderProperty(alphaOverride, new GUIContent("Alpha Override", "Overrides a texture's alpha (useful for very faint textures)"), 2);
-                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Refract)
+		EditorGUI.BeginChangeCheck();
+		panoMode = (OverlayMode)EditorGUILayout.EnumPopup(MakeLabel("Overlay Mode"), panoMode);
+		
+		if (EditorGUI.EndChangeCheck())
+		{
+			RecordAction("Overlay Mode");
+			panoSphereMode.floatValue = (float)panoMode;
+		}
+		switch (panoMode)
+		{
+			case OverlayMode.PanoSphere:
+				DoPanoSphere();
+				break;
+			case OverlayMode.PanoScreen:
+				DoPanoScreen();
+				break;
+			case OverlayMode.UVScroll:
+				DoUVScroll();
+				break;
+			case OverlayMode.None:
+			default:
+				break;
+		}
+	}
+	
+	void DoPanoSphere() {
+		DoPanoTransform("Rotation", "Rotate", "Overlay Texture (Directional Panosphere Mode)", "_PanoSphereTex");
+		DoOverlayMode("Overlay", "Use an overlay for the panosphere");
+	}
+	
+	void DoPanoScreen() {
+		DoPanoTransform("Scroll", "Scroll", "Overlay Texture (Screen Positional Panosphere Mode)", "_PanoFlatTex");
+		DoOverlayMode("Static Overlay", "Use an additional static overlay");
+		EditorGUILayout.HelpBox("This section will work now, but isn't fully tested.  Please report any bugs to me (Synergiance) in the discord for this shader (https://discord.gg/rvpGU5E) under #bug-reports.", MessageType.Info);
+	}
+	
+	void DoUVScroll() {
+		DoPanoTransform("Scroll", "Scroll", "Overlay Texture (UV Scrolling Mode)", "_PanoFlatTex");
+		DoOverlayMode("Static Overlay", "Use an additional static overlay");
+	}
+	
+	void DoPanoTransform(string op1, string op2, string flavor, string prop) {
+		editor.TexturePropertySingleLine(MakeLabel("Overlay Texture", flavor), FindProperty(prop), FindProperty("_OverlayBlendMode"));
+		EditorGUI.indentLevel += 2;
+		ShaderProperty("_PanoBlend", "Blend", "Mix between normal albedo and Overlay");
+		Vec2Prop(MakeLabel(op1 + " Speed", op2 + " the overlay texture (Set to 0 to turn off)"), FindProperty("_PanoRotationSpeedX"), FindProperty("_PanoRotationSpeedY"));
+		EditorGUI.indentLevel -= 2;
+	}
+	
+	void DoOverlayMode(string display, string tip) {
+		bool panoOverlay = IsKeywordEnabled("PANOOVERLAY");
+		EditorGUI.indentLevel += 2;
+		EditorGUI.BeginChangeCheck();
+		panoOverlay = EditorGUILayout.Toggle(MakeLabel(display, tip), panoOverlay);
+		EditorGUI.indentLevel -= 2;
+		if (EditorGUI.EndChangeCheck()) SetKeyword("PANOOVERLAY", panoOverlay);
+		if (panoOverlay) {
+			editor.TexturePropertySingleLine(MakeLabel("Texture", "Static Overlay"), FindProperty("_PanoOverlayTex"));
+			EditorGUI.indentLevel += 2;
+			KeywordToggle("PANOALPHA", MakeLabel("Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha"));
+			EditorGUI.indentLevel -= 2;
+		}
+	}
+	
+	void DoDoubleSided() {
+		EditorGUI.BeginChangeCheck();
+		bool backfacecull = !EditorGUILayout.Toggle(MakeLabel("Double Sided", "Render this material on both sides"), !IsKeywordEnabled("BCKFCECULL"));
+		if (EditorGUI.EndChangeCheck())
+		{
+			if (backfacecull)
+				foreach (Material mat in editor.targets)
 				{
-                    materialEditor.ShaderProperty(refractionIndex, new GUIContent("Index of Refraction", "How much to refract everything behind"), 2);
-                    materialEditor.ShaderProperty(chromaticAbberation, new GUIContent("Chromatic Abberation", "Strength of chromatic abberation effect"), 2);
+					mat.EnableKeyword("BCKFCECULL");
+					mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Back);
+					SetupMaterialShaderSelect((Material)mat);
 				}
-                materialEditor.TexturePropertySingleLine(new GUIContent("Color Mask", "Masks Color Tinting (G)"), colorMask);
-                EditorGUI.indentLevel -= 2;
-                materialEditor.TexturePropertySingleLine(new GUIContent("Normal Map", "Normal Map (RGB)"), normalMap);
-                materialEditor.TexturePropertySingleLine(new GUIContent("Occlusion Map", "Occlusion Map (RGB)"), occlusionMap);
-                materialEditor.TexturePropertySingleLine(new GUIContent("Emission", "Emission (RGB)"), emissionMap, emissionColor);
-                materialEditor.TexturePropertySingleLine(new GUIContent("Specular Map", "Specular Map (RGB)"), specMap, specCol);
-                materialEditor.ShaderProperty(specPow, new GUIContent("Specular Power", "This is how shiny this material will be."), 2);
-                
-                EditorGUILayout.Space();
-                EditorGUI.BeginChangeCheck();
-                shadeEmission = EditorGUILayout.Toggle("Shaded Emission", shadeEmission);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (shadeEmission)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("SHADEEMISSION");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("SHADEEMISSION");
-                        }
-                }
-                
-                EditorGUI.BeginChangeCheck();
-                sleepEmission = EditorGUILayout.Toggle("Hide Emission", sleepEmission);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (sleepEmission)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("SLEEPEMISSION");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("SLEEPEMISSION");
-                        }
-                }
-                
-                EditorGUI.BeginChangeCheck();
-                pulseEnable = EditorGUILayout.Toggle("Pulse Emission", pulseEnable);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (pulseEnable)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("PULSE");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("PULSE");
-                        }
-                }
-                if (pulseEnable)
-                {
-                    materialEditor.TexturePropertySingleLine(new GUIContent("Emission Pulse", "Emission Pulse (RGB)"), emissionPulseMap, emissionPulseColor);
-                    EditorGUI.indentLevel += 2;
-                    materialEditor.ShaderProperty(emissionSpeed, "Pulse Speed");
-                    EditorGUI.indentLevel -= 2;
-                }
-                
-                EditorGUI.BeginChangeCheck();
-                materialEditor.TextureScaleOffsetProperty(mainTexture);
-                if (EditorGUI.EndChangeCheck())
-                    emissionMap.textureScaleAndOffset = mainTexture.textureScaleAndOffset;
-                
-                EditorGUILayout.Space();
-                EditorGUI.BeginChangeCheck();
-                rainbowEnable = EditorGUILayout.Toggle("Rainbow", rainbowEnable);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (rainbowEnable)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("RAINBOW");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("RAINBOW");
-                        }
-                }
-                if (rainbowEnable)
-                {
-                    EditorGUI.indentLevel += 2;
-                    materialEditor.TexturePropertySingleLine(new GUIContent("Rainbow Mask", "Rainbow Mask (G)"), rainbowMask);
-                    materialEditor.ShaderProperty(rainbowSpeed, "Rainbow Speed");
-                    EditorGUI.indentLevel -= 2;
-                }
-                
-                EditorGUILayout.Space();
-                materialEditor.ShaderProperty(brightness, new GUIContent("Brightness", "How much light gets to your model.  This can have a better effect than darkening the color"));
-                materialEditor.ShaderProperty(saturationBoost, new GUIContent("Saturation Boost", "This will boost the saturation, don't turn it up too high unless you know what you're doing"));
-
-                var sMode = (ShadowMode)shadowMode.floatValue;
-
-                EditorGUI.BeginChangeCheck();
-                sMode = (ShadowMode)EditorGUILayout.Popup("Shadow Mode", (int)sMode, Enum.GetNames(typeof(ShadowMode)));
-                
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Shadow Mode");
-                    shadowMode.floatValue = (float)sMode;
-
-                }
-                switch (sMode)
-                {
-                    case ShadowMode.Tint:
-                        EditorGUI.indentLevel += 2;
-                        materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
-                        materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
-                        //materialEditor.ShaderProperty(shadowAmbient, new GUIContent("Ambient Light", "Slide to the left for shadow light, to the right for direct light"));
-                        materialEditor.ShaderProperty(shadowTint, new GUIContent("Tint Color", "This will tint your shadows, try pinkish colors for skin"));
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case ShadowMode.Toon:
-                        EditorGUI.indentLevel += 2;
-                        //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), shadowRamp);
-                        EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case ShadowMode.Texture:
-                        EditorGUI.indentLevel += 2;
-                        materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
-                        materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), shadowTexture);
-						materialEditor.ShaderProperty(shadowTextureMode, shadowTextureMode.displayName);
-						materialEditor.ShaderProperty(shadowUV, "UV Map");
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case ShadowMode.Multiple:
-                        EditorGUI.indentLevel += 2;
-                        //materialEditor.ShaderProperty(shadowAmbient, "Ambient Light");
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), shadowRamp);
-						materialEditor.ShaderProperty(shadowRampDirection, shadowRampDirection.displayName);
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), shadowTexture);
-						materialEditor.ShaderProperty(shadowUV, "UV Map");
-                        //materialEditor.TexturePropertySingleLine(new GUIContent("Control Texture", "(RG) Red controls height offset, Green controls width offset.  The opposite axis will be ignored in this mode."), shadowControl);
-                        EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case ShadowMode.Auto:
-                        EditorGUI.indentLevel += 2;
-                        materialEditor.ShaderProperty(shadowWidth, new GUIContent("Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading"));
-                        materialEditor.ShaderProperty(shadowFeather, new GUIContent("Feather", "Slide to the left for crisp toons, to the right for smooth shading"));
-						materialEditor.ShaderProperty(shadowIntensity, new GUIContent("Intensity", "Slide to the right to make shadows more noticeable"));
-                        materialEditor.ShaderProperty(shadowAmbient, new GUIContent("Ambient Light", "Slide to the left for shadow light, to the right for direct light"));
-                        materialEditor.ShaderProperty(shadowTint, new GUIContent("Ambiant Color", "This is the ambient light tint, use it lightly"));
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case ShadowMode.None:
-                    default:
-                        break;
-                }
-                EditorGUILayout.Space();
-
-                var oMode = (OutlineMode)outlineMode.floatValue;
-                var ocMode = (OutlineColorMode)outlineColorMode.floatValue;
-
-                EditorGUI.BeginChangeCheck();
-                oMode = (OutlineMode)EditorGUILayout.Popup("Outline Mode", (int)oMode, Enum.GetNames(typeof(OutlineMode)));
-                
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Outline Mode");
-                    outlineMode.floatValue = (float)oMode;
-
-                    foreach (var obj in outlineMode.targets)
-                    {
-                        SetupMaterialWithOutlineMode((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"));
-                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
-                    }
-
-                }
-                EditorGUI.BeginChangeCheck();
-                switch (oMode) // solidOutline
-                {
-                    case OutlineMode.Artsy:
-                        EditorGUI.indentLevel += 2;
-                        ocMode = (OutlineColorMode)EditorGUILayout.Popup("Color Mode", (int)ocMode, Enum.GetNames(typeof(OutlineColorMode)));
-                        materialEditor.ShaderProperty(outlineColor, new GUIContent("Color", "This is the color of the outline"));
-                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "This is the width of the outline.  This mode may or may not look good on your model.  Try \"Outline\""));
-                        materialEditor.ShaderProperty(outlineFeather, new GUIContent("Feather", "Smoothness of the outline. You can go from very crisp to very blurry"));
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case OutlineMode.Outside:
-                    case OutlineMode.Screenspace:
-                        EditorGUI.indentLevel += 2;
-                        ocMode = (OutlineColorMode)EditorGUILayout.Popup("Color Mode", (int)ocMode, Enum.GetNames(typeof(OutlineColorMode)));
-                        materialEditor.ShaderProperty(outlineColor, new GUIContent("Color", "This is the color of the outline"));
-                        materialEditor.ShaderProperty(outlineWidth, new GUIContent("Width", "This is the width of the outline"));
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case OutlineMode.None:
-                    default:
-                        break;
-                }
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Color Mode");
-                    outlineColorMode.floatValue = (float)ocMode;
-
-                    foreach (var obj in outlineColorMode.targets)
-                    {
-                        SetupMaterialWithOutlineColorMode((Material)obj, (OutlineColorMode)material.GetFloat("_OutlineColorMode"));
-                    }
-
-                }
-                EditorGUILayout.Space();
-
-                var sphMode = (SphereMode)sphereMode.floatValue;
-
-                EditorGUI.BeginChangeCheck();
-                sphMode = (SphereMode)EditorGUILayout.Popup("Sphere Mode", (int)sphMode, Enum.GetNames(typeof(SphereMode)));
-                
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Sphere Mode");
-                    sphereMode.floatValue = (float)sphMode;
-
-                }
-                switch (sphMode)
-                {
-                    case SphereMode.Add:
-                        EditorGUI.indentLevel += 2;
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (RGB Additive Shine)"), sphereAddTex);
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case SphereMode.Multiply:
-                        EditorGUI.indentLevel += 2;
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Texture", "Sphere Texture (RGB Multiplied Metallic)"), sphereMulTex);
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case SphereMode.Multiple:
-                        EditorGUI.indentLevel += 2;
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Textures", "Sphere Texture (RGB Map)"), sphereMultiTex);
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Sphere Atlas", "Sphere Atlas (RG Sphere Select XY, B Metallic)"), sphereAtlasTex);
-						materialEditor.ShaderProperty(sphereNum, "Sphere Layout");
-						materialEditor.ShaderProperty(sphereUV, "UV Map");
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case SphereMode.None:
-                    default:
-                        break;
-                }
-                EditorGUILayout.Space();
-                
-                GUILayout.Label("Effects", EditorStyles.boldLabel);
-
-                var panoBlendMode = (OverlayBlendMode)overlayBlendMode.floatValue;
-				var panoMode = (OverlayMode)panoSphereMode.floatValue;
-
-                EditorGUI.BeginChangeCheck();
-                panoMode = (OverlayMode)EditorGUILayout.Popup("Overlay Mode", (int)panoMode, Enum.GetNames(typeof(OverlayMode)));
-                
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Overlay Mode");
-                    panoSphereMode.floatValue = (float)panoMode;
-                }
-                switch (panoMode)
-                {
-                    case OverlayMode.PanoSphere:
-                        EditorGUI.indentLevel += 2;
-						EditorGUI.BeginChangeCheck();
-						panoBlendMode = (OverlayBlendMode)EditorGUILayout.Popup("Blend", (int)panoBlendMode, Enum.GetNames(typeof(OverlayBlendMode)));
-						if (EditorGUI.EndChangeCheck())
-						{
-							materialEditor.RegisterPropertyChangeUndo("Overlay Blend Mode");
-							overlayBlendMode.floatValue = (float)panoBlendMode;
-						}
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Overlay Texture", "Overlay Texture (Directional Panosphere Mode)"), panoSphereTex);
-                        materialEditor.ShaderProperty(panoBlend, new GUIContent("Blend", "Mix between normal albedo and Overlay"));
-                        materialEditor.ShaderProperty(panoRotationSpeedX, new GUIContent("Rotation Speed (X)", "Rotate the overlay texture (Set to 0 to turn off)"));
-                        materialEditor.ShaderProperty(panoRotationSpeedY, new GUIContent("Rotation Speed (Y)", "Rotate the overlay texture (Set to 0 to turn off)"));
-                        EditorGUI.BeginChangeCheck();
-                        panoOverlay = EditorGUILayout.Toggle(new GUIContent("Overlay", "Use an overlay for the panosphere"), panoOverlay);
-                        if (EditorGUI.EndChangeCheck())
-                        {
-                            if (panoOverlay)
-                                foreach (Material mat in materialEditor.targets)
-                                    mat.EnableKeyword("PANOOVERLAY");
-                            else
-                                foreach (Material mat in materialEditor.targets)
-                                    mat.DisableKeyword("PANOOVERLAY");
-                        }
-                        if (panoOverlay)
-                        {
-                            EditorGUI.indentLevel += 2;
-                            materialEditor.TexturePropertySingleLine(new GUIContent("Texture", "Static Overlay"), panoOverlayTex);
-                            EditorGUI.BeginChangeCheck();
-                            panoAlpha = EditorGUILayout.Toggle(new GUIContent("Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha"), panoAlpha);
-                            EditorGUI.indentLevel -= 2;
-                        }
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case OverlayMode.PanoScreen:
-                        EditorGUI.indentLevel += 2;
-						EditorGUI.BeginChangeCheck();
-						panoBlendMode = (OverlayBlendMode)EditorGUILayout.Popup("Blend", (int)panoBlendMode, Enum.GetNames(typeof(OverlayBlendMode)));
-						if (EditorGUI.EndChangeCheck())
-						{
-							materialEditor.RegisterPropertyChangeUndo("Overlay Blend Mode");
-							overlayBlendMode.floatValue = (float)panoBlendMode;
-						}
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Overlay Texture", "Overlay Texture (Screen Positional Panosphere Mode)"), panoFlatTex);
-                        materialEditor.ShaderProperty(panoBlend, new GUIContent("Blend", "Mix between normal albedo and Overlay"));
-                        materialEditor.ShaderProperty(panoRotationSpeedX, new GUIContent("Scroll Speed (X)", "Scroll the overlay texture (Set to 0 to turn off)"));
-                        materialEditor.ShaderProperty(panoRotationSpeedY, new GUIContent("Scroll Speed (Y)", "Scroll the overlay texture (Set to 0 to turn off)"));
-                        EditorGUI.BeginChangeCheck();
-                        panoOverlay = EditorGUILayout.Toggle(new GUIContent("Static Overlay", "Use an additional static overlay"), panoOverlay);
-                        if (EditorGUI.EndChangeCheck())
-                        {
-                            if (panoOverlay)
-                                foreach (Material mat in materialEditor.targets)
-                                    mat.EnableKeyword("PANOOVERLAY");
-                            else
-                                foreach (Material mat in materialEditor.targets)
-                                    mat.DisableKeyword("PANOOVERLAY");
-                        }
-                        if (panoOverlay)
-                        {
-                            EditorGUI.indentLevel += 2;
-                            materialEditor.TexturePropertySingleLine(new GUIContent("Texture", "Static Overlay"), panoOverlayTex);
-                            EditorGUI.BeginChangeCheck();
-                            panoAlpha = EditorGUILayout.Toggle(new GUIContent("Use Alpha Channel", "Blending for the second overlay, unchecked is add, checked is alpha"), panoAlpha);
-                            EditorGUI.indentLevel -= 2;
-                        }
-                        EditorGUILayout.HelpBox("This section will work now, but isn't fully tested.  Please report any bugs to me (Synergiance) in the discord for this shader (https://discord.gg/rvpGU5E) under #bug-reports.", MessageType.Info);
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case OverlayMode.UVScroll:
-                        EditorGUI.indentLevel += 2;
-						EditorGUI.BeginChangeCheck();
-						panoBlendMode = (OverlayBlendMode)EditorGUILayout.Popup("Blend", (int)panoBlendMode, Enum.GetNames(typeof(OverlayBlendMode)));
-						if (EditorGUI.EndChangeCheck())
-						{
-							materialEditor.RegisterPropertyChangeUndo("Overlay Blend Mode");
-							overlayBlendMode.floatValue = (float)panoBlendMode;
-						}
-                        materialEditor.TexturePropertySingleLine(new GUIContent("Overlay Texture", "Overlay Texture (UV Scrolling Mode)"), panoFlatTex);
-                        materialEditor.ShaderProperty(panoBlend, new GUIContent("Blend", "Mix between normal albedo and panosphere"));
-                        materialEditor.ShaderProperty(panoRotationSpeedX, new GUIContent("Scroll Speed (X)", "Scroll the overlay texture (Set to 0 to turn off)"));
-                        materialEditor.ShaderProperty(panoRotationSpeedY, new GUIContent("Scroll Speed (Y)", "Rotate the overlay texture (Set to 0 to turn off)"));
-                        EditorGUI.BeginChangeCheck();
-                        panoOverlay = EditorGUILayout.Toggle(new GUIContent("Static Overlay", "Use an additional static overlay"), panoOverlay);
-                        if (EditorGUI.EndChangeCheck())
-                        {
-                            if (panoOverlay)
-                                foreach (Material mat in materialEditor.targets)
-                                    mat.EnableKeyword("PANOOVERLAY");
-                            else
-                                foreach (Material mat in materialEditor.targets)
-                                    mat.DisableKeyword("PANOOVERLAY");
-                        }
-                        if (panoOverlay)
-                        {
-                            EditorGUI.indentLevel += 2;
-                            materialEditor.TexturePropertySingleLine(new GUIContent("Texture", "Static Overlay"), panoOverlayTex);
-                            EditorGUI.BeginChangeCheck();
-                            panoAlpha = EditorGUILayout.Toggle(new GUIContent("Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha"), panoAlpha);
-                            EditorGUI.indentLevel -= 2;
-                        }
-                        EditorGUILayout.HelpBox("This section does not work, in fact it's super broken, use a cube map instead with the sphere mode", MessageType.Info);
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case OverlayMode.None:
-                    default:
-                        break;
-                }
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (panoAlpha)
-                        foreach (Material mat in materialEditor.targets)
-                            mat.EnableKeyword("PANOALPHA");
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                            mat.DisableKeyword("PANOALPHA");
-                }
-                EditorGUILayout.Space();
-
-                GUILayout.Label("Advanced Options", EditorStyles.boldLabel);
-                materialEditor.RenderQueueField();
-                
-                EditorGUI.BeginChangeCheck();
-                backfacecull = !EditorGUILayout.Toggle(new GUIContent("Double Sided", "Render this material on both sides"), !backfacecull);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (backfacecull)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("BCKFCECULL");
-                            mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Back);
-                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("BCKFCECULL");
-                            mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
-                            SetupMaterialShaderSelect((Material)mat, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
-                        }
-                }
-                
-                var tFix = (TransFix)transFix.floatValue;
-                EditorGUI.BeginChangeCheck();
-                if (((BlendMode)material.GetFloat("_Mode") == BlendMode.Alphablend) || ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom)) {
-                    tFix = (TransFix)EditorGUILayout.Popup("Transparent Fix", (int)tFix, Enum.GetNames(typeof(TransFix)));
-                } else {
-                    GUI.enabled = false;
-                    tFix = (TransFix)EditorGUILayout.Popup("Transparent Fix", (int)tFix, Enum.GetNames(typeof(TransFix)));
-                    GUI.enabled = true;
-                }
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Transparent Fix");
-                    transFix.floatValue = (float)tFix;
-
-                    foreach (var obj in transFix.targets)
-                    {
-                        SetupMaterialShaderSelect((Material)obj, (OutlineMode)material.GetFloat("_OutlineMode"), (BlendMode)material.GetFloat("_Mode"), (TransFix)material.GetFloat("_TransFix"), !backfacecull);
-                    }
-                }
-
-                var lHack = (LightingHack)lightingHack.floatValue;
-
-                EditorGUI.BeginChangeCheck();
-                lHack = (LightingHack)EditorGUILayout.Popup("Static Light", (int)lHack, Enum.GetNames(typeof(LightingHack)));
-                
-                if (EditorGUI.EndChangeCheck())
-                {
-                    materialEditor.RegisterPropertyChangeUndo("Static Light");
-                    lightingHack.floatValue = (float)lHack;
-
-                    foreach (var obj in lightingHack.targets)
-                    {
-                        SetupMaterialWithLightingHack((Material)obj, (LightingHack)material.GetFloat("_LightingHack"));
-                    }
-
-                }
-                EditorGUI.BeginChangeCheck();
-                switch (lHack)
-                {
-                    case LightingHack.World:
-                        EditorGUI.indentLevel += 2;
-                        realOverride = EditorGUILayout.Toggle(new GUIContent("Override All", "Override All lights not just directionless lights"), realOverride);
-                        materialEditor.ShaderProperty(staticLight, new GUIContent("Light Coordinate", "Static World Light Position"));
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case LightingHack.Local:
-                        EditorGUI.indentLevel += 2;
-                        realOverride = EditorGUILayout.Toggle(new GUIContent("Override All", "Override All lights not just directionless lights"), realOverride);
-                        materialEditor.ShaderProperty(staticLight, new GUIContent("Light Coordinate", "Static Local Light Position"));
-                        EditorGUI.indentLevel -= 2;
-                        break;
-                    case LightingHack.None:
-                    default:
-                        break;
-                }
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (realOverride)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("OVERRIDE_REALTIME");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("OVERRIDE_REALTIME");
-                        }
-                }
-                materialEditor.ShaderProperty(lightColor, new GUIContent("Light Color", "Light will become this color depending on the slider below"));
-                materialEditor.ShaderProperty(lightOverride, new GUIContent("Light Override", "Turn this slider to the right to use the color above"));
-				materialEditor.ShaderProperty(probeStrength, new GUIContent("Probe Strength", "Strength of reflection probes on this material"));
-				if (material.GetFloat("_ProbeStrength") > 0) {
-					EditorGUI.indentLevel += 1;
-					materialEditor.ShaderProperty(probeClarity, new GUIContent("Probe Clarity", "Clarity of reflection probes on this material"));
-					EditorGUI.indentLevel -= 1;
+			else
+				foreach (Material mat in editor.targets)
+				{
+					mat.DisableKeyword("BCKFCECULL");
+					mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
+					SetupMaterialShaderSelect((Material)mat);
 				}
-                
-                EditorGUI.BeginChangeCheck();
-                if ((BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
-                    shadowDisable = !EditorGUILayout.Toggle(new GUIContent("Enable Shadow Casts", "This makes shadows appear on the material from other objects"), !shadowDisable);
-                } else {
-                    GUI.enabled = false;
-                    shadowDisable = EditorGUILayout.Toggle(new GUIContent("Enable Shadow Casts", "This makes shadows appear on the material from other objects"), false);
-                    GUI.enabled = true;
-                }
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (shadowDisable)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("DISABLE_SHADOW");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("DISABLE_SHADOW");
-                        }
-                }
-                if (!shadowDisable && (BlendMode)material.GetFloat("_Mode") <= BlendMode.Cutout) {
-                    EditorGUI.indentLevel += 2;
-                    materialEditor.ShaderProperty(shadowCastIntensity, new GUIContent("Intensity", "This is how much other objects affect your shadow"));
-                    materialEditor.ShaderProperty(shadowAmbAdd, new GUIContent("Ambient", "Controls casted ambient light, values above zero will cause visible squares around point lights"));
-                    EditorGUI.indentLevel -= 2;
-                }
-                
-                EditorGUI.BeginChangeCheck();
-                hueMode = EditorGUILayout.Toggle(new GUIContent("HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost"), hueMode);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (hueMode)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("HUESHIFTMODE");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("HUESHIFTMODE");
-                        }
-                }
-                
-                EditorGUI.BeginChangeCheck();
-                allowOverbright = !EditorGUILayout.Toggle(new GUIContent("Overbright Protection", "Protects against overbright worlds"), !allowOverbright);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (allowOverbright)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("ALLOWOVERBRIGHT");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("ALLOWOVERBRIGHT");
-                        }
-                }
-                EditorGUI.BeginChangeCheck();
-                gammaCorrect = EditorGUILayout.Toggle(new GUIContent("Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray."), gammaCorrect);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    if (gammaCorrect)
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.EnableKeyword("GAMMACORRECT");
-                        }
-                    else
-                        foreach (Material mat in materialEditor.targets)
-                        {
-                            mat.DisableKeyword("GAMMACORRECT");
-                        }
-                }
-                if (gammaCorrect)
-                {
-                    EditorGUI.indentLevel += 2;
-                    materialEditor.ShaderProperty(gammaLevel, new GUIContent("Intensity", "Effectiveness of gamma correction."));
-                    EditorGUI.indentLevel -= 2;
-                }
-                
-                EditorGUILayout.Space();
-                GUILayout.Label("Stencil Options", EditorStyles.boldLabel);
-                materialEditor.ShaderProperty(stencilcolorMask, stencilcolorMask.displayName, 2);
-                materialEditor.ShaderProperty(stencil, stencil.displayName, 2);
-                materialEditor.ShaderProperty(stencilComp, stencilComp.displayName, 2);
-                materialEditor.ShaderProperty(stencilOp, stencilOp.displayName, 2);
-                materialEditor.ShaderProperty(stencilFail, stencilFail.displayName, 2);
-                materialEditor.ShaderProperty(stencilZFail, stencilZFail.displayName, 2);
-                materialEditor.ShaderProperty(ztest, ztest.displayName, 2);
-                materialEditor.ShaderProperty(zwrite, zwrite.displayName, 2);
-                
-                if ((BlendMode)material.GetFloat("_Mode") == BlendMode.Custom)
-                {
-                  EditorGUILayout.Space();
-                  GUILayout.Label("Blending Options", EditorStyles.boldLabel);
-                  materialEditor.ShaderProperty(srcBlend, srcBlend.displayName, 2);
-                  materialEditor.ShaderProperty(dstBlend, dstBlend.displayName, 2);
-                  materialEditor.ShaderProperty(blendOp, blendOp.displayName, 2);
-                }
-            }
-            EditorGUI.EndChangeCheck();
-        }
-    }
-    
-    public static void SetupMaterialWithBlendMode(Material material, BlendMode blendMode)
-    {
-        switch ((BlendMode)material.GetFloat("_Mode"))
-        {
-            case BlendMode.Opaque:
-                material.SetOverrideTag("RenderType", "Opaque");
-                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                material.SetInt("_ZWrite", 1);
-                material.DisableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
-                break;
-            case BlendMode.Cutout:
-                material.SetOverrideTag("RenderType", "TransparentCutout");
-                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
-                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                material.SetInt("_ZWrite", 1);
-                material.EnableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
-                break;
-            case BlendMode.Fade:
-                material.SetOverrideTag("RenderType", "Transparent");
-                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                material.SetInt("_ZWrite", 0);
-                material.DisableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                break;
-            case BlendMode.Multiply:
-                material.SetOverrideTag("RenderType", "Transparent");
-                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
-                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                material.SetInt("_ZWrite", 0);
-                material.DisableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                break;
-            case BlendMode.Alphablend:
-                material.SetOverrideTag("RenderType", "Transparent");
-                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                material.SetInt("_BlendOp",  (int)UnityEngine.Rendering.BlendOp.Add);
-                material.SetInt("_ZWrite", 1);
-                material.DisableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                break;
-            case BlendMode.Custom:
-                material.SetOverrideTag("RenderType", "Transparent");
-                material.SetInt("_ZWrite", 1);
-                material.DisableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                break;
-            case BlendMode.Refract:
-                material.SetOverrideTag("RenderType", "Transparent");
-                material.SetInt("_ZWrite", 1);
-                material.DisableKeyword("_ALPHATEST_ON");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 1;
-                break;
-        }
-    }
+		}
+	}
+	
+	void DoTransFix() {
+		MaterialProperty transFix = FindProperty("_TransFix");
+		TransFix tFix = (TransFix)transFix.floatValue;
+		if (renderSettings.showTransFix) {
+			EditorGUI.BeginChangeCheck();
+			tFix = (TransFix)EditorGUILayout.EnumPopup(MakeLabel("Transparent Fix"), tFix);
+			if (EditorGUI.EndChangeCheck())
+			{
+				editor.RegisterPropertyChangeUndo("Transparent Fix");
+				transFix.floatValue = (float)tFix;
+				
+				foreach (var obj in transFix.targets)
+				{
+					SetupMaterialShaderSelect((Material)obj);
+				}
+			}
+		} else {
+			GUI.enabled = false;
+			EditorGUILayout.EnumPopup(MakeLabel("Transparent Fix"), tFix);
+			GUI.enabled = true;
+		}
+	}
+	
+	void DoLightingHack() {
+		MaterialProperty lightingHack = FindProperty("_LightingHack");
+		LightingHack lHack = (LightingHack)lightingHack.floatValue;
 
-    public static void SetupMaterialWithOutlineMode(Material material, OutlineMode outlineMode)
+		EditorGUI.BeginChangeCheck();
+		lHack = (LightingHack)EditorGUILayout.EnumPopup(MakeLabel("Static Light"), lHack);
+		
+		if (EditorGUI.EndChangeCheck())
+		{
+			RecordAction("Static Light");
+			lightingHack.floatValue = (float)lHack;
+			
+			foreach (var obj in lightingHack.targets)
+			{
+				SetupMaterialWithLightingHack((Material)obj);
+			}
+		}
+		switch (lHack)
+		{
+			case LightingHack.World:
+			case LightingHack.Local:
+				EditorGUI.indentLevel += 2;
+				KeywordToggle("OVERRIDE_REALTIME", MakeLabel("Override All", "Override All lights not just directionless lights"));
+				ShaderProperty("_StaticToonLight", "Light Coordinate", "Static World Light Position");
+				EditorGUI.indentLevel -= 2;
+				break;
+			case LightingHack.None:
+			default:
+				break;
+		}
+		ShaderProperty("_LightColor", "Light Color", "Light will become this color depending on the slider below");
+		ShaderProperty("_LightOverride", "Light Override", "Turn this slider to the right to use the color above");
+	}
+	
+	void DoReflectionProbes() {
+		ShaderProperty("_ProbeStrength", "Probe Strength", "Strength of reflection probes on this material");
+		if (target.GetFloat("_ProbeStrength") > 0) {
+			EditorGUI.indentLevel += 1;
+			ShaderProperty("_ProbeClarity", "Probe Clarity", "Clarity of reflection probes on this material");
+			EditorGUI.indentLevel -= 1;
+		}
+	}
+	
+	void DoCastShadows() {
+		if (renderSettings.showShadows) {
+			if (ReverseKeywordToggle("DISABLE_SHADOW", MakeLabel("Enable Shadow Casts", "This makes shadows appear on the material from other objects"))) {
+				EditorGUI.indentLevel += 2;
+				ShaderProperty("_shadowcast_intensity", "Intensity", "This is how much other objects affect your shadow");
+				ShaderProperty("_ShadowAmbAdd", "Ambient", "Controls casted ambient light, values above zero will cause visible squares around point lights");
+				EditorGUI.indentLevel -= 2;
+			}
+		} else {
+			GUI.enabled = false;
+			EditorGUILayout.Toggle(MakeLabel("Enable Shadow Casts", "This makes shadows appear on the material from other objects"), false);
+			GUI.enabled = true;
+		}
+	}
+	
+	void DoBatchDisable() {
+		bool batchDisable = target.GetFloat("_DisableBatching") > 0;
+		EditorGUI.BeginChangeCheck();
+		batchDisable = EditorGUILayout.Toggle(MakeLabel("Disable Batching", "Enable this if you have batching problems"), batchDisable);
+		if (EditorGUI.EndChangeCheck())
+		{
+			if (batchDisable)
+			{
+				target.SetInt("_DisableBatching", 1);
+				target.SetOverrideTag("DisableBatching", "True");
+			}
+			else
+			{
+				target.SetInt("_DisableBatching", 0);
+				target.SetOverrideTag("DisableBatching", "False");
+			}
+		}
+	}
+	
+	void DoStencil() {
+		EditorGUILayout.Space();
+		GUILayout.Label("Stencil Options", EditorStyles.boldLabel);
+		
+		ShaderProperty("_stencilcolormask");
+		ShaderProperty("_Stencil");
+		ShaderProperty("_StencilComp");
+		ShaderProperty("_StencilOp");
+		ShaderProperty("_StencilFail");
+		ShaderProperty("_StencilZFail");
+		ShaderProperty("_ZTest");
+		ShaderProperty("_ZWrite");
+	}
+	
+	void DoCustom() {
+		EditorGUILayout.Space();
+		GUILayout.Label("Blending Options", EditorStyles.boldLabel);
+		
+		ShaderProperty("_SrcBlend");
+		ShaderProperty("_DstBlend");
+		ShaderProperty("_BlendOp");
+	}
+
+    public static void SetupMaterialWithOutlineMode(Material material)
     {
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
@@ -963,7 +833,7 @@ public class SynToonInspector : ShaderGUI
                 material.DisableKeyword("SCREENSPACE_OUTLINE");
                 //material.shader = Shader.Find("Synergiance/Toon");
                 break;
-            case OutlineMode.Outside:
+            case OutlineMode.Normal:
                 material.DisableKeyword("ARTSY_OUTLINE");
                 material.EnableKeyword("OUTSIDE_OUTLINE");
                 material.DisableKeyword("SCREENSPACE_OUTLINE");
@@ -980,7 +850,7 @@ public class SynToonInspector : ShaderGUI
         }
     }
 
-    public static void SetupMaterialWithOutlineColorMode(Material material, OutlineColorMode outlineColorMode)
+    void SetupMaterialWithOutlineColorMode(Material material)
     {
         switch ((OutlineColorMode)material.GetFloat("_OutlineColorMode"))
         {
@@ -997,7 +867,7 @@ public class SynToonInspector : ShaderGUI
         }
     }
     
-    public static void SetupMaterialWithLightingHack(Material material, LightingHack lightingHack)
+    void SetupMaterialWithLightingHack(Material material)
     {
         switch ((LightingHack)material.GetFloat("_LightingHack"))
         {
@@ -1021,13 +891,14 @@ public class SynToonInspector : ShaderGUI
         }
     }
 
-    public static void SetupMaterialShaderSelect(Material material, OutlineMode outlineMode, BlendMode blendMode, TransFix transparentFix, bool doubleSided)
+    void SetupMaterialShaderSelect(Material material)
     {
-        string shaderName = "Synergiance/Toon";
+        bool doubleSided = !IsKeywordEnabled("BCKFCECULL");
+		string shaderName = "Synergiance/Toon";
         float transFix = (float)material.GetFloat("_TransFix");
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
-            case OutlineMode.Outside:
+            case OutlineMode.Normal:
                 shaderName += "-Outline";
                 break;
             case OutlineMode.Screenspace:
@@ -1036,32 +907,32 @@ public class SynToonInspector : ShaderGUI
             default:
                 break;
         }
-        switch ((BlendMode)material.GetFloat("_Mode"))
+        switch ((RenderingMode)material.GetFloat("_Mode"))
         {
-            case BlendMode.Cutout:
+            case RenderingMode.Cutout:
                 shaderName += "/Cutout";
                 break;
-            case BlendMode.Fade:
+            case RenderingMode.Fade:
                 shaderName += "/Transparent";
                 if (doubleSided) shaderName += "DS";
                 break;
-            case BlendMode.Multiply:
+            case RenderingMode.Multiply:
                 shaderName += "/Transparent";
                 if (doubleSided) shaderName += "DS";
                 break;
-            case BlendMode.Alphablend:
-                shaderName += "/Transparent";
-                if (transFix > 0) shaderName += "Fix";
-                if (transFix > 1) shaderName += "2";
-                if (doubleSided) shaderName += "DS";
-                break;
-            case BlendMode.Custom:
+            case RenderingMode.Alphablend:
                 shaderName += "/Transparent";
                 if (transFix > 0) shaderName += "Fix";
                 if (transFix > 1) shaderName += "2";
                 if (doubleSided) shaderName += "DS";
                 break;
-            case BlendMode.Refract:
+            case RenderingMode.Custom:
+                shaderName += "/Transparent";
+                if (transFix > 0) shaderName += "Fix";
+                if (transFix > 1) shaderName += "2";
+                if (doubleSided) shaderName += "DS";
+                break;
+            case RenderingMode.Refract:
                 shaderName += "/Refraction";
                 break;
             default:

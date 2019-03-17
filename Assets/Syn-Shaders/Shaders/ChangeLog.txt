@@ -1,5 +1,11 @@
 Change Log
 
+0.4.4:
+Fixed reflected light in refraction shader
+Added batching toggle in case batching causes issues
+Rewrote entire GUI for cleaner more efficient code, a few things are moved around and should make more sense
+Added support for outline color atlases.  These can be used with either tinted or colored outlines.  I suggest setting your outline color to white if using an atlas
+
 0.4.3:
 Added deferred pass for screenspace effects
 Added refraction and chromatic aborration

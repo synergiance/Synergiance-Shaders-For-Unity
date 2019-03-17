@@ -1,7 +1,7 @@
 // SynToon by Synergiance
-// v0.4.3
+// v0.4.4
 
-#define VERSION="v0.4.3"
+#define VERSION="v0.4.4"
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -11,16 +11,17 @@
 #include "HSB.cginc"
 #include "Rotate.cginc"
 
-sampler2D _MainTex;
-sampler2D _BumpMap;
-sampler2D _OcclusionMap;
-sampler2D _ColorMask;
-sampler2D _EmissionMap;
+SamplerState sampler_MainTex;
+Texture2D _MainTex;
+Texture2D _BumpMap;
+Texture2D _ColorMask;
+Texture2D _EmissionMap;
 float4 _MainTex_ST;
+sampler2D _OcclusionMap;
 float4 _EmissionColor;
 #if defined(PULSE)
 float _EmissionSpeed;
-sampler2D _EmissionPulseMap;
+Texture2D _EmissionPulseMap;
 float4 _EmissionPulseColor;
 #endif
 float _Brightness;
@@ -42,12 +43,13 @@ float _Cutoff;
 float _AlphaOverride;
 float _SaturationBoost;
 #if defined(RAINBOW)
-sampler2D _RainbowMask;
+Texture2D _RainbowMask;
 float _Speed;
 #endif
 uniform float _outline_width;
 uniform float _outline_feather;
 uniform float4 _outline_color;
+sampler2D _outline_tex;
 //sampler2D _ToonTex;
 Texture2D _SphereAddTex;
 Texture2D _SphereMulTex;
@@ -213,14 +215,15 @@ v2g vert(appdata_full v)
     return o;
 }
 
-float3 artsyOutline(float3 color, float3 view, float3 normal)
+float3 artsyOutline(float3 color, float3 view, float3 normal, float2 uv)
 {// Outline
     #if ARTSY_OUTLINE
+		float4 outline = _outline_color * tex2D(_outline_tex, uv);
 		float3 outlineColor = color;
 		#if TINTED_OUTLINE
-			outlineColor *= _outline_color.rgb;
+			outlineColor *= outline.rgb;
 		#elif COLORED_OUTLINE
-			outlineColor = float3((_outline_color.rgb * _outline_color.a) + (color * (1 - _outline_color.a)));
+			outlineColor = float3((outline.rgb * outline.a) + (color * (1 - outline.a)));
 		#endif
 		color = lerp(outlineColor,color.rgb,smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(view, normal)));
 		// Outline Effects
@@ -315,10 +318,10 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 FragmentOutput frag(VertexOutput i)
 {
     // Variables
-    float4 color = tex2D(_MainTex, i.uv);
-    float4 _EmissionMap_var = tex2D(_EmissionMap, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
+    float4 _EmissionMap_var = _EmissionMap.Sample(sampler_MainTex, i.uv);
     float3 emissive = (_EmissionMap_var.rgb*_EmissionColor.rgb);
-    float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
 	#if defined(DEFERRED_PASS) && !defined(IS_OPAQUE)
 		clip (color.a - 0.8);
     #elif defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
@@ -337,7 +340,7 @@ FragmentOutput frag(VertexOutput i)
     #else
 		float4 shiftcolor = color.rgba * _Color.rgba;
     #endif
-    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
+    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.b);
 	
 	float4 uvShadow = float4(0, 0, 0, 0);
 	uvShadow.xy = i.uv;
@@ -360,7 +363,7 @@ FragmentOutput frag(VertexOutput i)
     float _AmbientLight = 0.8;
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
-    float3 _BumpMap_var = UnpackNormal(tex2D(_BumpMap,i.uv));
+    float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
@@ -381,7 +384,7 @@ FragmentOutput frag(VertexOutput i)
     
     // Pulse
     #if defined(PULSE)
-		float4 pulsemask = tex2D(_EmissionPulseMap, i.uv);
+		float4 pulsemask = _EmissionPulseMap.Sample(sampler_MainTex, i.uv);
 		emissive = lerp(emissive, _EmissionPulseColor.rgb*pulsemask.rgb, (sin(_Time[1] * _EmissionSpeed * _EmissionSpeed * _EmissionSpeed) + 1) / 2);
     #endif
     
@@ -411,15 +414,15 @@ FragmentOutput frag(VertexOutput i)
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
-		float4 maskcolor = tex2D(_RainbowMask, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
 		emissive = hueShift(emissive, maskcolor.rgb);
     #endif
 
     // Outline
-    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
-    emissive = artsyOutline(emissive, viewDirection, normalDirection);
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv);
+    emissive = artsyOutline(emissive, viewDirection, normalDirection, i.uv);
     
     // Sphere
 	color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
@@ -443,7 +446,7 @@ FragmentOutput frag(VertexOutput i)
 			output.color = float4(bright.rgb * lightColor + ambient, _AlphaOverride) * color + float4(emissive + specular, 0);
 		}
 		#if defined(REFRACTION)
-			output.color = float4(lerp(refractGrab(normalDirection, i.pos, viewDirection), output.color.rgb, output.color.a), 1);
+			output.color = float4(lerp(refractGrab(normalDirection, i.pos, viewDirection) + specular + emissive, output.color.rgb, output.color.a), 1);
 		#endif
 	#endif
 	return output;
@@ -452,8 +455,8 @@ FragmentOutput frag(VertexOutput i)
 float4 frag4(VertexOutput i) : COLOR
 {
     // Variables
-    float4 color = tex2D(_MainTex, i.uv);
-    float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
@@ -498,7 +501,7 @@ float4 frag4(VertexOutput i) : COLOR
     //#endif
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
-    float3 _BumpMap_var = UnpackNormal(tex2D(_BumpMap,i.uv));
+    float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float4 bright = calcShadow(i.posWorld.xyz, normalDirection, 1, uvShadow, color.rgb);
@@ -523,13 +526,13 @@ float4 frag4(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
-		float4 maskcolor = tex2D(_RainbowMask, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
     #endif
 
     // Outline
-    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection);
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv);
     
 	// Sphere
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
@@ -548,8 +551,8 @@ float4 frag4(VertexOutput i) : COLOR
 float4 frag3(VertexOutput i) : COLOR
 {
     // Variables
-    float4 color = tex2D(_MainTex, i.uv);
-    float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
@@ -586,7 +589,7 @@ float4 frag3(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
-		float4 maskcolor = tex2D(_RainbowMask, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
     #endif
     
@@ -594,9 +597,10 @@ float4 frag3(VertexOutput i) : COLOR
 
     // Outline
     #if TINTED_OUTLINE
-		color.rgb *= _outline_color.rgb;
+		color.rgb *= _outline_color.rgb * tex2D(_outline_tex, i.uv).rgb;
     #elif COLORED_OUTLINE
-		color.rgb = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
+		float4 outlineColor = _outline_color * tex2D(_outline_tex, i.uv);
+		color.rgb = float3((outlineColor.rgb * outlineColor.a) + (color.rgb * (1 - outlineColor.a)));
     #endif
     // Outline Effects
     
@@ -609,8 +613,8 @@ float4 frag3(VertexOutput i) : COLOR
 float4 frag5(VertexOutput i) : COLOR
 {
     // Variables
-    float4 color = tex2D(_MainTex, i.uv);
-    float4 _ColorMask_var = tex2D(_ColorMask, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
@@ -643,7 +647,7 @@ float4 frag5(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     #if defined(RAINBOW)
-		float4 maskcolor = tex2D(_RainbowMask, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
     #endif
     
@@ -651,9 +655,10 @@ float4 frag5(VertexOutput i) : COLOR
 
     // Outline
     #if TINTED_OUTLINE
-		color.rgb *= _outline_color.rgb;
+		color.rgb *= _outline_color.rgb * tex2D(_outline_tex, i.uv).rgb;
     #elif COLORED_OUTLINE
-		color.rgb = float3((_outline_color.rgb * _outline_color.a) + (color.rgb * (1 - _outline_color.a)));
+		float4 outlineColor = _outline_color * tex2D(_outline_tex, i.uv);
+		color.rgb = float3((outlineColor.rgb * outlineColor.a) + (color.rgb * (1 - outlineColor.a)));
     #endif
     // Outline Effects
     

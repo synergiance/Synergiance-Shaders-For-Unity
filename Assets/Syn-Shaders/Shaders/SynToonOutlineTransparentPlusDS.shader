@@ -4,7 +4,7 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 {
 	Properties
 	{
-		_MainTex("Texture", 2D) = "white" {}
+		_MainTex("Main Texture", 2D) = "white" {}
 		_Color("Color", Color) = (1,1,1,1)
 		_ColorMask("ColorMask", 2D) = "black" {}
         _RainbowMask ("Rainbow Mask", 2D) = "white" {}
@@ -25,6 +25,7 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
         _ShadowIntensity("Shadow Intensity", Range(0,1)) = 0.1
 		_outline_width("outline_width", Range(0,1)) = 0.2
 		_outline_color("outline_color", Color) = (0.5,0.5,0.5,1)
+		_outline_tex("Outline Map", 2D) = "white" {}
 		_outline_feather("outline_width", Range(0,1)) = 0.5
 		_outline_tint("outline_tint", Range(0, 1)) = 0.5
 		_EmissionMap("Emission Map", 2D) = "white" {}
@@ -71,13 +72,14 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
         [HideInInspector] _OverlayMode ("Overlay Mode", Float) = 0.0
-        [HideInInspector] _OverlayBlendMode ("Blend Mode", Float) = 0.0
+        [Enum(None,0,Add,1,Multiply,2,Alphablend,3,Hue,4)] _OverlayBlendMode ("Blend Mode", Int) = 0
 		
         [Enum(UnityEngine.Rendering.BlendOp)] _BlendOp ("Blending Operation", Int) = 0
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source Blend", Int) = 1
 		[Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Destination Blend", Int) = 0
 		//[HideInInspector] _ZWrite ("__zw", Float) = 1.0
         [HideInInspector] _CullMode ("__zw", Float) = 0.0
+        [HideInInspector] _DisableBatching ("__db", Int) = 0
         
         // Stencil
 		[IntRange] _Stencil ("Stencil ID (0-255)", Range(0,255)) = 0
