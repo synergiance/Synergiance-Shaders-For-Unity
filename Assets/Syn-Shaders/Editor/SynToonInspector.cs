@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4";
+	static string version = "0.4.4.1";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -256,7 +256,6 @@ public class SynToonInspector : ShaderGUI {
 			SetKeyword("_ALPHATEST_ON", mode == RenderingMode.Cutout);
 			blendMode.floatValue = (float)mode;
 			
-			renderSettings = RenderingSettings.modes[(int)mode];
 			foreach (Material m in editor.targets) {
 				m.SetInt("_SrcBlend", (int)renderSettings.srcBlend);
 				m.SetInt("_DstBlend", (int)renderSettings.dstBlend);
@@ -265,6 +264,7 @@ public class SynToonInspector : ShaderGUI {
 				SetupMaterialShaderSelect(m);
 			}
 		}
+		renderSettings = RenderingSettings.modes[(int)mode];
 		
 		EditorGUI.showMixedValue = false;
 	}

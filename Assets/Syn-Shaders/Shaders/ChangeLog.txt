@@ -1,5 +1,8 @@
 Change Log
 
+0.4.4.1:
+Fixed editor bug where sliders would disappear after leaving the editor
+
 0.4.4:
 Fixed reflected light in refraction shader
 Added batching toggle in case batching causes issues
