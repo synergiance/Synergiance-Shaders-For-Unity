@@ -138,7 +138,6 @@ Shader "Synergiance/Toon/TransparentDS"
             #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING
             #pragma shader_feature PULSE
-            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT
@@ -175,7 +174,6 @@ Shader "Synergiance/Toon/TransparentDS"
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ ARTSY_OUTLINE
             #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
-            #pragma shader_feature NORMAL_LIGHTING WORLD_STATIC_LIGHT LOCAL_STATIC_LIGHT
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT

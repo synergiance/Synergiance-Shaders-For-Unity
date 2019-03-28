@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.1";
+	static string version = "0.4.4.2";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -228,10 +228,38 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
+	void Vec3Prop(string label, MaterialProperty prop) {
+		Vec3Prop(MakeLabel(label), prop);
+	}
+	
+	void Vec3Prop(GUIContent label, MaterialProperty prop) {
+		EditorGUI.BeginChangeCheck();
+		EditorGUI.showMixedValue = prop.hasMixedValue;
+		Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop), EditorStyles.layerMaskField, new GUILayoutOption[0]);
+		Vector3 vec3 = EditorGUI.Vector3Field(controlRect, label, new Vector3(prop.vectorValue.x, prop.vectorValue.y, prop.vectorValue.z));
+		EditorGUI.showMixedValue = false;
+		if (EditorGUI.EndChangeCheck()) prop.vectorValue = new Vector4(vec3.x, vec3.y, vec3.z, prop.vectorValue.w);
+	}
+	
+	void SanitizeKeywords() {
+		foreach (Material m in editor.targets) {
+			m.DisableKeyword("NO_SHADOW");
+			m.DisableKeyword("TINTED_SHADOW");
+			m.DisableKeyword("RAMP_SHADOW");
+			m.DisableKeyword("NO_SPHERE");
+			m.DisableKeyword("ADD_SPHERE");
+			m.DisableKeyword("MUL_SPHERE");
+			m.DisableKeyword("NORMAL_LIGHTING");
+			m.DisableKeyword("WORLD_STATIC_LIGHT");
+			m.DisableKeyword("LOCAL_STATIC_LIGHT");
+		}
+	}
+	
 	public override void OnGUI(MaterialEditor editor, MaterialProperty[] properties) {
 		this.target = editor.target as Material;
 		this.editor = editor;
 		this.properties = properties;
+		SanitizeKeywords();
 		DoRenderingMode();
 		DoMain();
 		//DoSecondary();
@@ -728,11 +756,6 @@ public class SynToonInspector : ShaderGUI {
 		{
 			RecordAction("Static Light");
 			lightingHack.floatValue = (float)lHack;
-			
-			foreach (var obj in lightingHack.targets)
-			{
-				SetupMaterialWithLightingHack((Material)obj);
-			}
 		}
 		switch (lHack)
 		{
@@ -740,7 +763,7 @@ public class SynToonInspector : ShaderGUI {
 			case LightingHack.Local:
 				EditorGUI.indentLevel += 2;
 				KeywordToggle("OVERRIDE_REALTIME", MakeLabel("Override All", "Override All lights not just directionless lights"));
-				ShaderProperty("_StaticToonLight", "Light Coordinate", "Static World Light Position");
+				Vec3Prop(MakeLabel("Light Coordinate", "Static World Light Position"), FindProperty("_StaticToonLight"));
 				EditorGUI.indentLevel -= 2;
 				break;
 			case LightingHack.None:
@@ -866,30 +889,6 @@ public class SynToonInspector : ShaderGUI {
                 break;
         }
     }
-    
-    void SetupMaterialWithLightingHack(Material material)
-    {
-        switch ((LightingHack)material.GetFloat("_LightingHack"))
-        {
-            case LightingHack.None:
-                material.EnableKeyword("NORMAL_LIGHTING");
-                material.DisableKeyword("WORLD_STATIC_LIGHT");
-                material.DisableKeyword("LOCAL_STATIC_LIGHT");
-                break;
-            case LightingHack.World:
-                material.DisableKeyword("NORMAL_LIGHTING");
-                material.EnableKeyword("WORLD_STATIC_LIGHT");
-                material.DisableKeyword("LOCAL_STATIC_LIGHT");
-                break;
-            case LightingHack.Local:
-                material.DisableKeyword("NORMAL_LIGHTING");
-                material.DisableKeyword("WORLD_STATIC_LIGHT");
-                material.EnableKeyword("LOCAL_STATIC_LIGHT");
-                break;
-            default:
-                break;
-        }
-    }
 
     void SetupMaterialShaderSelect(Material material)
     {
@@ -899,8 +898,6 @@ public class SynToonInspector : ShaderGUI {
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
             case OutlineMode.Normal:
-                shaderName += "-Outline";
-                break;
             case OutlineMode.Screenspace:
                 shaderName += "-Outline";
                 break;
@@ -913,19 +910,8 @@ public class SynToonInspector : ShaderGUI {
                 shaderName += "/Cutout";
                 break;
             case RenderingMode.Fade:
-                shaderName += "/Transparent";
-                if (doubleSided) shaderName += "DS";
-                break;
             case RenderingMode.Multiply:
-                shaderName += "/Transparent";
-                if (doubleSided) shaderName += "DS";
-                break;
             case RenderingMode.Alphablend:
-                shaderName += "/Transparent";
-                if (transFix > 0) shaderName += "Fix";
-                if (transFix > 1) shaderName += "2";
-                if (doubleSided) shaderName += "DS";
-                break;
             case RenderingMode.Custom:
                 shaderName += "/Transparent";
                 if (transFix > 0) shaderName += "Fix";

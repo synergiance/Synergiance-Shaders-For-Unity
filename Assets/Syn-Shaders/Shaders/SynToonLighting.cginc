@@ -4,6 +4,8 @@
 #define GET_LIGHTDIR(p,l) normalize(lerp(l.xyz, l.xyz - p.xyz, l.w))
 #define DIR_IS_ZERO(i, t) (abs(i.x + i.y + i.z) < t)
 
+float _LightingHack;
+
 float3 BoxProjection(float3 direction, float3 position, float4 cubemapPosition, float3 boxMin, float3 boxMax) {
 	#if UNITY_SPECCUBE_BOX_PROJECTION
 		[branch] if (cubemapPosition.w > 0) {
@@ -49,19 +51,20 @@ float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 li
 float GetLightScale(float3 position, float3 normal, float atten) {
 	float lightScale = 1;
 	float3 lightDirection = float3(0, 0, 0);
-	#if LOCAL_STATIC_LIGHT // Places light at a specific vector relative to the model.
+	[branch] if (_LightingHack == 2) { //         Local Static Light: Places light at a specific vector relative to the model.
 		lightDirection = normalize(_StaticToonLight.rgb);
-	#elif WORLD_STATIC_LIGHT // Places light at a specific vector relative to the world.
+	} else if (_LightingHack == 1) { //  World Static Light: Places light at a specific vector relative to the world.
 		lightDirection = normalize(_StaticToonLight.rgb - position);
-	#else // Normal lighting
+	//} else if (_LightingHack == 3) { // Object Static Light: Places light at a specific vector relative to the model in object space.
+	} else { //                          Normal lighting
 		[branch] if (!DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
 			lightDirection = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
 			lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
 		} else {
 			atten = 1;
 		}
-	#endif
-	#if !NORMAL_LIGHTING
+	}
+	[branch] if (_LightingHack > 0) {
 		#if !OVERRIDE_REALTIME
 			[branch] if (!DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
 				lightDirection = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
@@ -75,7 +78,7 @@ float GetLightScale(float3 position, float3 normal, float atten) {
 			atten = 1;
 		}
 		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
-	#endif
+	}
 	#if defined(IS_OPAQUE) && !DISABLE_SHADOW
 		lightScale *= atten;
 	#endif

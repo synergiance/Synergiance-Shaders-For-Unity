@@ -1,5 +1,10 @@
 Change Log
 
+0.4.4.2:
+Removed unused 4th field in the Light Direction property
+Removed 3 more keywords!!!
+Consolidated a bit of code in the editor
+
 0.4.4.1:
 Fixed editor bug where sliders would disappear after leaving the editor
 

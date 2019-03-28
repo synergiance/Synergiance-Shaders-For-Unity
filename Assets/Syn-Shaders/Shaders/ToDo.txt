@@ -1,6 +1,6 @@
 To Do:
 
-Fix screen mode panosphere
+Remove Keywords
 Fix lighting code
 UV Scrolling
 Triangle manipulation
@@ -10,7 +10,3 @@ Effects:
 Primary effects, rainbow, wave rainbow, texture swap
 Secondary effects, overlay
 Outline effects, rainbow, wave rainbow (texture swap already needs to swap the outline)
-
-Add ambient light back
-Texture encoded settings for atlased models
-Textured shadows
