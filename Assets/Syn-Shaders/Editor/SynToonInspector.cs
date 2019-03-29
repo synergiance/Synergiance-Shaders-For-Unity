@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.2";
+	static string version = "0.4.4.3";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -199,6 +199,13 @@ public class SynToonInspector : ShaderGUI {
 		return ReverseKeywordToggle(keyword, MakeLabel(display));
 	}
 	
+	void ConvertKeyword(Material m, string keyword, string property) {
+		if (m.IsKeywordEnabled(keyword)) {
+			m.DisableKeyword(keyword);
+			m.SetFloat(property, 1);
+		}
+	}
+	
 	void ShaderProperty(string enumName) {
 		MaterialProperty enumProp = FindProperty(enumName);
 		editor.ShaderProperty(enumProp, MakeLabel(enumProp));
@@ -243,16 +250,25 @@ public class SynToonInspector : ShaderGUI {
 	
 	void SanitizeKeywords() {
 		foreach (Material m in editor.targets) {
-			m.DisableKeyword("NO_SHADOW");
-			m.DisableKeyword("TINTED_SHADOW");
-			m.DisableKeyword("RAMP_SHADOW");
-			m.DisableKeyword("NO_SPHERE");
-			m.DisableKeyword("ADD_SPHERE");
-			m.DisableKeyword("MUL_SPHERE");
-			m.DisableKeyword("NORMAL_LIGHTING");
-			m.DisableKeyword("WORLD_STATIC_LIGHT");
-			m.DisableKeyword("LOCAL_STATIC_LIGHT");
+			RemoveKeywords(m);
+			ConvertKeywords(m);
 		}
+	}
+	
+	void RemoveKeywords(Material m) {
+		m.DisableKeyword("NO_SHADOW");
+		m.DisableKeyword("TINTED_SHADOW");
+		m.DisableKeyword("RAMP_SHADOW");
+		m.DisableKeyword("NO_SPHERE");
+		m.DisableKeyword("ADD_SPHERE");
+		m.DisableKeyword("MUL_SPHERE");
+		m.DisableKeyword("NORMAL_LIGHTING");
+		m.DisableKeyword("WORLD_STATIC_LIGHT");
+		m.DisableKeyword("LOCAL_STATIC_LIGHT");
+	}
+	
+	void ConvertKeywords(Material m) {
+		ConvertKeyword(m, "RAINBOW", "_Rainbowing");
 	}
 	
 	public override void OnGUI(MaterialEditor editor, MaterialProperty[] properties) {
@@ -394,12 +410,11 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoRainbow() {
-		EditorGUI.BeginChangeCheck();
 		EditorGUI.indentLevel += 2;
-		bool rainbow = EditorGUILayout.Toggle("Rainbow", IsKeywordEnabled("RAINBOW"));
+		ShaderProperty("_Rainbowing", "Rainbow", "Rainbow Mask (RGB) with Rainbow Speed");
 		EditorGUI.indentLevel -= 2;
-		if (EditorGUI.EndChangeCheck()) SetKeyword("RAINBOW", rainbow);
-		if (rainbow) editor.TexturePropertySingleLine(MakeLabel("Rainbow Mask", "Rainbow Mask (RGB) with Rainbow Speed"), FindProperty("_RainbowMask"), FindProperty("_Speed"));
+		if (FindProperty("_Rainbowing").floatValue == 1) editor.TexturePropertySingleLine(MakeLabel("Rainbow Mask", "Rainbow Mask (RGB) with Rainbow Speed"), FindProperty("_RainbowMask"), FindProperty("_Speed"));
+		
 	}
 	
 	void DoEmission() {
@@ -431,7 +446,7 @@ public class SynToonInspector : ShaderGUI {
 	void DoOcclusion() {
 		MaterialProperty map = FindProperty("_OcclusionMap");
 		Texture tex = map.textureValue;
-		EditorGUI.BeginChangeCheck();
+		//EditorGUI.BeginChangeCheck();
 		editor.TexturePropertySingleLine(MakeLabel(map, "Occlusion (G)"), map, /*tex ? FindProperty("_OcclusionStrength") :*/ null);
 		/*
 		if (EditorGUI.EndChangeCheck() && tex != map.textureValue) {

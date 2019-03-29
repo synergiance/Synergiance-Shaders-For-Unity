@@ -62,6 +62,8 @@ Shader "Synergiance/Toon/TransparentDS"
 		_ProbeClarity ("Probe Clarity", Range(0,1)) = 0
 		_ChromaticAberration("Chromatic Aberration", Range( 0 , 0.3)) = 0.1
 		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
+		
+		[Toggle(_)] _Rainbowing("Rainbow", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -136,7 +138,7 @@ Shader "Synergiance/Toon/TransparentDS"
 			CGPROGRAM
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
+            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature PULSE
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
@@ -173,7 +175,7 @@ Shader "Synergiance/Toon/TransparentDS"
 			CGPROGRAM
 			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
             #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ RAINBOW ALPHA LIGHTING PULSE
+            #pragma shader_feature _ ALPHA LIGHTING PULSE
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ ALLOWOVERBRIGHT

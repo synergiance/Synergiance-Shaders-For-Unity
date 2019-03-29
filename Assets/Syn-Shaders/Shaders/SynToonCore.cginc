@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.4.2
+// v0.4.4.3
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -40,10 +40,8 @@ float _ShadowIntensity;
 float _Cutoff;
 float _AlphaOverride;
 float _SaturationBoost;
-#if defined(RAINBOW)
 Texture2D _RainbowMask;
 float _Speed;
-#endif
 uniform float _outline_width;
 uniform float _outline_feather;
 uniform float4 _outline_color;
@@ -75,6 +73,8 @@ int _SphereUV;
 int _ShadowUV;
 float _ProbeStrength;
 float _ProbeClarity;
+
+float _Rainbowing;
 
 #include "SynToonLighting.cginc"
 #if defined(REFRACTION)
@@ -150,7 +150,7 @@ float grayscaleSH9(float3 normalDirection)
     return dot(ShadeSH9(half4(normalDirection, 1.0)), grayscale_vector);
 }
 
-#if defined(RAINBOW)
+// Rainbowing Effect
 float3 hueShift(float3 col, float3 mask)
 {
     float3 newc = col;
@@ -158,7 +158,6 @@ float3 hueShift(float3 col, float3 mask)
     newc = float3((newc * mask) + (col * (1 - mask)));
     return newc;
 }
-#endif
 
 v2g vert(appdata_full v)
 {
@@ -411,12 +410,12 @@ FragmentOutput frag(VertexOutput i)
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    #if defined(RAINBOW)
+    if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
 		emissive = hueShift(emissive, maskcolor.rgb);
-    #endif
+    }
 
     // Outline
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv);
@@ -523,11 +522,11 @@ float4 frag4(VertexOutput i) : COLOR
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    #if defined(RAINBOW)
+    if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
-    #endif
+    }
 
     // Outline
     color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv);
@@ -586,10 +585,10 @@ float4 frag3(VertexOutput i) : COLOR
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    #if defined(RAINBOW)
+    if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
-    #endif
+    }
     
     // Secondary Effects
 
@@ -644,10 +643,10 @@ float4 frag5(VertexOutput i) : COLOR
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    #if defined(RAINBOW)
+    if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
-    #endif
+    }
     
     // Secondary Effects
 

@@ -1,5 +1,9 @@
 Change Log
 
+0.4.4.3:
+Changed rainbowing to not use a keyword and instead rely on a material property.  This will fix the issues of unwanted rainbowing.
+Fixed a bug in the editor that was causing mismatch errors.
+
 0.4.4.2:
 Removed unused 4th field in the Light Direction property
 Removed 3 more keywords!!!
