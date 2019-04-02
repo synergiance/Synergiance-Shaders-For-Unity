@@ -1,5 +1,9 @@
 Change Log
 
+0.4.4.4:
+Inspector now doesn't half draw when a property is updated based on an old keyword
+Inspector will now only show you when a texture's clamp mode is set incorrectly
+
 0.4.4.3:
 Changed rainbowing to not use a keyword and instead rely on a material property.  This will fix the issues of unwanted rainbowing.
 Fixed a bug in the editor that was causing mismatch errors.

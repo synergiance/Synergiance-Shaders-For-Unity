@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.3";
+	static string version = "0.4.4.4";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -203,6 +203,7 @@ public class SynToonInspector : ShaderGUI {
 		if (m.IsKeywordEnabled(keyword)) {
 			m.DisableKeyword(keyword);
 			m.SetFloat(property, 1);
+			editor.PropertiesChanged();
 		}
 	}
 	
@@ -246,6 +247,35 @@ public class SynToonInspector : ShaderGUI {
 		Vector3 vec3 = EditorGUI.Vector3Field(controlRect, label, new Vector3(prop.vectorValue.x, prop.vectorValue.y, prop.vectorValue.z));
 		EditorGUI.showMixedValue = false;
 		if (EditorGUI.EndChangeCheck()) prop.vectorValue = new Vector4(vec3.x, vec3.y, vec3.z, prop.vectorValue.w);
+	}
+	
+	static bool ToonRampTextureNeedsFixing(MaterialProperty prop) {
+		if (prop.type != MaterialProperty.PropType.Texture) return false;
+		
+		foreach (Material m in prop.targets) {
+			Texture tex = m.GetTexture(prop.name);
+			if (tex != null && (tex.wrapModeU != TextureWrapMode.Clamp || tex.wrapModeV != TextureWrapMode.Clamp)) return true;
+		}
+
+		return false;
+	}
+	
+	/*
+	static void FixToonRampTexture(MaterialProperty prop) {
+		foreach (Material m in prop.targets)
+			m.GetTexture(prop.name).wrapMode = TextureWrapMode.Clamp;
+	}
+	*/
+	
+	public void ToonRampClampWarning(MaterialProperty prop) {
+		if (ToonRampTextureNeedsFixing(prop)) {
+			EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Warning);
+			/*
+			if (editor.HelpBoxWithButton(MakeLabel("This texture's wrap mode is not set to Clamp"), MakeLabel("Fix Now"))) {
+				FixToonRampTexture(prop);
+			}
+			*/
+		}
 	}
 	
 	void SanitizeKeywords() {
@@ -509,10 +539,11 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoShadowToon() {
+		MaterialProperty ramp = FindProperty("_ShadowRamp");
 		EditorGUI.indentLevel -= 2;
-		editor.TexturePropertySingleLine(MakeLabel("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), FindProperty("_ShadowRamp"));
+		editor.TexturePropertySingleLine(MakeLabel("Toon Texture", "(RGBA) Vertical or horizontal. Bottom and left are dark"), ramp);
+		ToonRampClampWarning(ramp);
 		EditorGUI.indentLevel += 2;
-		EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
 	}
 	
 	void DoShadowTexture() {
@@ -525,14 +556,15 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoShadowMultiple() {
+		MaterialProperty ramp = FindProperty("_ShadowRamp");
 		EditorGUI.indentLevel -= 2;
-		editor.TexturePropertySingleLine(MakeLabel("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), FindProperty("_ShadowRamp"));
+		editor.TexturePropertySingleLine(MakeLabel("Toon Texture", "(RGBA) Vertical or horizontal, specify below. Bottom or left are dark"), ramp);
+		ToonRampClampWarning(ramp);
 		EditorGUI.indentLevel += 2;
 		ShaderProperty("_ShadowRampDirection");
 		EditorGUI.indentLevel -= 2;
 		editor.TexturePropertySingleLine(MakeLabel("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), FindProperty("_ShadowTexture"), FindProperty("_ShadowUV"));
 		EditorGUI.indentLevel += 2;
-		EditorGUILayout.HelpBox("Set your texture's wrapping mode to clamp to get rid of glitches", MessageType.Info);
 	}
 	
 	void DoShadowAuto() {
