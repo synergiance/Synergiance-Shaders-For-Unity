@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.4.4
+// v0.4.4.5
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -17,11 +17,9 @@ Texture2D _EmissionMap;
 float4 _MainTex_ST;
 sampler2D _OcclusionMap;
 float4 _EmissionColor;
-#if defined(PULSE)
 float _EmissionSpeed;
 Texture2D _EmissionPulseMap;
 float4 _EmissionPulseColor;
-#endif
 float _Brightness;
 float _CorrectionLevel;
 float4 _Color;
@@ -74,7 +72,12 @@ int _ShadowUV;
 float _ProbeStrength;
 float _ProbeClarity;
 
+float _Unlit;
 float _Rainbowing;
+float _OverbrightProtection;
+float _PulseEmission;
+float _ShadeEmission;
+float _SleepEmission;
 
 #include "SynToonLighting.cginc"
 #if defined(REFRACTION)
@@ -212,7 +215,7 @@ v2g vert(appdata_full v)
     return o;
 }
 
-float3 artsyOutline(float3 color, float3 view, float3 normal, float2 uv)
+float3 artsyOutline(float3 color, float3 view, float3 normal, float2 uv, inout float lightingVal)
 {// Outline
     #if ARTSY_OUTLINE
 		float4 outline = _outline_color * tex2D(_outline_tex, uv);
@@ -222,7 +225,8 @@ float3 artsyOutline(float3 color, float3 view, float3 normal, float2 uv)
 		#elif COLORED_OUTLINE
 			outlineColor = float3((outline.rgb * outline.a) + (color * (1 - outline.a)));
 		#endif
-		color = lerp(outlineColor,color.rgb,smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(view, normal)));
+		lightingVal = (lightingVal == -1) ? smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(view, normal)) : lightingVal;
+		color = lerp(outlineColor, color.rgb, lightingVal);
 		// Outline Effects
 		
     #endif
@@ -324,9 +328,9 @@ FragmentOutput frag(VertexOutput i)
     #elif defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    #if defined(GAMMACORRECT)
+    [branch] if (_CorrectionLevel > 0) {
 		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    #endif
+    }
     #if defined(HUESHIFTMODE)
 		float3 colhsv = RGBtoHSV(_Color.rgb);
 		float3 inphsv = RGBtoHSV(color.rgb);
@@ -365,11 +369,11 @@ FragmentOutput frag(VertexOutput i)
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
     float4 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation, uvShadow, color.rgb);
-    #if defined(ALLOWOVERBRIGHT)
-		float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness;
-    #else
-		float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap * ((i.lightModifier + 1) / 2)) * _Brightness;
-    #endif
+	float lightModifier = 1;
+	[branch] if (_OverbrightProtection > 0) {
+		lightModifier = lerp(1, (i.lightModifier + 1) * 0.5, _OverbrightProtection);
+	}
+	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
 	float3 ambient = float3(0, 0, 0);
 	#ifdef LIGHTMAP_ON
 		ambient += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
@@ -378,15 +382,19 @@ FragmentOutput frag(VertexOutput i)
 		ambient += i.vertexLightColor;
 	#endif
 	//ambient += max(0, ShadeSH9(float4(normalDirection, 1)));
+	[branch] if (_Unlit == 1) {
+		lightColor = float3(1, 1, 1);
+		ambient = float3(0, 0, 0);
+	}
     
     // Pulse
-    #if defined(PULSE)
+    [branch] if (_PulseEmission == 1) {
 		float4 pulsemask = _EmissionPulseMap.Sample(sampler_MainTex, i.uv);
 		emissive = lerp(emissive, _EmissionPulseColor.rgb*pulsemask.rgb, (sin(_Time[1] * _EmissionSpeed * _EmissionSpeed * _EmissionSpeed) + 1) / 2);
-    #endif
+    }
     
     // Shaded Emission
-    #if defined(SHADEEMISSION)
+    [branch] if (_ShadeEmission == 1) {
 		[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
 			float4 emshade = calcShadow(i.posWorld.xyz, normalDirection, 1, uvShadow, emissive.rgb);
 			emissive *= lerp(emshade.rgb, float3(1.0, 1.0, 1.0), emshade.a);
@@ -394,12 +402,12 @@ FragmentOutput frag(VertexOutput i)
 			emissive *= calcShadow(i.posWorld.xyz, normalDirection, 1, uvShadow, emissive.rgb).rgb;
 		}
 		emissive = applySphere(emissive, viewDirection, normalDirection, uvSphere);
-    #endif
+    }
     
     // Hidden Emission
-    #if defined(SLEEPEMISSION)
+    [branch] if (_SleepEmission == 1) {
 		emissive *= smoothstep(0.7, 1.0, 1 - (i.amb.r * 0.3 + i.amb.g * 0.59 + i.amb.b * 0.11));
-    #endif
+    }
     
     // Secondary Effects
     color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
@@ -418,8 +426,12 @@ FragmentOutput frag(VertexOutput i)
     }
 
     // Outline
-    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv);
-    emissive = artsyOutline(emissive, viewDirection, normalDirection, i.uv);
+	float lightingVal = -1;
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv, lightingVal);
+    emissive = artsyOutline(emissive, viewDirection, normalDirection, i.uv, lightingVal);
+	[branch] if (_Unlit == 2) {
+		lightColor = lerp(float3(1, 1, 1), lightColor, lightingVal);
+	}
     
     // Sphere
 	color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
@@ -457,9 +469,9 @@ float4 frag4(VertexOutput i) : COLOR
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    #if defined(GAMMACORRECT)
+    [branch] if (_CorrectionLevel > 0) {
 		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    #endif
+    }
     #if defined(HUESHIFTMODE)
 		float3 colhsv = RGBtoHSV(_Color.rgb);
 		float3 inphsv = RGBtoHSV(color.rgb);
@@ -509,11 +521,14 @@ float4 frag4(VertexOutput i) : COLOR
     //bright *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
     //bright = 1;
     //#endif
-    #if defined(ALLOWOVERBRIGHT)
-		float3 lightColor = saturate(i.amb.rgb) * _Brightness;
-    #else
-		float3 lightColor = saturate(i.amb.rgb * i.lightModifier * saturate(i.lightModifier) * 0.5) * _Brightness;
-    #endif
+	float lightModifier = 1;
+	[branch] if (_OverbrightProtection > 0) {
+		lightModifier = lerp(1, i.lightModifier * saturate(i.lightModifier) * 0.5, _OverbrightProtection);
+	}
+	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness;
+	[branch] if (_Unlit == 1) {
+		lightColor = float3(0, 0, 0);
+	}
     
     color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
     
@@ -529,7 +544,11 @@ float4 frag4(VertexOutput i) : COLOR
     }
 
     // Outline
-    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv);
+	float lightingVal = -1;
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv, lightingVal);
+	[branch] if (_Unlit == 2) {
+		lightColor = lerp(float3(0, 0, 0), lightColor, lightingVal);
+	}
     
 	// Sphere
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
@@ -553,9 +572,9 @@ float4 frag3(VertexOutput i) : COLOR
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    #if defined(GAMMACORRECT)
+    [branch] if (_CorrectionLevel > 0) {
 		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    #endif
+    }
     #if defined(HUESHIFTMODE)
 		float3 colhsv = RGBtoHSV(_Color.rgb);
 		float3 inphsv = RGBtoHSV(color.rgb);
@@ -570,14 +589,17 @@ float4 frag3(VertexOutput i) : COLOR
     
     // Lighting
     float _AmbientLight = 0.8;
-    #if defined(ALLOWOVERBRIGHT)
-		float3 lightColor = saturate(lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * _Brightness;
-    #else
-		float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * ((i.lightModifier + 1) / 2)) * _Brightness;
-    #endif
+	float lightModifier = 1;
+	[branch] if (_OverbrightProtection > 0) {
+		lightModifier = lerp(1, (i.lightModifier + 1) * 0.5, _OverbrightProtection);
+	}
+	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
 	#ifdef LIGHTMAP_ON
 		lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
 	#endif
+	[branch] if ((_Unlit == 1) || (_Unlit == 2)) {
+		lightColor = float3(1, 1, 1);
+	}
     
     // Primary Effects
     // Saturation boost
@@ -615,9 +637,9 @@ float4 frag5(VertexOutput i) : COLOR
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    #if defined(GAMMACORRECT)
+    [branch] if (_CorrectionLevel > 0) {
 		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    #endif
+    }
     #if defined(HUESHIFTMODE)
 		float3 colhsv = RGBtoHSV(_Color.rgb);
 		float3 inphsv = RGBtoHSV(color.rgb);
@@ -631,11 +653,14 @@ float4 frag5(VertexOutput i) : COLOR
     color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
     
     // Lighting
-    #if defined(ALLOWOVERBRIGHT)
-		float3 lightColor = saturate(i.amb.rgb) * _Brightness;
-    #else
-		float3 lightColor = saturate(i.amb.rgb * i.lightModifier * saturate(i.lightModifier) * 0.5) * _Brightness;
-    #endif
+	float lightModifier = 1;
+	[branch] if (_OverbrightProtection > 0) {
+		lightModifier = lerp(1, i.lightModifier * saturate(i.lightModifier) * 0.5, _OverbrightProtection);
+	}
+	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness;
+	[branch] if ((_Unlit == 1) || (_Unlit == 2)) {
+		lightColor = float3(0, 0, 0);
+	}
     
     // Primary Effects
     // Saturation boost

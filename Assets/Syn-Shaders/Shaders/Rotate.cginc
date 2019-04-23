@@ -10,3 +10,13 @@ float3 RotatePointAroundOrigin(float3 input, float2 angles) {
     float3 h = normalize(mul(input, g));
     return float3(h);
 }
+
+float3 RotatePointAroundAxis(float3 input, float3 axis, float angle) {
+	float3 n = normalize(axis);
+	// 3D matrix formula from axis and angle
+	float3 a = float3(cos(angle) + n.x * n.x * (1 - cos(angle)), n.x * n.y * (1 - cos(angle)) - n.z * sin(angle), n.x * n.z * (1 - cos(angle)) + n.y * sin(angle));
+	float3 b = float3(n.x * n.y * (1 - cos(angle)) + n.z * sin(angle), cos(angle) + n.y * n.y * (1 - cos(angle)), n.y * n.z * (1 - cos(angle)) - n.x * sin(angle));
+	float3 c = float3(n.x * n.z * (1 - cos(angle)) - n.y * sin(angle), n.y * n.z * (1 - cos(angle)) + n.x * sin(angle), cos(angle) + n.z * n.z * (1 - cos(angle)));
+	float3x3 r = float3x3(a, b, c);
+	return mul(input, r);
+}

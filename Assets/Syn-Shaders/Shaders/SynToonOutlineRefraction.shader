@@ -34,7 +34,7 @@ Shader "Synergiance/Toon-Outline/Refraction"
 		_EmissionPulseMap("Emission Pulse Map", 2D) = "white" {}
 		[HDR]_EmissionPulseColor("Emission Pulse Color", Color) = (0,0,0,1)
         _Brightness("Brightness", Range(0,10)) = 1
-        _CorrectionLevel("Gamma Correct", Range(0,1)) = 1
+        _CorrectionLevel("Gamma Correct", Range(0,1)) = 0
 		[Normal]_BumpMap("BumpMap", 2D) = "bump" {}
 		_OcclusionMap("Occlusion Map", 2D) = "white" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5
@@ -62,15 +62,20 @@ Shader "Synergiance/Toon-Outline/Refraction"
 		_ProbeClarity ("Probe Clarity", Range(0,1)) = 0
 		_ChromaticAberration("Chromatic Aberration", Range( 0 , 0.3)) = 0.1
 		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
+		_OverbrightProtection("Overbright Protection", Range(0, 1)) = 0
 		
-		[Toggle(_)] _Rainbowing("Rainbow", Float) = 0
+		[Enum(None,0,Full,1,Emission Only,2)] _Rainbowing("Rainbow", Float) = 0
+		[Enum(Regular Lighting,0,Unlit,1,Unlit Outline,2)] _Unlit("Light Mode", Float) = 0
+		[Toggle(_)] _PulseEmission("Pulse Emission", Float) = 0
+		[Toggle(_)] _ShadeEmission("Shade Emission", Float) = 0
+		[Toggle(_)] _SleepEmission("Sleep Emission", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
 		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
-		[HideInInspector] _TransFix("__transparent_fix", Float) = 0.0
+		[Enum(None,0,Level1,1,Level2,2)] _TransFix("__transparent_fix", Float) = 0.0
 		[HideInInspector] _ShadowMode("__shadow_mode", Float) = 0.0
 		[HideInInspector] _SphereMode("__sphere_mode", Float) = 0.0
         [HideInInspector] _OverlayMode ("Overlay Mode", Float) = 0.0

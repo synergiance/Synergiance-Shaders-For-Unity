@@ -1,5 +1,13 @@
 Change Log
 
+0.4.4.5:
+Added unlit option
+Tweaked rainbow to allow only emission to rainbow
+Overbright protection now defaults to off, and has more fine grained control
+Gamma correction is no longer a keyword.  This will cause issues with upgraded materials.  You'll have to drag the slider to the left to turn it off.
+Pulse Sleep and Shade emission keywords are now material properties.
+Minor tweaks
+
 0.4.4.4:
 Inspector now doesn't half draw when a property is updated based on an old keyword
 Inspector will now only show you when a texture's clamp mode is set incorrectly

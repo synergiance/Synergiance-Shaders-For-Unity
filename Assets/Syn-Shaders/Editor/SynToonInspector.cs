@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.4";
+	static string version = "0.4.4.5";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -199,10 +199,10 @@ public class SynToonInspector : ShaderGUI {
 		return ReverseKeywordToggle(keyword, MakeLabel(display));
 	}
 	
-	void ConvertKeyword(Material m, string keyword, string property) {
+	void ConvertKeyword(Material m, string keyword, string property, float setTo) {
 		if (m.IsKeywordEnabled(keyword)) {
 			m.DisableKeyword(keyword);
-			m.SetFloat(property, 1);
+			m.SetFloat(property, setTo);
 			editor.PropertiesChanged();
 		}
 	}
@@ -295,10 +295,15 @@ public class SynToonInspector : ShaderGUI {
 		m.DisableKeyword("NORMAL_LIGHTING");
 		m.DisableKeyword("WORLD_STATIC_LIGHT");
 		m.DisableKeyword("LOCAL_STATIC_LIGHT");
+		m.DisableKeyword("ALLOWOVERBRIGHT");
+		m.DisableKeyword("GAMMACORRECT");
 	}
 	
 	void ConvertKeywords(Material m) {
-		ConvertKeyword(m, "RAINBOW", "_Rainbowing");
+		ConvertKeyword(m, "RAINBOW", "_Rainbowing", 1);
+		ConvertKeyword(m, "PULSE", "_PulseEmission", 1);
+		ConvertKeyword(m, "SHADEEMISSION", "_ShadeEmission", 1);
+		ConvertKeyword(m, "SLEEPEMISSION", "_SleepEmission", 1);
 	}
 	
 	public override void OnGUI(MaterialEditor editor, MaterialProperty[] properties) {
@@ -400,12 +405,8 @@ public class SynToonInspector : ShaderGUI {
 		DoCastShadows();
 		
 		KeywordToggle("HUESHIFTMODE", MakeLabel("HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost"));
-		ReverseKeywordToggle("ALLOWOVERBRIGHT", MakeLabel("Overbright Protection", "Protects against overbright worlds"));
-		if (KeywordToggle("GAMMACORRECT", MakeLabel("Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray."))) {
-			EditorGUI.indentLevel += 2;
-			ShaderProperty("_CorrectionLevel", "Intensity", "Effectiveness of gamma correction.");
-			EditorGUI.indentLevel -= 2;
-		}
+		ShaderProperty("_OverbrightProtection", "Overbright Protection", "Protects against overbright worlds");
+		ShaderProperty("_CorrectionLevel", "Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray.");
 		
 		DoBatchDisable();
 	}
@@ -450,27 +451,19 @@ public class SynToonInspector : ShaderGUI {
 	void DoEmission() {
 		MaterialProperty map = FindProperty("_EmissionMap");
 		Texture tex = map.textureValue;
-		bool shadeEmission = false;
-		bool sleepEmission = false;
-		bool pulseEnable   = false;
-		EditorGUI.BeginChangeCheck();
+		//EditorGUI.BeginChangeCheck();
 		editor.TexturePropertyWithHDRColor(MakeLabel("Emission", "Emission (RGB)"), map, FindProperty("_EmissionColor"), emissionConfig, false);
 		if (IsKeywordEnabled("PULSE")) editor.TexturePropertySingleLine(MakeLabel("Emission Pulse", "Emission Pulse (RGB) and Pulse Speed"), FindProperty("_EmissionPulseMap"), FindProperty("_EmissionPulseColor"), FindProperty("_EmissionSpeed"));
 		EditorGUI.indentLevel += 2;
-		pulseEnable   = EditorGUILayout.Toggle("Pulse Emission",  IsKeywordEnabled("PULSE"));
-		shadeEmission = EditorGUILayout.Toggle("Shaded Emission", IsKeywordEnabled("SHADEEMISSION"));
-		sleepEmission = EditorGUILayout.Toggle("Sleep Emission",  IsKeywordEnabled("SLEEPEMISSION"));
+		ShaderProperty("_PulseEmission", "Pulse Emission");
+		ShaderProperty("_ShadeEmission", "Shaded Emission");
+		ShaderProperty("_SleepEmission", "Sleep Emission");
 		EditorGUI.indentLevel -= 2;
-		if (EditorGUI.EndChangeCheck()) {
-			SetKeyword("PULSE",         pulseEnable);
-			SetKeyword("SHADEEMISSION", shadeEmission);
-			SetKeyword("SLEEPEMISSION", sleepEmission);
-			/*
-			if (tex != map.textureValue) {
-				SetKeyword("_EMISSION_MAP", map.textureValue);
-			}
-			*/
+		/*
+		if (EditorGUI.EndChangeCheck() && tex != map.textureValue) {
+			SetKeyword("_EMISSION_MAP", map.textureValue);
 		}
+		*/
 	}
 	
 	void DoOcclusion() {
@@ -817,8 +810,12 @@ public class SynToonInspector : ShaderGUI {
 			default:
 				break;
 		}
+		MaterialProperty unlit = FindProperty("_Unlit");
+		editor.ShaderProperty(unlit, MakeLabel("Light Mode", "Choose whether light affects this material"));
+		GUI.enabled = (unlit.floatValue != 1);
 		ShaderProperty("_LightColor", "Light Color", "Light will become this color depending on the slider below");
 		ShaderProperty("_LightOverride", "Light Override", "Turn this slider to the right to use the color above");
+		GUI.enabled = true;
 	}
 	
 	void DoReflectionProbes() {
