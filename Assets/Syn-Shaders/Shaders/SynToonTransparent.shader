@@ -141,9 +141,6 @@ Shader "Synergiance/Toon/Transparent"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ PANOOVERLAY
@@ -175,9 +172,6 @@ Shader "Synergiance/Toon/Transparent"
             Cull Back
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING PULSE
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ PANOOVERLAY
@@ -209,13 +203,9 @@ Shader "Synergiance/Toon/Transparent"
 			}
 
 			CGPROGRAM
-            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
-            #pragma shader_feature PULSE
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ PANOOVERLAY
             #pragma shader_feature _ PANOALPHA
-            #pragma shader_feature _ SLEEPEMISSION
-            #pragma shader_feature _ SHADEEMISSION
 			#define DEFERRED_PASS
             #include "SynToonCore.cginc"
             

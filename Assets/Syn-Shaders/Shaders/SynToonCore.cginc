@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.4.5
+// v0.4.4.6
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -71,6 +71,9 @@ int _SphereUV;
 int _ShadowUV;
 float _ProbeStrength;
 float _ProbeClarity;
+
+float _OutlineMode;
+float _OutlineColorMode;
 
 float _Unlit;
 float _Rainbowing;
@@ -215,21 +218,25 @@ v2g vert(appdata_full v)
     return o;
 }
 
+float3 calcOutline(float3 color, float2 uv)
+{// Computes the color of an outline
+	float4 outline = _outline_color * tex2D(_outline_tex, uv);
+	[branch] if (_OutlineColorMode == 0) {
+		color *= outline.rgb;
+	} else if (_OutlineColorMode == 1) {
+		color = float3((outline.rgb * outline.a) + (color * (1 - outline.a)));
+	}
+	// Outline Effects
+	
+	return color;
+}
+
 float3 artsyOutline(float3 color, float3 view, float3 normal, float2 uv, inout float lightingVal)
 {// Outline
-    #if ARTSY_OUTLINE
-		float4 outline = _outline_color * tex2D(_outline_tex, uv);
-		float3 outlineColor = color;
-		#if TINTED_OUTLINE
-			outlineColor *= outline.rgb;
-		#elif COLORED_OUTLINE
-			outlineColor = float3((outline.rgb * outline.a) + (color * (1 - outline.a)));
-		#endif
+    [branch] if (_OutlineMode == 1) {
 		lightingVal = (lightingVal == -1) ? smoothstep(_outline_width - _outline_feather / 10, _outline_width, dot(view, normal)) : lightingVal;
-		color = lerp(outlineColor, color.rgb, lightingVal);
-		// Outline Effects
-		
-    #endif
+		color = lerp(calcOutline(color, uv), color.rgb, lightingVal);
+    }
     return color;
 }
 
@@ -615,13 +622,7 @@ float4 frag3(VertexOutput i) : COLOR
     // Secondary Effects
 
     // Outline
-    #if TINTED_OUTLINE
-		color.rgb *= _outline_color.rgb * tex2D(_outline_tex, i.uv).rgb;
-    #elif COLORED_OUTLINE
-		float4 outlineColor = _outline_color * tex2D(_outline_tex, i.uv);
-		color.rgb = float3((outlineColor.rgb * outlineColor.a) + (color.rgb * (1 - outlineColor.a)));
-    #endif
-    // Outline Effects
+    color.rgb = calcOutline(color.rgb, i.uv);
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
@@ -676,13 +677,7 @@ float4 frag5(VertexOutput i) : COLOR
     // Secondary Effects
 
     // Outline
-    #if TINTED_OUTLINE
-		color.rgb *= _outline_color.rgb * tex2D(_outline_tex, i.uv).rgb;
-    #elif COLORED_OUTLINE
-		float4 outlineColor = _outline_color * tex2D(_outline_tex, i.uv);
-		color.rgb = float3((outlineColor.rgb * outlineColor.a) + (color.rgb * (1 - outlineColor.a)));
-    #endif
-    // Outline Effects
+    color.rgb = calcOutline(color.rgb, i.uv);
     
     //#ifdef POINT
 		//lightColor *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
@@ -750,13 +745,13 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 	VertexOutput o;
 	for (int ii = 0; ii < 3; ii++)
 	{
-		#if OUTSIDE_OUTLINE
+		[branch] if (_OutlineMode == 2) {
 			o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .01));
-        #elif SCREENSPACE_OUTLINE
+        } else if (_OutlineMode == 3) {
 			o.pos = UnityObjectToClipPos(IN[ii].vertex + normalize(IN[ii].normal) * (_outline_width * .05) * distance(_WorldSpaceCameraPos,mul(unity_ObjectToWorld, IN[ii].vertex).rgb));
-        #else
+        } else {
 			o.pos = UnityObjectToClipPos(IN[ii].vertex);
-        #endif
+        }
 		o.uv = IN[ii].uv;
 		o.uv1 = IN[ii].uv1;
 		o.uv2 = IN[ii].uv2;

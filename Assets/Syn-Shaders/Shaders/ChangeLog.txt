@@ -1,5 +1,10 @@
 Change Log
 
+0.4.4.6:
+Removed outline keywords
+Consolidated duplicate code
+Fixed a bug in the editor where the pulse emission settings wouldn't show up
+
 0.4.4.5:
 Added unlit option
 Tweaked rainbow to allow only emission to rainbow

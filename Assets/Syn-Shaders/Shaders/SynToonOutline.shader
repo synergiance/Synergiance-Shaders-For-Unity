@@ -146,9 +146,6 @@ Shader "Synergiance/Toon-Outline"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ _ALPHATEST_ON
             #pragma shader_feature _ HUESHIFTMODE
 			#define BASE_PASS
@@ -179,9 +176,6 @@ Shader "Synergiance/Toon-Outline"
 			ZTest LEqual
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ _ALPHATEST_ON
             #pragma shader_feature _ HUESHIFTMODE
 			#include "SynToonCore.cginc"

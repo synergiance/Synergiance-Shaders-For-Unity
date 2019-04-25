@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.5";
+	static string version = "0.4.4.6";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -297,6 +297,11 @@ public class SynToonInspector : ShaderGUI {
 		m.DisableKeyword("LOCAL_STATIC_LIGHT");
 		m.DisableKeyword("ALLOWOVERBRIGHT");
 		m.DisableKeyword("GAMMACORRECT");
+		m.DisableKeyword("TINTED_OUTLINE");
+		m.DisableKeyword("COLORED_OUTLINE");
+		m.DisableKeyword("ARTSY_OUTLINE");
+		m.DisableKeyword("OUTSIDE_OUTLINE");
+		m.DisableKeyword("SCREENSPACE_OUTLINE");
 	}
 	
 	void ConvertKeywords(Material m) {
@@ -453,7 +458,8 @@ public class SynToonInspector : ShaderGUI {
 		Texture tex = map.textureValue;
 		//EditorGUI.BeginChangeCheck();
 		editor.TexturePropertyWithHDRColor(MakeLabel("Emission", "Emission (RGB)"), map, FindProperty("_EmissionColor"), emissionConfig, false);
-		if (IsKeywordEnabled("PULSE")) editor.TexturePropertySingleLine(MakeLabel("Emission Pulse", "Emission Pulse (RGB) and Pulse Speed"), FindProperty("_EmissionPulseMap"), FindProperty("_EmissionPulseColor"), FindProperty("_EmissionSpeed"));
+		MaterialProperty pulse = FindProperty("_PulseEmission");
+		if (pulse.floatValue == 1) editor.TexturePropertySingleLine(MakeLabel("Emission Pulse", "Emission Pulse (RGB) and Pulse Speed"), FindProperty("_EmissionPulseMap"), FindProperty("_EmissionPulseColor"), FindProperty("_EmissionSpeed"));
 		EditorGUI.indentLevel += 2;
 		ShaderProperty("_PulseEmission", "Pulse Emission");
 		ShaderProperty("_ShadeEmission", "Shaded Emission");
@@ -582,7 +588,6 @@ public class SynToonInspector : ShaderGUI {
 			
 			foreach (var obj in outlineMode.targets)
 			{
-				SetupMaterialWithOutlineMode((Material)obj);
 				SetupMaterialShaderSelect((Material)obj);
 			}
 		}
@@ -617,11 +622,6 @@ public class SynToonInspector : ShaderGUI {
 		if (EditorGUI.EndChangeCheck()) {
 			RecordAction("Color Mode");
 			outlineColorMode.floatValue = (float)ocMode;
-			
-			foreach (var obj in outlineColorMode.targets)
-			{
-				SetupMaterialWithOutlineColorMode((Material)obj);
-			}
 		}
 		EditorGUI.indentLevel -= 2;
 		editor.TexturePropertySingleLine(MakeLabel("Color", "This is the color of the outline"), FindProperty("_outline_tex"), FindProperty("_outline_color"));
@@ -883,56 +883,6 @@ public class SynToonInspector : ShaderGUI {
 		ShaderProperty("_DstBlend");
 		ShaderProperty("_BlendOp");
 	}
-
-    public static void SetupMaterialWithOutlineMode(Material material)
-    {
-        switch ((OutlineMode)material.GetFloat("_OutlineMode"))
-        {
-            case OutlineMode.None:
-                material.DisableKeyword("ARTSY_OUTLINE");
-                material.DisableKeyword("OUTSIDE_OUTLINE");
-                material.DisableKeyword("SCREENSPACE_OUTLINE");
-                //material.shader = Shader.Find("Synergiance/Toon");
-                break;
-            case OutlineMode.Artsy:
-                material.EnableKeyword("ARTSY_OUTLINE");
-                material.DisableKeyword("OUTSIDE_OUTLINE");
-                material.DisableKeyword("SCREENSPACE_OUTLINE");
-                //material.shader = Shader.Find("Synergiance/Toon");
-                break;
-            case OutlineMode.Normal:
-                material.DisableKeyword("ARTSY_OUTLINE");
-                material.EnableKeyword("OUTSIDE_OUTLINE");
-                material.DisableKeyword("SCREENSPACE_OUTLINE");
-                //material.shader = Shader.Find("Synergiance/Toon-Outline");
-                break;
-            case OutlineMode.Screenspace:
-                material.DisableKeyword("ARTSY_OUTLINE");
-                material.DisableKeyword("OUTSIDE_OUTLINE");
-                material.EnableKeyword("SCREENSPACE_OUTLINE");
-                //material.shader = Shader.Find("Synergiance/Toon-Outline");
-                break;
-            default:
-                break;
-        }
-    }
-
-    void SetupMaterialWithOutlineColorMode(Material material)
-    {
-        switch ((OutlineColorMode)material.GetFloat("_OutlineColorMode"))
-        {
-            case OutlineColorMode.Tinted:
-                material.EnableKeyword("TINTED_OUTLINE");
-                material.DisableKeyword("COLORED_OUTLINE");
-                break;
-            case OutlineColorMode.Colored:
-                material.DisableKeyword("TINTED_OUTLINE");
-                material.EnableKeyword("COLORED_OUTLINE");
-                break;
-            default:
-                break;
-        }
-    }
 
     void SetupMaterialShaderSelect(Material material)
     {

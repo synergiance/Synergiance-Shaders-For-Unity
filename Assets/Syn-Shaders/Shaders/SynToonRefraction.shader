@@ -142,9 +142,6 @@ Shader "Synergiance/Toon/Refraction"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ DISABLE_SHADOW
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE

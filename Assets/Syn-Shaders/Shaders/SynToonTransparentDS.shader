@@ -141,9 +141,6 @@ Shader "Synergiance/Toon/TransparentDS"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ PANOOVERLAY
@@ -175,9 +172,6 @@ Shader "Synergiance/Toon/TransparentDS"
             Cull Front
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING PULSE
             #pragma shader_feature _ OVERRIDE_REALTIME
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ PANOOVERLAY

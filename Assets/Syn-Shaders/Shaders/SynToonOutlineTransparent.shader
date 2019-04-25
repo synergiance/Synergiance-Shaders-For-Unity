@@ -145,9 +145,6 @@ Shader "Synergiance/Toon-Outline/Transparent"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ALPHATEST_ON
 			#define _ALPHABLEND_ON
@@ -176,9 +173,6 @@ Shader "Synergiance/Toon-Outline/Transparent"
             Cull Front
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ OUTSIDE_OUTLINE SCREENSPACE_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ALPHATEST_ON
 			#define _ALPHABLEND_ON

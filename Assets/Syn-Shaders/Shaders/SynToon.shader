@@ -165,9 +165,6 @@ Shader "Synergiance/Toon"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING
             #pragma shader_feature _ALPHATEST_ON
             #pragma shader_feature _ DISABLE_SHADOW
             #pragma shader_feature _ OVERRIDE_REALTIME
@@ -202,9 +199,6 @@ Shader "Synergiance/Toon"
 			ZTest LEqual
 
 			CGPROGRAM
-			#pragma shader_feature TINTED_OUTLINE COLORED_OUTLINE
-            #pragma shader_feature _ ARTSY_OUTLINE
-            #pragma shader_feature _ ALPHA LIGHTING PULSE
             #pragma shader_feature _ALPHATEST_ON
             #pragma shader_feature _ DISABLE_SHADOW
             #pragma shader_feature _ OVERRIDE_REALTIME
@@ -237,14 +231,10 @@ Shader "Synergiance/Toon"
 			}
 
 			CGPROGRAM
-            #pragma shader_feature _ RAINBOW ALPHA LIGHTING
-            #pragma shader_feature PULSE
-            #pragma shader_feature _ _ALPHATEST_ON _ALPHABLEND_ON _ALPHAPREMULTIPLY_ON
+            #pragma shader_feature _ALPHATEST_ON
             #pragma shader_feature _ HUESHIFTMODE
             #pragma shader_feature _ PANOOVERLAY
             #pragma shader_feature _ PANOALPHA
-            #pragma shader_feature _ SLEEPEMISSION
-            #pragma shader_feature _ SHADEEMISSION
             #define IS_OPAQUE
 			#define DEFERRED_PASS
             #include "SynToonCore.cginc"
