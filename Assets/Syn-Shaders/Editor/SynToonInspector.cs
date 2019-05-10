@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.6";
+	static string version = "0.4.4.7";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -302,6 +302,8 @@ public class SynToonInspector : ShaderGUI {
 		m.DisableKeyword("ARTSY_OUTLINE");
 		m.DisableKeyword("OUTSIDE_OUTLINE");
 		m.DisableKeyword("SCREENSPACE_OUTLINE");
+		m.DisableKeyword("BCKFCECULL");
+		m.DisableKeyword("DISABLE_SHADOW");
 	}
 	
 	void ConvertKeywords(Material m) {
@@ -309,6 +311,10 @@ public class SynToonInspector : ShaderGUI {
 		ConvertKeyword(m, "PULSE", "_PulseEmission", 1);
 		ConvertKeyword(m, "SHADEEMISSION", "_ShadeEmission", 1);
 		ConvertKeyword(m, "SLEEPEMISSION", "_SleepEmission", 1);
+		ConvertKeyword(m, "HUESHIFTMODE", "_HueShiftMode", 1);
+		ConvertKeyword(m, "OVERRIDE_REALTIME", "_OverrideRealtime", 1);
+		ConvertKeyword(m, "PANOOVERLAY", "_PanoUseOverlay", 1);
+		ConvertKeyword(m, "PANOALPHA", "_PanoUseAlpha", 1);
 	}
 	
 	public override void OnGUI(MaterialEditor editor, MaterialProperty[] properties) {
@@ -409,7 +415,7 @@ public class SynToonInspector : ShaderGUI {
 		DoReflectionProbes();
 		DoCastShadows();
 		
-		KeywordToggle("HUESHIFTMODE", MakeLabel("HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost"));
+		ShaderProperty("_HueShiftMode", "HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost");
 		ShaderProperty("_OverbrightProtection", "Overbright Protection", "Protects against overbright worlds");
 		ShaderProperty("_CorrectionLevel", "Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray.");
 		
@@ -726,39 +732,41 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoOverlayMode(string display, string tip) {
-		bool panoOverlay = IsKeywordEnabled("PANOOVERLAY");
 		EditorGUI.indentLevel += 2;
-		EditorGUI.BeginChangeCheck();
-		panoOverlay = EditorGUILayout.Toggle(MakeLabel(display, tip), panoOverlay);
+		MaterialProperty panoOverlay = FindProperty("_PanoUseOverlay");
+		editor.ShaderProperty(panoOverlay, MakeLabel(display, tip));
 		EditorGUI.indentLevel -= 2;
-		if (EditorGUI.EndChangeCheck()) SetKeyword("PANOOVERLAY", panoOverlay);
-		if (panoOverlay) {
+		if (panoOverlay.floatValue == 1) {
 			editor.TexturePropertySingleLine(MakeLabel("Texture", "Static Overlay"), FindProperty("_PanoOverlayTex"));
 			EditorGUI.indentLevel += 2;
-			KeywordToggle("PANOALPHA", MakeLabel("Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha"));
+			ShaderProperty("_PanoUseAlpha", "Use Alpha Channel", "Blending for the panosphere overlay, unchecked is add, checked is alpha");
 			EditorGUI.indentLevel -= 2;
 		}
 	}
 	
 	void DoDoubleSided() {
+		MaterialProperty cullMode = FindProperty("_CullMode");
+		UnityEngine.Rendering.CullMode cMode = (UnityEngine.Rendering.CullMode)cullMode.floatValue;
 		EditorGUI.BeginChangeCheck();
-		bool backfacecull = !EditorGUILayout.Toggle(MakeLabel("Double Sided", "Render this material on both sides"), !IsKeywordEnabled("BCKFCECULL"));
-		if (EditorGUI.EndChangeCheck())
-		{
-			if (backfacecull)
-				foreach (Material mat in editor.targets)
-				{
-					mat.EnableKeyword("BCKFCECULL");
-					mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Back);
-					SetupMaterialShaderSelect((Material)mat);
-				}
-			else
-				foreach (Material mat in editor.targets)
-				{
-					mat.DisableKeyword("BCKFCECULL");
-					mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
-					SetupMaterialShaderSelect((Material)mat);
-				}
+		cMode = (UnityEngine.Rendering.CullMode)EditorGUILayout.EnumPopup(MakeLabel(cullMode, "Set this to Back if you don't want this material to be double sided"), cMode);
+		if (EditorGUI.EndChangeCheck()) {
+			RecordAction("Cull Mode");
+			cullMode.floatValue = (float)cMode;
+			
+			foreach (Material mat in editor.targets) {
+				SetupMaterialShaderSelect((Material)mat);
+			}
+		}
+		if (cullMode.floatValue == 0) {
+			ShaderProperty("_FlipBackfaceNorms");
+		} else if (cullMode.floatValue == 2) {
+			GUI.enabled = false;
+			EditorGUILayout.Toggle(MakeLabel(FindProperty("_FlipBackfaceNorms")), false);
+			GUI.enabled = true;
+		} else {
+			GUI.enabled = false;
+			EditorGUILayout.Toggle(MakeLabel(FindProperty("_FlipBackfaceNorms")), true);
+			GUI.enabled = true;
 		}
 	}
 	
@@ -802,7 +810,7 @@ public class SynToonInspector : ShaderGUI {
 			case LightingHack.World:
 			case LightingHack.Local:
 				EditorGUI.indentLevel += 2;
-				KeywordToggle("OVERRIDE_REALTIME", MakeLabel("Override All", "Override All lights not just directionless lights"));
+				ShaderProperty("_OverrideRealtime", "Override All", "Override All lights not just directionless lights");
 				Vec3Prop(MakeLabel("Light Coordinate", "Static World Light Position"), FindProperty("_StaticToonLight"));
 				EditorGUI.indentLevel -= 2;
 				break;
@@ -829,15 +837,10 @@ public class SynToonInspector : ShaderGUI {
 	
 	void DoCastShadows() {
 		if (renderSettings.showShadows) {
-			if (ReverseKeywordToggle("DISABLE_SHADOW", MakeLabel("Enable Shadow Casts", "This makes shadows appear on the material from other objects"))) {
-				EditorGUI.indentLevel += 2;
-				ShaderProperty("_shadowcast_intensity", "Intensity", "This is how much other objects affect your shadow");
-				ShaderProperty("_ShadowAmbAdd", "Ambient", "Controls casted ambient light, values above zero will cause visible squares around point lights");
-				EditorGUI.indentLevel -= 2;
-			}
+			ShaderProperty("_shadowcast_intensity", "Shadow Intensity", "This is how much other objects affect your shadow");
 		} else {
 			GUI.enabled = false;
-			EditorGUILayout.Toggle(MakeLabel("Enable Shadow Casts", "This makes shadows appear on the material from other objects"), false);
+			ShaderProperty("_shadowcast_intensity", "Shadow Intensity", "This is how much other objects affect your shadow");
 			GUI.enabled = true;
 		}
 	}
@@ -886,7 +889,7 @@ public class SynToonInspector : ShaderGUI {
 
     void SetupMaterialShaderSelect(Material material)
     {
-        bool doubleSided = !IsKeywordEnabled("BCKFCECULL");
+        bool doubleSided = material.GetFloat("_CullMode") == 0;
 		string shaderName = "Synergiance/Toon";
         float transFix = (float)material.GetFloat("_TransFix");
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))

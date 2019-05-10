@@ -18,10 +18,9 @@ Shader "Synergiance/Toon"
         [Enum(Texture,0,Tint,1)] _ShadowTextureMode("Texture Tint", Int) = 1
 		[Enum(UV1,0,UV2,1,UV3,2,UV4,3)] _ShadowUV("Shadow Atlas UV Map", Int) = 0
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0.8
-        _ShadowAmbAdd("Ambient", Range(0,1)) = 0
         _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
         _shadow_feather("Shadow Feather", Range(0,1)) = 0.2
-        _shadowcast_intensity("Shadow cast intensity", Range(0,1)) = 0.75
+        _shadowcast_intensity("Shadow cast intensity", Range(0,1)) = 1
         _ShadowIntensity("Shadow Intensity", Range(0,1)) = 0.1
 		_outline_width("outline_width", Range(0,1)) = 0.2
 		_outline_color("outline_color", Color) = (0.5,0.5,0.5,1)
@@ -69,6 +68,12 @@ Shader "Synergiance/Toon"
 		[Toggle(_)] _PulseEmission("Pulse Emission", Float) = 0
 		[Toggle(_)] _ShadeEmission("Shade Emission", Float) = 0
 		[Toggle(_)] _SleepEmission("Sleep Emission", Float) = 0
+		[Toggle(_)] _FlipBackfaceNorms("Flip Backface Normals", Float) = 1
+        [Enum(Off,0,Front,1,Back,2)] _CullMode ("Cull Mode", Float) = 0
+		[Toggle(_)] _HueShiftMode("HSB Mode", Float) = 0
+		[Toggle(_)] _OverrideRealtime("Override Realtime Lights", Float) = 0
+		[Toggle(_)] _PanoUseOverlay("Overlay", Float) = 0
+		[Toggle(_)] _PanoUseAlpha("Use Alpha Channel", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -85,7 +90,6 @@ Shader "Synergiance/Toon"
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source Blend", Int) = 1
 		[Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Destination Blend", Int) = 0
 		//[HideInInspector] _ZWrite ("__zw", Float) = 1.0
-        [HideInInspector] _CullMode ("__zw", Float) = 0.0
         [HideInInspector] _DisableBatching ("__db", Int) = 0
         
         // Stencil
@@ -166,11 +170,6 @@ Shader "Synergiance/Toon"
 
 			CGPROGRAM
             #pragma shader_feature _ALPHATEST_ON
-            #pragma shader_feature _ DISABLE_SHADOW
-            #pragma shader_feature _ OVERRIDE_REALTIME
-            #pragma shader_feature _ HUESHIFTMODE
-            #pragma shader_feature _ PANOOVERLAY
-            #pragma shader_feature _ PANOALPHA
             #define IS_OPAQUE
 			#define BASE_PASS
             #include "SynToonCore.cginc"
@@ -200,11 +199,6 @@ Shader "Synergiance/Toon"
 
 			CGPROGRAM
             #pragma shader_feature _ALPHATEST_ON
-            #pragma shader_feature _ DISABLE_SHADOW
-            #pragma shader_feature _ OVERRIDE_REALTIME
-            #pragma shader_feature _ HUESHIFTMODE
-            #pragma shader_feature _ PANOOVERLAY
-            #pragma shader_feature _ PANOALPHA
             #define IS_OPAQUE
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
@@ -232,9 +226,6 @@ Shader "Synergiance/Toon"
 
 			CGPROGRAM
             #pragma shader_feature _ALPHATEST_ON
-            #pragma shader_feature _ HUESHIFTMODE
-            #pragma shader_feature _ PANOOVERLAY
-            #pragma shader_feature _ PANOALPHA
             #define IS_OPAQUE
 			#define DEFERRED_PASS
             #include "SynToonCore.cginc"

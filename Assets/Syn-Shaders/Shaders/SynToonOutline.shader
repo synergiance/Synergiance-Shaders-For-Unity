@@ -69,6 +69,12 @@ Shader "Synergiance/Toon-Outline"
 		[Toggle(_)] _PulseEmission("Pulse Emission", Float) = 0
 		[Toggle(_)] _ShadeEmission("Shade Emission", Float) = 0
 		[Toggle(_)] _SleepEmission("Sleep Emission", Float) = 0
+		[Toggle(_)] _FlipBackfaceNorms("Flip Backface Normals", Float) = 1
+        [Enum(Off,0,Front,1,Back,2)] _CullMode ("Cull Mode", Float) = 0
+		[Toggle(_)] _HueShiftMode("HSB Mode", Float) = 0
+		[Toggle(_)] _OverrideRealtime("Override Realtime Lights", Float) = 0
+		[Toggle(_)] _PanoUseOverlay("Overlay", Float) = 0
+		[Toggle(_)] _PanoUseAlpha("Use Alpha Channel", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -85,7 +91,6 @@ Shader "Synergiance/Toon-Outline"
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source Blend", Int) = 1
 		[Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Destination Blend", Int) = 0
 		//[HideInInspector] _ZWrite ("__zw", Float) = 1.0
-        [HideInInspector] _CullMode ("__zw", Float) = 0.0
         [HideInInspector] _DisableBatching ("__db", Int) = 0
         
         // Stencil
@@ -147,7 +152,6 @@ Shader "Synergiance/Toon-Outline"
 
 			CGPROGRAM
             #pragma shader_feature _ _ALPHATEST_ON
-            #pragma shader_feature _ HUESHIFTMODE
 			#define BASE_PASS
             #include "SynToonCore.cginc"
             
@@ -177,7 +181,6 @@ Shader "Synergiance/Toon-Outline"
 
 			CGPROGRAM
             #pragma shader_feature _ _ALPHATEST_ON
-            #pragma shader_feature _ HUESHIFTMODE
 			#include "SynToonCore.cginc"
 			#pragma vertex vert
 			#pragma geometry geom2

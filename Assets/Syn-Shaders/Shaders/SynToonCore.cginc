@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.4.6
+// v0.4.4.7
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -25,16 +25,6 @@ float _CorrectionLevel;
 float4 _Color;
 float4 _LightColor;
 float _LightOverride;
-float _ShadowAmbient;
-sampler2D _ShadowRamp;
-sampler2D _ShadowTexture;
-int _ShadowRampDirection;
-int _ShadowTextureMode;
-float4 _ShadowTint;
-float _shadow_coverage;
-float _shadow_feather;
-float _shadowcast_intensity;
-float _ShadowIntensity;
 float _Cutoff;
 float _AlphaOverride;
 float _SaturationBoost;
@@ -81,6 +71,11 @@ float _OverbrightProtection;
 float _PulseEmission;
 float _ShadeEmission;
 float _SleepEmission;
+float _FlipBackfaceNorms;
+float _CullMode;
+float _HueShiftMode;
+float _PanoUseOverlay;
+float _PanoUseAlpha;
 
 #include "SynToonLighting.cginc"
 #if defined(REFRACTION)
@@ -92,8 +87,8 @@ static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 struct v2g
 {
     float4 vertex : POSITION;
-    float2 uv : TEXCOORD0;
-    float2 uv1 : TEXCOORD1;
+    float4 uv : TEXCOORD0;
+    float4 uv1 : TEXCOORD1;
     float3 normal : NORMAL;
     fixed4 amb : COLOR0;
     fixed3 direct : COLOR1;
@@ -107,8 +102,6 @@ struct v2g
 	float4 pos : CLIP_POS;
 	LIGHTING_COORDS(6,7)
 	UNITY_FOG_COORDS(11)
-	float2 uv2 : TEXCOORD12;
-	float2 uv3 : TEXCOORD13;
 	#if defined(VERTEXLIGHT_ON)
 		float3 vertexLightColor : TEXCOORD8;
 	#endif
@@ -117,8 +110,8 @@ struct v2g
 struct VertexOutput
 {
 	float4 pos : SV_POSITION;
-	float2 uv : TEXCOORD0;
-	float2 uv1 : TEXCOORD1;
+	float4 uv : TEXCOORD0;
+	float4 uv1 : TEXCOORD1;
     float3 normal : NORMAL;
     fixed4 amb : COLOR0; //
     fixed3 direct : COLOR1; //
@@ -133,8 +126,6 @@ struct VertexOutput
 	bool is_outline : IS_OUTLINE;
 	LIGHTING_COORDS(6,7)
 	UNITY_FOG_COORDS(11)
-	float2 uv2 : TEXCOORD12;
-	float2 uv3 : TEXCOORD13;
 	#if defined(VERTEXLIGHT_ON)
 		float3 vertexLightColor : TEXCOORD8;
 	#endif
@@ -165,6 +156,23 @@ float3 hueShift(float3 col, float3 mask)
     return newc;
 }
 
+float4 selectUVs(float4 uvs1, float4 uvs2) {
+	float4 uvs = float4(0, 0, 0, 0);
+	[branch] switch(_ShadowUV) {
+		case 0: { uvs.xy = uvs1.xy; } break;
+		case 1: { uvs.xy = uvs2.xy; } break;
+		case 2: { uvs.xy = uvs1.zw; } break;
+		case 3: { uvs.xy = uvs2.zw; } break;
+	}
+	[branch] switch(_SphereUV) {
+		case 0: { uvs.zw = uvs1.xy; } break;
+		case 1: { uvs.zw = uvs2.xy; } break;
+		case 2: { uvs.zw = uvs1.zw; } break;
+		case 3: { uvs.zw = uvs2.zw; } break;
+	}
+	return uvs;
+}
+
 v2g vert(appdata_full v)
 {
     v2g o;
@@ -179,16 +187,16 @@ v2g vert(appdata_full v)
     o.bitangentDir = normalize(cross(o.normalDir, o.tangentDir) * v.tangent.w);
     o.posWorld = mul(unity_ObjectToWorld, v.vertex);
     o.vertex = v.vertex;
-    o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
+    o.uv.xy = TRANSFORM_TEX(v.texcoord, _MainTex);
 	#ifdef LIGHTMAP_ON
-		o.uv1 = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
+		o.uv1.xy = v.texcoord1.xy * unity_LightmapST.xy + unity_LightmapST.zw;
 	#else
-		o.uv1 = v.texcoord1.xy;
+		o.uv1.xy = v.texcoord1.xy;
 	#endif
 	TRANSFER_VERTEX_TO_FRAGMENT(o);
 	UNITY_TRANSFER_FOG(o, o.pos);
-	o.uv2 = v.texcoord2.xy;
-	o.uv3 = v.texcoord3.xy;
+	o.uv.zw = v.texcoord2.xy;
+	o.uv1.zw = v.texcoord3.xy;
     
     float4 objPos = mul(unity_ObjectToWorld, float4(0,0,0,1));
     o.reflectionMap = DecodeHDR(UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, normalize((_WorldSpaceCameraPos - objPos.rgb)), 7), unity_SpecCube0_HDR)* 0.02;
@@ -197,14 +205,7 @@ v2g vert(appdata_full v)
     float correctedBrightness = -1 / (brightness * 2 + 1) + 1 + brightness * 0.1;
     o.lightModifier = correctedBrightness / brightness;
 	
-	float4 uvShadow = float4(0, 0, 0, 0);
-	uvShadow.xy = o.uv;
-	[branch] switch(_ShadowUV) {
-		case 0: { uvShadow.zw = o.uv;  } break;
-		case 1: { uvShadow.zw = o.uv1; } break;
-		case 2: { uvShadow.zw = o.uv2; } break;
-		case 3: { uvShadow.zw = o.uv3; } break;
-	}
+	float4 uvShadow = float4(o.uv.xy, selectUVs(o.uv, o.uv1).xy);
 	#if defined(VERTEXLIGHT_ON)
 		o.vertexLightColor = Shade4PointLightsStyled(
 			unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0,
@@ -216,6 +217,17 @@ v2g vert(appdata_full v)
 	#endif
     
     return o;
+}
+
+float3 calcNormal(inout VertexOutput i, float3 viewDirection) {
+    i.normalDir = normalize(i.normalDir);
+    float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
+    float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv.xy));
+    float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
+	[flatten] if ((_FlipBackfaceNorms || _CullMode == 1) && dot(viewDirection, i.normalDir) < 0) {
+		normalDirection *= -1;
+	}
+	return normalDirection;
 }
 
 float3 calcOutline(float3 color, float2 uv)
@@ -298,14 +310,14 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 			float2 newcoord = uv + transform / 2;
 			col = tex2D(_PanoFlatTex, newcoord);
 		}
-		#if PANOOVERLAY
+		if (_PanoUseOverlay) {
 			float4 ocol = tex2D(_PanoOverlayTex, uv);
-			#if PANOALPHA
+			if (_PanoUseAlpha) {
 				col.rgb = lerp(col.rgb, ocol.rgb, ocol.a);
-			#else
+			} else {
 				col.rgb += ocol.rgb;
-			#endif
-		#endif
+			}
+		}
 		[branch] if (_OverlayBlendMode == 1) { // Add
 			col.rgb += color;
 		} else if   (_OverlayBlendMode == 2) { // Multiply
@@ -323,58 +335,53 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
     return color;
 }
 
-FragmentOutput frag(VertexOutput i)
-{
-    // Variables
-    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
-    float4 _EmissionMap_var = _EmissionMap.Sample(sampler_MainTex, i.uv);
-    float3 emissive = (_EmissionMap_var.rgb*_EmissionColor.rgb);
-    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
-	#if defined(DEFERRED_PASS) && !defined(IS_OPAQUE)
-		clip (color.a - 0.8);
-    #elif defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
-		clip (color.a - _Cutoff);
-    #endif
+float3 gammaCorrect(float3 color) {
     [branch] if (_CorrectionLevel > 0) {
-		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
+		color *= lerp(1, color * (color * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
     }
-    #if defined(HUESHIFTMODE)
+	return color;
+}
+
+float4 blendColor(float4 color, float mask) {
+    float4 shiftcolor;
+	if (_HueShiftMode) {
 		float3 colhsv = RGBtoHSV(_Color.rgb);
 		float3 inphsv = RGBtoHSV(color.rgb);
 		inphsv.x = colhsv.x;
 		inphsv.y *= colhsv.y;
 		inphsv.z *= colhsv.z;
-		float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
-    #else
-		float4 shiftcolor = color.rgba * _Color.rgba;
+		shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
+    } else {
+		shiftcolor = color.rgba * _Color.rgba;
+    }
+    return lerp(shiftcolor.rgba, color.rgba, mask);
+}
+
+FragmentOutput frag(VertexOutput i)
+{
+    // Variables
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv.xy);
+    float4 _EmissionMap_var = _EmissionMap.Sample(sampler_MainTex, i.uv.xy);
+    float3 emissive = (_EmissionMap_var.rgb*_EmissionColor.rgb);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv.xy);
+	#if defined(DEFERRED_PASS) && !defined(IS_OPAQUE)
+		clip (color.a - 0.8);
+    #elif defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
+		clip (color.a - _Cutoff);
     #endif
-    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.b);
+	color.rgb = gammaCorrect(color.rgb);
+	color = blendColor(color, _ColorMask_var.b);
 	
-	float4 uvShadow = float4(0, 0, 0, 0);
-	uvShadow.xy = i.uv;
-	[branch] switch(_ShadowUV) {
-		case 0: { uvShadow.zw = i.uv;  } break;
-		case 1: { uvShadow.zw = i.uv1; } break;
-		case 2: { uvShadow.zw = i.uv2; } break;
-		case 3: { uvShadow.zw = i.uv3; } break;
-	}
-	float2 uvSphere = float2(0, 0);
-	[branch] switch(_SphereUV) {
-		case 0: { uvSphere = i.uv;  } break;
-		case 1: { uvSphere = i.uv1; } break;
-		case 2: { uvSphere = i.uv2; } break;
-		case 3: { uvSphere = i.uv3; } break;
-	}
+	float4 uvs = selectUVs(i.uv, i.uv1);
+	float4 uvShadow = float4(i.uv.xy, uvs.xy);
+	float2 uvSphere = float2(uvs.zw);
     
     // Lighting
+    float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
+    float3 normalDirection = calcNormal(i, viewDirection);
     float attenuation = LIGHT_ATTENUATION(i);
     float _AmbientLight = 0.8;
-    i.normalDir = normalize(i.normalDir);
-    float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
-    float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv));
-    float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
-    float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
-    float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
+    //float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
     float4 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation, uvShadow, color.rgb);
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
@@ -383,7 +390,7 @@ FragmentOutput frag(VertexOutput i)
 	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
 	float3 ambient = float3(0, 0, 0);
 	#ifdef LIGHTMAP_ON
-		ambient += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
+		ambient += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1.xy));
 	#endif
 	#if defined(VERTEXLIGHT_ON)
 		ambient += i.vertexLightColor;
@@ -396,7 +403,7 @@ FragmentOutput frag(VertexOutput i)
     
     // Pulse
     [branch] if (_PulseEmission == 1) {
-		float4 pulsemask = _EmissionPulseMap.Sample(sampler_MainTex, i.uv);
+		float4 pulsemask = _EmissionPulseMap.Sample(sampler_MainTex, i.uv.xy);
 		emissive = lerp(emissive, _EmissionPulseColor.rgb*pulsemask.rgb, (sin(_Time[1] * _EmissionSpeed * _EmissionSpeed * _EmissionSpeed) + 1) / 2);
     }
     
@@ -417,7 +424,7 @@ FragmentOutput frag(VertexOutput i)
     }
     
     // Secondary Effects
-    color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
+    color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv.xy);
     
     // Primary effects
     // Saturation boost
@@ -426,7 +433,7 @@ FragmentOutput frag(VertexOutput i)
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
 		emissive = hueShift(emissive, maskcolor.rgb);
@@ -434,8 +441,8 @@ FragmentOutput frag(VertexOutput i)
 
     // Outline
 	float lightingVal = -1;
-    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv, lightingVal);
-    emissive = artsyOutline(emissive, viewDirection, normalDirection, i.uv, lightingVal);
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv.xy, lightingVal);
+    emissive = artsyOutline(emissive, viewDirection, normalDirection, i.uv.xy, lightingVal);
 	[branch] if (_Unlit == 2) {
 		lightColor = lerp(float3(1, 1, 1), lightColor, lightingVal);
 	}
@@ -450,7 +457,7 @@ FragmentOutput frag(VertexOutput i)
 	FragmentOutput output;
 	#if defined(DEFERRED_PASS)
 		output.gBuffer0.rgb = color.rgb;
-		output.gBuffer0.a = tex2D(_OcclusionMap, i.uv).r;
+		output.gBuffer0.a = tex2D(_OcclusionMap, i.uv.xy).r;
 		output.gBuffer1.rgb = _SpecularColor.rgb;
 		output.gBuffer1.a = _SpecularPower * 0.01;
 		output.gBuffer2 = float4(normalDirection.xyz * 0.5 + 0.5, 1);
@@ -471,63 +478,25 @@ FragmentOutput frag(VertexOutput i)
 float4 frag4(VertexOutput i) : COLOR
 {
     // Variables
-    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
-    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv.xy);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv.xy);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    [branch] if (_CorrectionLevel > 0) {
-		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    }
-    #if defined(HUESHIFTMODE)
-		float3 colhsv = RGBtoHSV(_Color.rgb);
-		float3 inphsv = RGBtoHSV(color.rgb);
-		inphsv.x = colhsv.x;
-		inphsv.y *= colhsv.y;
-		inphsv.z *= colhsv.z;
-		float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
-    #else
-		float4 shiftcolor = color.rgba * _Color.rgba;
-    #endif
-    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
+	color.rgb = gammaCorrect(color.rgb);
+	color = blendColor(color, _ColorMask_var.b);
 	
-	float4 uvShadow = float4(0, 0, 0, 0);
-	uvShadow.xy = i.uv;
-	[branch] switch(_ShadowUV) {
-		case 0: { uvShadow.zw = i.uv;  } break;
-		case 1: { uvShadow.zw = i.uv1; } break;
-		case 2: { uvShadow.zw = i.uv2; } break;
-		case 3: { uvShadow.zw = i.uv3; } break;
-	}
-	float2 uvSphere = float2(0, 0);
-	[branch] switch(_SphereUV) {
-		case 0: { uvSphere = i.uv;  } break;
-		case 1: { uvSphere = i.uv1; } break;
-		case 2: { uvSphere = i.uv2; } break;
-		case 3: { uvSphere = i.uv3; } break;
-	}
+	float4 uvs = selectUVs(i.uv, i.uv1);
+	float4 uvShadow = float4(i.uv.xy, uvs.xy);
+	float2 uvSphere = float2(uvs.zw);
     
     // Lighting
-    float attenuation = LIGHT_ATTENUATION(i);
-    //#if defined (POINT) || defined (SPOT)
-    //attenuation = tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
-    //#if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
-    //attenuation *= SHADOW_ATTENUATION(i) * _shadowcast_intensity + (1 - _shadowcast_intensity);
-    //#endif
-    //#endif
-    i.normalDir = normalize(i.normalDir);
-    float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
-    float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv));
-    float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
+    float3 normalDirection = calcNormal(i, viewDirection);
+	
+    float attenuation = LIGHT_ATTENUATION(i);
     float4 bright = calcShadow(i.posWorld.xyz, normalDirection, 1, uvShadow, color.rgb);
-    bright.rgb *= attenuation * tex2D(_OcclusionMap, i.uv).r;
-    //#if defined(IS_OPAQUE) && !DISABLE_SHADOW && !NO_SHADOW
-    //bright *= attenuation * _shadowcast_intensity + (1 - _shadowcast_intensity);
-    //#elif defined (POINT) || defined (SPOT)
-    //bright *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
-    //bright = 1;
-    //#endif
+    bright.rgb *= attenuation * tex2D(_OcclusionMap, i.uv.xy).r;
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
 		lightModifier = lerp(1, i.lightModifier * saturate(i.lightModifier) * 0.5, _OverbrightProtection);
@@ -537,7 +506,7 @@ float4 frag4(VertexOutput i) : COLOR
 		lightColor = float3(0, 0, 0);
 	}
     
-    color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv);
+    color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv.xy);
     
     // Saturation boost
     float3 hsvcol = RGBtoHSV(color.rgb);
@@ -545,14 +514,14 @@ float4 frag4(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
     }
 
     // Outline
 	float lightingVal = -1;
-    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv, lightingVal);
+    color.rgb = artsyOutline(color.rgb, viewDirection, normalDirection, i.uv.xy, lightingVal);
 	[branch] if (_Unlit == 2) {
 		lightColor = lerp(float3(0, 0, 0), lightColor, lightingVal);
 	}
@@ -574,25 +543,13 @@ float4 frag4(VertexOutput i) : COLOR
 float4 frag3(VertexOutput i) : COLOR
 {
     // Variables
-    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
-    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv.xy);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv.xy);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    [branch] if (_CorrectionLevel > 0) {
-		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    }
-    #if defined(HUESHIFTMODE)
-		float3 colhsv = RGBtoHSV(_Color.rgb);
-		float3 inphsv = RGBtoHSV(color.rgb);
-		inphsv.x = colhsv.x;
-		inphsv.y *= colhsv.y;
-		inphsv.z *= colhsv.z;
-		float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
-    #else
-		float4 shiftcolor = color.rgba * _Color.rgba;
-    #endif
-    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
+	color.rgb = gammaCorrect(color.rgb);
+	color = blendColor(color, _ColorMask_var.b);
     
     // Lighting
     float _AmbientLight = 0.8;
@@ -602,7 +559,7 @@ float4 frag3(VertexOutput i) : COLOR
 	}
 	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
 	#ifdef LIGHTMAP_ON
-		lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1));
+		lightColor += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1.xy));
 	#endif
 	[branch] if ((_Unlit == 1) || (_Unlit == 2)) {
 		lightColor = float3(1, 1, 1);
@@ -615,14 +572,14 @@ float4 frag3(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
     }
     
     // Secondary Effects
 
     // Outline
-    color.rgb = calcOutline(color.rgb, i.uv);
+    color.rgb = calcOutline(color.rgb, i.uv.xy);
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
@@ -633,25 +590,13 @@ float4 frag3(VertexOutput i) : COLOR
 float4 frag5(VertexOutput i) : COLOR
 {
     // Variables
-    float4 color = _MainTex.Sample(sampler_MainTex, i.uv);
-    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv);
+    float4 color = _MainTex.Sample(sampler_MainTex, i.uv.xy);
+    float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv.xy);
     #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
-    [branch] if (_CorrectionLevel > 0) {
-		color.rgb *= lerp(1, color.rgb * (color.rgb * 0.305306011 + 0.682171111) + 0.012522878, _CorrectionLevel);
-    }
-    #if defined(HUESHIFTMODE)
-		float3 colhsv = RGBtoHSV(_Color.rgb);
-		float3 inphsv = RGBtoHSV(color.rgb);
-		inphsv.x = colhsv.x;
-		inphsv.y *= colhsv.y;
-		inphsv.z *= colhsv.z;
-		float4 shiftcolor = float4(HSVtoRGB(inphsv), color.a * _Color.a);
-    #else
-		float4 shiftcolor = color.rgba * _Color.rgba;
-    #endif
-    color = lerp(shiftcolor.rgba, color.rgba, _ColorMask_var.r);
+	color.rgb = gammaCorrect(color.rgb);
+	color = blendColor(color, _ColorMask_var.b);
     
     // Lighting
 	float lightModifier = 1;
@@ -670,14 +615,14 @@ float4 frag5(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv);
+		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
     }
     
     // Secondary Effects
 
     // Outline
-    color.rgb = calcOutline(color.rgb, i.uv);
+    color.rgb = calcOutline(color.rgb, i.uv.xy);
     
     //#ifdef POINT
 		//lightColor *= tex2D(_LightTexture0, dot(i._LightCoord,i._LightCoord).rr).UNITY_ATTEN_CHANNEL;
@@ -698,8 +643,6 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		o.pos = UnityObjectToClipPos(IN[ii].vertex);
 		o.uv = IN[ii].uv;
 		o.uv1 = IN[ii].uv1;
-		o.uv2 = IN[ii].uv2;
-		o.uv3 = IN[ii].uv3;
 		o.col = fixed4(1., 1., 1., 0.);
 		o.posWorld = mul(unity_ObjectToWorld, IN[ii].vertex);
 		o.normalDir = UnityObjectToWorldNormal(IN[ii].normal);
@@ -754,8 +697,6 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         }
 		o.uv = IN[ii].uv;
 		o.uv1 = IN[ii].uv1;
-		o.uv2 = IN[ii].uv2;
-		o.uv3 = IN[ii].uv3;
 		o.col = fixed4( _outline_color.r, _outline_color.g, _outline_color.b, 1);
 		o.posWorld = mul(unity_ObjectToWorld, IN[ii].vertex);
 		o.normalDir = UnityObjectToWorldNormal(IN[ii].normal);

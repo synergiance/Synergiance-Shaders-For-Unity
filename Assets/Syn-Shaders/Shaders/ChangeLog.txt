@@ -1,5 +1,12 @@
 Change Log
 
+0.4.4.7:
+Added ability to cull front
+Added ability to flip backface normals
+Cleaned up code a bit
+Removed checkbox for shadowing.  The slider for shadow intensity is now always shown. This is set to 0.75 for old materials, I'd recommend bumping it up to 1.
+Removed extraneous unnecessary keywords
+
 0.4.4.6:
 Removed outline keywords
 Consolidated duplicate code

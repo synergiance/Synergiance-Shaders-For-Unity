@@ -5,6 +5,17 @@
 #define DIR_IS_ZERO(i, t) (abs(i.x + i.y + i.z) < t)
 
 float _LightingHack;
+float _OverrideRealtime;
+float _shadowcast_intensity;
+float _ShadowAmbient;
+sampler2D _ShadowRamp;
+sampler2D _ShadowTexture;
+int _ShadowRampDirection;
+int _ShadowTextureMode;
+float4 _ShadowTint;
+float _shadow_coverage;
+float _shadow_feather;
+float _ShadowIntensity;
 
 float3 BoxProjection(float3 direction, float3 position, float4 cubemapPosition, float3 boxMin, float3 boxMax) {
 	#if UNITY_SPECCUBE_BOX_PROJECTION
@@ -65,22 +76,24 @@ float GetLightScale(float3 position, float3 normal, float atten) {
 		}
 	}
 	[branch] if (_LightingHack > 0) {
-		#if !OVERRIDE_REALTIME
+		if (!_OverrideRealtime) {
 			[branch] if (!DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
 				lightDirection = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
 			} else {
 				atten = 1;
 			}
-		#else
+		} else {
 			atten = 1;
-		#endif
+		}
 		[branch] if (DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
 			atten = 1;
 		}
 		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
 	}
-	#if defined(IS_OPAQUE) && !DISABLE_SHADOW
-		lightScale *= atten;
+	#if defined(IS_OPAQUE)
+		if (_shadowcast_intensity > 0) {
+			lightScale *= lerp(1, atten, _shadowcast_intensity);
+		}
 	#endif
 	return lightScale;
 }
