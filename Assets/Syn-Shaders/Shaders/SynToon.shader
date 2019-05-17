@@ -62,6 +62,7 @@ Shader "Synergiance/Toon"
 		_ChromaticAberration("Chromatic Aberration", Range( 0 , 0.3)) = 0.1
 		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
 		_OverbrightProtection("Overbright Protection", Range(0, 1)) = 0
+		_BackFaceTint("Backface Tint", Color) = (1, 1, 1, 1)
 		
 		[Enum(None,0,Full,1,Emission Only,2)] _Rainbowing("Rainbow", Float) = 0
 		[Enum(Regular Lighting,0,Unlit,1,Unlit Outline,2)] _Unlit("Light Mode", Float) = 0
@@ -74,6 +75,7 @@ Shader "Synergiance/Toon"
 		[Toggle(_)] _OverrideRealtime("Override Realtime Lights", Float) = 0
 		[Toggle(_)] _PanoUseOverlay("Overlay", Float) = 0
 		[Toggle(_)] _PanoUseAlpha("Use Alpha Channel", Float) = 0
+		[Toggle(_)] _Dither("Dithered Transparency", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -116,7 +118,7 @@ Shader "Synergiance/Toon"
         Cull [_CullMode]
 		ColorMask [_stencilcolormask]
         ZTest [_ZTest]
-        BlendOp [_BlendOp]
+		Blend One Zero
         
 		Stencil
 		{
@@ -159,8 +161,7 @@ Shader "Synergiance/Toon"
 		{
 			Name "FORWARD"
             
-            //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend]
+            Blend One Zero
             ZWrite [_ZWrite]
             
 			Tags
@@ -191,8 +192,7 @@ Shader "Synergiance/Toon"
         {
 			Name "FORWARD_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
-            //Blend SrcAlpha One
-			Blend [_SrcBlend] One
+            Blend One One
 			Fog { Color (0,0,0,0) } // in additive pass fog should be black
 			ZWrite Off
 			ZTest LEqual
@@ -243,8 +243,29 @@ Shader "Synergiance/Toon"
             
 			ENDCG
 		}
-        
-        UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
+		
+		Pass {
+			Name "SHADOWCASTER"
+			Tags
+			{
+				"LightMode" = "ShadowCaster"
+			}
+			
+			CGPROGRAM
+			
+			#pragma target 3.0
+			
+			#pragma multi_compile_shadowcaster
+			
+            #pragma shader_feature _ALPHATEST_ON
+			
+			#pragma vertex vert
+			#pragma fragment frag
+			
+			#include "SynToonShadows.cginc"
+			
+			ENDCG
+		}
 	}
     
 	FallBack "Diffuse"

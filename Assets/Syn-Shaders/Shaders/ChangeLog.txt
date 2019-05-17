@@ -1,5 +1,11 @@
 Change Log
 
+0.4.5:
+Tweaked light attenuation, shadows now compute independently
+Shadows now render properly on the backface of materials
+Under cutout, you can now use dithered transparency, you can still set the cutoff point (slightly buggy)
+Transparent materials now have shadows, using shadow dithering
+
 0.4.4.7:
 Added ability to cull front
 Added ability to flip backface normals

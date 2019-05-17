@@ -63,6 +63,7 @@ Shader "Synergiance/Toon/Transparent"
 		_ChromaticAberration("Chromatic Aberration", Range( 0 , 0.3)) = 0.1
 		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
 		_OverbrightProtection("Overbright Protection", Range(0, 1)) = 0
+		_BackFaceTint("Backface Tint", Color) = (1, 1, 1, 1)
 		
 		[Enum(None,0,Full,1,Emission Only,2)] _Rainbowing("Rainbow", Float) = 0
 		[Enum(Regular Lighting,0,Unlit,1,Unlit Outline,2)] _Unlit("Light Mode", Float) = 0
@@ -75,6 +76,7 @@ Shader "Synergiance/Toon/Transparent"
 		[Toggle(_)] _OverrideRealtime("Override Realtime Lights", Float) = 0
 		[Toggle(_)] _PanoUseOverlay("Overlay", Float) = 0
 		[Toggle(_)] _PanoUseAlpha("Use Alpha Channel", Float) = 0
+		[Toggle(_)] _Dither("Dithered Transparency", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -213,6 +215,30 @@ Shader "Synergiance/Toon/Transparent"
 			#pragma multi_compile_fog
 			//#pragma multi_compile _ UNITY_HDR_ON
             
+			ENDCG
+		}
+		
+		Pass {
+			Name "SHADOWCASTER"
+			Tags
+			{
+				"LightMode" = "ShadowCaster"
+			}
+			
+			CGPROGRAM
+			
+			#pragma target 3.0
+			
+			#pragma multi_compile_shadowcaster
+			
+            #pragma shader_feature _ALPHATEST_ON
+			#define _ALPHABLEND_ON
+			
+			#pragma vertex vert
+			#pragma fragment frag
+			
+			#include "SynToonShadows.cginc"
+			
 			ENDCG
 		}
 	}

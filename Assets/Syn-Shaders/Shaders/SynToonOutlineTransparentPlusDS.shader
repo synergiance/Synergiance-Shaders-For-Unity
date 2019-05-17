@@ -63,6 +63,7 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 		_ChromaticAberration("Chromatic Aberration", Range( 0 , 0.3)) = 0.1
 		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
 		_OverbrightProtection("Overbright Protection", Range(0, 1)) = 0
+		_BackFaceTint("Backface Tint", Color) = (1, 1, 1, 1)
 		
 		[Enum(None,0,Full,1,Emission Only,2)] _Rainbowing("Rainbow", Float) = 0
 		[Enum(Regular Lighting,0,Unlit,1,Unlit Outline,2)] _Unlit("Light Mode", Float) = 0
@@ -75,6 +76,7 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
 		[Toggle(_)] _OverrideRealtime("Override Realtime Lights", Float) = 0
 		[Toggle(_)] _PanoUseOverlay("Overlay", Float) = 0
 		[Toggle(_)] _PanoUseAlpha("Use Alpha Channel", Float) = 0
+		[Toggle(_)] _Dither("Dithered Transparency", Float) = 0
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
@@ -144,6 +146,8 @@ Shader "Synergiance/Toon-Outline/TransparentFixDS"
         UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE_DELTA"
 		
 		UsePass "Synergiance/Toon/Transparent/DEFERRED"
+		
+		UsePass "Synergiance/Toon/TransparentDS/SHADOWCASTER"
 	}
 	FallBack "Diffuse"
 	CustomEditor "SynToonInspector"

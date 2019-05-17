@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.4.7
+// v0.4.5
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -61,6 +61,8 @@ int _SphereUV;
 int _ShadowUV;
 float _ProbeStrength;
 float _ProbeClarity;
+float3 _BackFaceTint;
+float _BackFaceShadowed;
 
 float _OutlineMode;
 float _OutlineColorMode;
@@ -76,6 +78,9 @@ float _CullMode;
 float _HueShiftMode;
 float _PanoUseOverlay;
 float _PanoUseAlpha;
+float _Dither;
+
+sampler3D _DitherMaskLOD;
 
 #include "SynToonLighting.cginc"
 #if defined(REFRACTION)
@@ -100,8 +105,8 @@ struct v2g
     float3 reflectionMap : TEXCOORD9;
     float lightModifier : TEXCOORD10;
 	float4 pos : CLIP_POS;
-	LIGHTING_COORDS(6,7)
-	UNITY_FOG_COORDS(11)
+	UNITY_SHADOW_COORDS(6)
+	UNITY_FOG_COORDS(7)
 	#if defined(VERTEXLIGHT_ON)
 		float3 vertexLightColor : TEXCOORD8;
 	#endif
@@ -124,8 +129,8 @@ struct VertexOutput
     float lightModifier : TEXCOORD10; //
 	float4 col : COLOR3;
 	bool is_outline : IS_OUTLINE;
-	LIGHTING_COORDS(6,7)
-	UNITY_FOG_COORDS(11)
+	UNITY_SHADOW_COORDS(6)
+	UNITY_FOG_COORDS(7)
 	#if defined(VERTEXLIGHT_ON)
 		float3 vertexLightColor : TEXCOORD8;
 	#endif
@@ -176,6 +181,7 @@ float4 selectUVs(float4 uvs1, float4 uvs2) {
 v2g vert(appdata_full v)
 {
     v2g o;
+	UNITY_INITIALIZE_OUTPUT(v2g, o);
 	o.pos = UnityObjectToClipPos(v.vertex);
     o.normal = v.normal;
     o.normalDir = normalize(UnityObjectToWorldNormal(v.normal));
@@ -193,17 +199,21 @@ v2g vert(appdata_full v)
 	#else
 		o.uv1.xy = v.texcoord1.xy;
 	#endif
-	TRANSFER_VERTEX_TO_FRAGMENT(o);
+	UNITY_TRANSFER_SHADOW(o, 1);
 	UNITY_TRANSFER_FOG(o, o.pos);
 	o.uv.zw = v.texcoord2.xy;
 	o.uv1.zw = v.texcoord3.xy;
     
     float4 objPos = mul(unity_ObjectToWorld, float4(0,0,0,1));
     o.reflectionMap = DecodeHDR(UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, normalize((_WorldSpaceCameraPos - objPos.rgb)), 7), unity_SpecCube0_HDR)* 0.02;
-    float3 lightColor = o.direct + o.amb.rgb * 2 + o.reflectionMap;
-    float brightness = lightColor.r * 0.3 + lightColor.g * 0.59 + lightColor.b * 0.11;
-    float correctedBrightness = -1 / (brightness * 2 + 1) + 1 + brightness * 0.1;
-    o.lightModifier = correctedBrightness / brightness;
+    [branch] if (_OverbrightProtection > 0) {
+		float3 lightColor = o.direct + o.amb.rgb * 2 + o.reflectionMap;
+		float brightness = lightColor.r * 0.3 + lightColor.g * 0.59 + lightColor.b * 0.11;
+		float correctedBrightness = -1 / (brightness * 2 + 1) + 1 + brightness * 0.1;
+		o.lightModifier = correctedBrightness / brightness;
+	} else {
+		o.lightModifier = 1;
+	}
 	
 	float4 uvShadow = float4(o.uv.xy, selectUVs(o.uv, o.uv1).xy);
 	#if defined(VERTEXLIGHT_ON)
@@ -219,12 +229,74 @@ v2g vert(appdata_full v)
     return o;
 }
 
+inline float4 GetDitherPos(float4 vertex, float ditherSize) {
+	// Get the dither pixel position from the screen coordinates.
+	float4 screenPos = ComputeScreenPos(UnityObjectToClipPos(vertex));
+	return float4(screenPos.xy * _ScreenParams.xy / ditherSize, 0, screenPos.w);
+}
+
+inline fixed3 GetDitherColor(fixed3 color, sampler2D ditherTex, sampler2D paletteTex,
+							 float paletteHeight, float4 ditherPos, float colorCount) {
+	// To find the palette color to use for this pixel:
+	//	The row offset decides which row of color squares to use.
+	//	The red component decides which column of color squares to use.
+	//	The green and blue components points to the color in the 16x16 pixel square.
+	float ditherValue = tex2D(ditherTex, ditherPos.xy / ditherPos.w).r;
+	float2 paletteUV = float2(
+		min(floor(color.r * 16), 15) / 16 + clamp(color.b * 16, 0.5, 15.5) / 256,
+		(clamp(color.g * 16, 0.5, 15.5) + floor(ditherValue * colorCount) * 16) / paletteHeight);
+
+	// Return the new color from the palette texture
+	return tex2D(paletteTex, paletteUV).rgb;
+}
+
+float dither(float alpha, float4 clipPos) {
+	float4 screenPos = UNITY_PROJ_COORD(ComputeScreenPos(clipPos));
+	return tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, alpha * 0.9375)).a - 0.01;
+}
+
+float getAttenuation(VertexOutput i) {
+	SYN_LIGHT_ATTENUATION(attenuation, i.posWorld.xyz);
+	return attenuation;
+}
+
+fixed getShadowAttenuation(VertexOutput i) {
+	fixed attenuation = 1.0;
+	#if defined(IS_OPAQUE)
+		[branch] if (_shadowcast_intensity > 0) {
+			attenuation = lerp(1, UNITY_SHADOW_ATTENUATION(i, i.posWorld.xyz), _shadowcast_intensity);
+		}
+	#endif
+	return attenuation;
+}
+
+bool calcBackFace(inout VertexOutput i, float3 viewDirection) {
+	bool backFace = false;
+	[branch] switch (_CullMode) {
+		case 0:
+			backFace = dot(viewDirection, i.normalDir) < 0;
+			break;
+		case 1:
+			backFace = true;
+			break;
+		case 2:
+			backFace = false;
+			break;
+	}
+	return backFace;
+}
+
 float3 calcNormal(inout VertexOutput i, float3 viewDirection) {
     i.normalDir = normalize(i.normalDir);
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
     float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv.xy));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
-	[flatten] if ((_FlipBackfaceNorms || _CullMode == 1) && dot(viewDirection, i.normalDir) < 0) {
+	[branch] if (_FlipBackfaceNorms && _CullMode == 0) {
+		[flatten] if (dot(viewDirection, i.normalDir) < 0) {
+			normalDirection *= -1;
+		}
+	}
+	[branch] if (_CullMode == 1) {
 		normalDirection *= -1;
 	}
 	return normalDirection;
@@ -271,11 +343,22 @@ float3 applySphere(float3 color, float3 view, float3 normal, float2 uv)
 			[branch] switch(_SphereNum) {
 				case 2:  { w = 2; h = 1; } break;
 				case 4:  { w = 2; h = 2; } break;
+				case 6:  { w = 3; h = 2; } break;
 				case 8:  { w = 4; h = 2; } break;
 				case 9:  { w = 3; h = 3; } break;
+				case 12: { w = 4; h = 3; } break;
+				case 15: { w = 5; h = 3; } break;
 				case 16: { w = 4; h = 4; } break;
 				case 18: { w = 6; h = 3; } break;
+				case 20: { w = 5; h = 4; } break;
+				case 24: { w = 6; h = 4; } break;
 				case 25: { w = 5; h = 5; } break;
+				case 30: { w = 6; h = 5; } break;
+				case 32: { w = 8; h = 4; } break;
+				case 36: { w = 6; h = 6; } break;
+				case 40: { w = 8; h = 5; } break;
+				case 48: { w = 8; h = 6; } break;
+				case 64: { w = 8; h = 8; } break;
 				default: { w = 1; h = 1; } break;
 			}
 			float2 dim = float2(w, h);
@@ -364,13 +447,20 @@ FragmentOutput frag(VertexOutput i)
     float4 _EmissionMap_var = _EmissionMap.Sample(sampler_MainTex, i.uv.xy);
     float3 emissive = (_EmissionMap_var.rgb*_EmissionColor.rgb);
     float4 _ColorMask_var = _ColorMask.Sample(sampler_MainTex, i.uv.xy);
-	#if defined(DEFERRED_PASS) && !defined(IS_OPAQUE)
-		clip (color.a - 0.8);
-    #elif defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
+	float2 occlusionM = tex2D(_OcclusionMap, i.uv.xy).rg;
+	//#if defined(DEFERRED_PASS) && !defined(IS_OPAQUE)
+	//	clip (color.a - 0.8);
+    #if defined(_ALPHATEST_ON) || defined(_ALPHABLEND_ON)
 		clip (color.a - _Cutoff);
     #endif
 	color.rgb = gammaCorrect(color.rgb);
 	color = blendColor(color, _ColorMask_var.b);
+	
+	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
+		[branch] if (_Dither) {
+			clip (dither(color.a, i.pos));
+		}
+	#endif
 	
 	float4 uvs = selectUVs(i.uv, i.uv1);
 	float4 uvShadow = float4(i.uv.xy, uvs.xy);
@@ -379,10 +469,13 @@ FragmentOutput frag(VertexOutput i)
     // Lighting
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 normalDirection = calcNormal(i, viewDirection);
-    float attenuation = LIGHT_ATTENUATION(i);
+	int isBackFace = calcBackFace(i, viewDirection) ? 1 : 0;
+	//fixed shadowAtten = lerp(getShadowAttenuation(i), 1.0 - _BackFaceShadowed, isBackFace);
+	float occlusion = (isBackFace) ? occlusionM.g : occlusionM.r;
+	fixed shadowAtten = getShadowAttenuation(i) * occlusion;
     float _AmbientLight = 0.8;
     //float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
-    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, attenuation, uvShadow, color.rgb);
+    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
 		lightModifier = lerp(1, (i.lightModifier + 1) * 0.5, _OverbrightProtection);
@@ -399,6 +492,9 @@ FragmentOutput frag(VertexOutput i)
 	[branch] if (_Unlit == 1) {
 		lightColor = float3(1, 1, 1);
 		ambient = float3(0, 0, 0);
+	}
+	[flatten] if (isBackFace == 1/* && _BackFaceShadowed == 0*/) {
+		color.rgb *= _BackFaceTint;
 	}
     
     // Pulse
@@ -450,7 +546,7 @@ FragmentOutput frag(VertexOutput i)
     // Sphere
 	color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
 	
-	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a, _ProbeStrength, i.posWorld) * tex2D(_OcclusionMap, i.uv).r;
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, shadowAtten * bright.a, _ProbeStrength, i.posWorld) * tex2D(_OcclusionMap, i.uv).r;
     
     // Combining
 	UNITY_APPLY_FOG(i.fogCoord, color);
@@ -486,6 +582,12 @@ float4 frag4(VertexOutput i) : COLOR
 	color.rgb = gammaCorrect(color.rgb);
 	color = blendColor(color, _ColorMask_var.b);
 	
+	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
+		[branch] if (_Dither) {
+			clip (dither(color.a, i.pos));
+		}
+	#endif
+	
 	float4 uvs = selectUVs(i.uv, i.uv1);
 	float4 uvShadow = float4(i.uv.xy, uvs.xy);
 	float2 uvSphere = float2(uvs.zw);
@@ -493,17 +595,23 @@ float4 frag4(VertexOutput i) : COLOR
     // Lighting
     float3 viewDirection = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
     float3 normalDirection = calcNormal(i, viewDirection);
+	int isBackFace = calcBackFace(i, viewDirection) ? 1 : 0;
 	
-    float attenuation = LIGHT_ATTENUATION(i);
-    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, 1, uvShadow, color.rgb);
-    bright.rgb *= attenuation * tex2D(_OcclusionMap, i.uv.xy).r;
+	fixed attenuation = getAttenuation(i);
+	//fixed shadowAtten = lerp(getShadowAttenuation(i), 1.0 - _BackFaceShadowed, isBackFace);
+	fixed shadowAtten = getShadowAttenuation(i);
+    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
+    bright.rgb *= tex2D(_OcclusionMap, i.uv.xy).r;
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
 		lightModifier = lerp(1, i.lightModifier * saturate(i.lightModifier) * 0.5, _OverbrightProtection);
 	}
-	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness;
+	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness * attenuation;
 	[branch] if (_Unlit == 1) {
 		lightColor = float3(0, 0, 0);
+	}
+	[flatten] if (isBackFace == 1/* && _BackFaceShadowed == 0*/) {
+		color.rgb *= _BackFaceTint;
 	}
     
     color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv.xy);
@@ -550,6 +658,12 @@ float4 frag3(VertexOutput i) : COLOR
     #endif
 	color.rgb = gammaCorrect(color.rgb);
 	color = blendColor(color, _ColorMask_var.b);
+	
+	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
+		[branch] if (_Dither) {
+			clip (dither(color.a, i.pos));
+		}
+	#endif
     
     // Lighting
     float _AmbientLight = 0.8;
@@ -583,7 +697,7 @@ float4 frag3(VertexOutput i) : COLOR
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-    return float4(lightColor, _AlphaOverride) * color * LIGHT_ATTENUATION(i);
+    return float4(lightColor, _AlphaOverride) * color * getAttenuation(i) * getShadowAttenuation(i);
     //return float4(_LightColor0.rgb, _AlphaOverride) * color;
 }
 
@@ -597,6 +711,12 @@ float4 frag5(VertexOutput i) : COLOR
     #endif
 	color.rgb = gammaCorrect(color.rgb);
 	color = blendColor(color, _ColorMask_var.b);
+	
+	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
+		[branch] if (_Dither) {
+			clip (dither(color.a, i.pos));
+		}
+	#endif
     
     // Lighting
 	float lightModifier = 1;
@@ -630,7 +750,7 @@ float4 frag5(VertexOutput i) : COLOR
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
-    return float4(lightColor, _AlphaOverride) * color * LIGHT_ATTENUATION(i);
+    return float4(lightColor, _AlphaOverride) * color * getAttenuation(i) * getShadowAttenuation(i);
     //return float4(_LightColor0.rgb, _AlphaOverride) * color;
 }
 
@@ -638,6 +758,7 @@ float4 frag5(VertexOutput i) : COLOR
 void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
+	UNITY_INITIALIZE_OUTPUT(VertexOutput, o);
 	for (int ii = 0; ii < 3; ii++)
 	{
 		o.pos = UnityObjectToClipPos(IN[ii].vertex);
@@ -658,14 +779,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         o.lightModifier = IN[ii].lightModifier;
 
 		// Pass-through the shadow coordinates if this pass has shadows.
-		#if defined (SHADOWS_SCREEN) || ( defined (SHADOWS_DEPTH) && defined (SPOT) ) || defined (SHADOWS_CUBE)
-			o._ShadowCoord = IN[ii]._ShadowCoord;
-		#endif
-
-		// Pass-through the light coordinates if this pass has shadows.
-		#if defined (POINT) || defined (SPOT) || defined (POINT_COOKIE) || defined (DIRECTIONAL_COOKIE)
-			o._LightCoord = IN[ii]._LightCoord;
-		#endif
+		SYN_TRANSFER_SHADOW(IN[ii], o)
 
 		// Pass-through the fog coordinates if this pass has shadows.
 		#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)
@@ -686,6 +800,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
+	UNITY_INITIALIZE_OUTPUT(VertexOutput, o);
 	for (int ii = 0; ii < 3; ii++)
 	{
 		[branch] if (_OutlineMode == 2) {
@@ -712,14 +827,7 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         o.lightModifier = IN[ii].lightModifier;
 
 		// Pass-through the shadow coordinates if this pass has shadows.
-		#if defined (SHADOWS_SCREEN) || ( defined (SHADOWS_DEPTH) && defined (SPOT) ) || defined (SHADOWS_CUBE)
-			o._ShadowCoord = IN[ii]._ShadowCoord;
-		#endif
-
-		// Pass-through the light coordinates if this pass has shadows.
-		#if defined (POINT) || defined (SPOT) || defined (POINT_COOKIE) || defined (DIRECTIONAL_COOKIE)
-			o._LightCoord = IN[ii]._LightCoord;
-		#endif
+		SYN_TRANSFER_SHADOW(IN[ii], o)
 
 		// Pass-through the fog coordinates if this pass has shadows.
 		#if defined(FOG_LINEAR) || defined(FOG_EXP) || defined(FOG_EXP2)

@@ -4,6 +4,48 @@
 #define GET_LIGHTDIR(p,l) normalize(lerp(l.xyz, l.xyz - p.xyz, l.w))
 #define DIR_IS_ZERO(i, t) (abs(i.x + i.y + i.z) < t)
 
+// Modified versions of Unity macros, designed to allow shadows to be moved within geometry functions unaltered
+#if defined(HANDLE_SHADOWS_BLENDING_IN_GI)
+	#define SYN_TRANSFER_SHADOW(src, dest) dest._ShadowCoord = src._ShadowCoord;
+#elif defined(SHADOWS_SCREEN) && !defined(LIGHTMAP_ON) && !defined(UNITY_NO_SCREENSPACE_SHADOWS)
+	#define SYN_TRANSFER_SHADOW(src, dest) dest._ShadowCoord = src._ShadowCoord;
+#else
+	#if defined(SHADOWS_SHADOWMASK)
+		#define SYN_TRANSFER_SHADOW(src, dest) dest._ShadowCoord = src._ShadowCoord;
+	#else
+		#define SYN_TRANSFER_SHADOW(src, dest)
+	#endif
+#endif
+
+// Modified versions of Unity macros, designed to separate shadow attenuation and light attenuation
+#ifdef POINT
+#define SYN_LIGHT_ATTENUATION(destName, worldPos) \
+    unityShadowCoord3 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xyz; \
+    fixed destName = tex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL;
+#endif
+
+#ifdef SPOT
+#define SYN_LIGHT_ATTENUATION(destName, worldPos) \
+    unityShadowCoord4 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)); \
+    fixed destName = (lightCoord.z > 0) * UnitySpotCookie(lightCoord) * UnitySpotAttenuate(lightCoord.xyz);
+#endif
+
+#ifdef DIRECTIONAL
+    #define SYN_LIGHT_ATTENUATION(destName, worldPos) fixed destName = 1.0;
+#endif
+
+#ifdef POINT_COOKIE
+#define SYN_LIGHT_ATTENUATION(destName, worldPos) \
+    unityShadowCoord3 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xyz; \
+    fixed destName = tex2D(_LightTextureB0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL * texCUBE(_LightTexture0, lightCoord).w;
+#endif
+
+#ifdef DIRECTIONAL_COOKIE
+#define SYN_LIGHT_ATTENUATION(destName, worldPos) \
+    unityShadowCoord2 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(worldPos, 1)).xy; \
+    fixed destName = tex2D(_LightTexture0, lightCoord).w;
+#endif
+
 float _LightingHack;
 float _OverrideRealtime;
 float _shadowcast_intensity;
@@ -91,8 +133,8 @@ float GetLightScale(float3 position, float3 normal, float atten) {
 		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
 	}
 	#if defined(IS_OPAQUE)
-		if (_shadowcast_intensity > 0) {
-			lightScale *= lerp(1, atten, _shadowcast_intensity);
+		[branch] if (_shadowcast_intensity > 0) {
+			lightScale *= atten;
 		}
 	#endif
 	return lightScale;

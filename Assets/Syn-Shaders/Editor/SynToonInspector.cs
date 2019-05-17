@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.4.7";
+	static string version = "0.4.5";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -36,6 +36,20 @@ public class SynToonInspector : ShaderGUI {
         None, Level1, Level2
     }
 	
+	/*
+	enum sphereNumsSimple {
+		"2x1", "2x2", "4x2", "4x4", "8x4", "8x8", "3x3", "6x3", "6x6", "5x5"
+	}
+	
+	enum sphereNumsAdditional {
+		2x1, 2x2, 4x2, 4x4, 8x4, 8x8, 3x3, 6x3, 6x6, 5x5, 3x2, 4x3, 5x4, 6x4, 6x5, 8x5, 8x6
+	}
+	
+	static int[] sphereNums = {
+		2, 4, 8, 16, 32, 64, 9, 18, 36, 25, 6, 12, 20, 24, 30, 40, 48
+	}
+	*/
+	
 	enum RenderingMode {
 		Opaque, Cutout, Fade, Multiply, Alphablend, Custom, Refract
 	}
@@ -43,7 +57,7 @@ public class SynToonInspector : ShaderGUI {
 	struct RenderingSettings {
 		public BlendMode srcBlend, dstBlend;
 		public BlendOp operation;
-		public bool zWrite, showShadows, showCutoff, showOverride, showRefract, showTransFix, showCustom;
+		public bool zWrite, showShadows, showCutoff, showOverride, showRefract, showTransFix, showCustom, showDither;
 		
 		public static RenderingSettings[] modes = {
 			new RenderingSettings() {
@@ -56,7 +70,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = false,
 				showRefract = false,
 				showTransFix = false,
-				showCustom = false
+				showCustom = false,
+				showDither = false
 			},
 			new RenderingSettings() {
 				srcBlend = BlendMode.One,
@@ -68,7 +83,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = false,
 				showRefract = false,
 				showTransFix = false,
-				showCustom = false
+				showCustom = false,
+				showDither = true
 			},
 			new RenderingSettings() {
 				srcBlend = BlendMode.SrcAlpha,
@@ -80,7 +96,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = true,
 				showRefract = false,
 				showTransFix = true,
-				showCustom = false
+				showCustom = false,
+				showDither = false
 			},
 			new RenderingSettings() {
 				srcBlend = BlendMode.One,
@@ -92,7 +109,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = true,
 				showRefract = false,
 				showTransFix = true,
-				showCustom = false
+				showCustom = false,
+				showDither = false
 			},
 			new RenderingSettings() {
 				srcBlend = BlendMode.SrcAlpha,
@@ -104,7 +122,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = true,
 				showRefract = false,
 				showTransFix = true,
-				showCustom = false
+				showCustom = false,
+				showDither = false
 			},
 			new RenderingSettings() {
 				srcBlend = BlendMode.SrcAlpha,
@@ -116,7 +135,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = true,
 				showRefract = false,
 				showTransFix = true,
-				showCustom = true
+				showCustom = true,
+				showDither = false
 			},
 			new RenderingSettings() {
 				srcBlend = BlendMode.One,
@@ -128,7 +148,8 @@ public class SynToonInspector : ShaderGUI {
 				showOverride = true,
 				showRefract = true,
 				showTransFix = false,
-				showCustom = false
+				showCustom = false,
+				showDither = false
 			}
 		};
 	}
@@ -367,6 +388,7 @@ public class SynToonInspector : ShaderGUI {
 		EditorGUI.indentLevel += 2;
 		if (renderSettings.showCutoff) DoAlphaCutoff();
 		if (renderSettings.showOverride) DoAlphaOverride();
+		if (renderSettings.showDither) DoDithering();
 		if (renderSettings.showRefract) DoRefract();
 		DoColorMask();
 		EditorGUI.indentLevel -= 2;
@@ -428,6 +450,10 @@ public class SynToonInspector : ShaderGUI {
 	
 	void DoAlphaOverride() {
 		ShaderProperty("_AlphaOverride", "Alpha Override", "Overrides a texture's alpha (useful for very faint textures)");
+	}
+	
+	void DoDithering() {
+		ShaderProperty("_Dither", "Dithering", "Use dithering transparency.  Use Cutoff slider to set cutoff point as usual");
 	}
 	
 	void DoRefract() {
@@ -759,15 +785,17 @@ public class SynToonInspector : ShaderGUI {
 		}
 		if (cullMode.floatValue == 0) {
 			ShaderProperty("_FlipBackfaceNorms");
+			ShaderProperty("_BackFaceTint", "Backface Shade", "Set amount of shade the back face of this material receives.");
 		} else if (cullMode.floatValue == 2) {
 			GUI.enabled = false;
 			EditorGUILayout.Toggle(MakeLabel(FindProperty("_FlipBackfaceNorms")), false);
-			GUI.enabled = true;
+			ShaderProperty("_BackFaceTint", "Backface Shade", "Set amount of shade the back face of this material receives.");
 		} else {
 			GUI.enabled = false;
 			EditorGUILayout.Toggle(MakeLabel(FindProperty("_FlipBackfaceNorms")), true);
-			GUI.enabled = true;
+			ShaderProperty("_BackFaceTint", "Backface Shade", "Set amount of shade the back face of this material receives.");
 		}
+		GUI.enabled = true;
 	}
 	
 	void DoTransFix() {
