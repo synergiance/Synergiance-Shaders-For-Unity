@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.5
+// v0.4.5.1
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -229,30 +229,13 @@ v2g vert(appdata_full v)
     return o;
 }
 
-inline float4 GetDitherPos(float4 vertex, float ditherSize) {
-	// Get the dither pixel position from the screen coordinates.
-	float4 screenPos = ComputeScreenPos(UnityObjectToClipPos(vertex));
-	return float4(screenPos.xy * _ScreenParams.xy / ditherSize, 0, screenPos.w);
-}
-
-inline fixed3 GetDitherColor(fixed3 color, sampler2D ditherTex, sampler2D paletteTex,
-							 float paletteHeight, float4 ditherPos, float colorCount) {
-	// To find the palette color to use for this pixel:
-	//	The row offset decides which row of color squares to use.
-	//	The red component decides which column of color squares to use.
-	//	The green and blue components points to the color in the 16x16 pixel square.
-	float ditherValue = tex2D(ditherTex, ditherPos.xy / ditherPos.w).r;
-	float2 paletteUV = float2(
-		min(floor(color.r * 16), 15) / 16 + clamp(color.b * 16, 0.5, 15.5) / 256,
-		(clamp(color.g * 16, 0.5, 15.5) + floor(ditherValue * colorCount) * 16) / paletteHeight);
-
-	// Return the new color from the palette texture
-	return tex2D(paletteTex, paletteUV).rgb;
-}
-
 float dither(float alpha, float4 clipPos) {
-	float4 screenPos = UNITY_PROJ_COORD(ComputeScreenPos(clipPos));
-	return tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, alpha * 0.9375)).a - 0.01;
+	float clipVal = 1;
+	[branch] if (_Dither) {
+		float4 screenPos = UNITY_PROJ_COORD(ComputeScreenPos(clipPos));
+		clipVal = tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, alpha * 0.9375)).a - 0.01;
+	}
+	return clipVal;
 }
 
 float getAttenuation(VertexOutput i) {
@@ -340,7 +323,7 @@ float3 applySphere(float3 color, float3 view, float3 normal, float2 uv)
 			color *= sphereMul.rgb;
 		} else { // Multiple
 			uint w, h;
-			[branch] switch(_SphereNum) {
+			[flatten] switch(_SphereNum) {
 				case 2:  { w = 2; h = 1; } break;
 				case 4:  { w = 2; h = 2; } break;
 				case 6:  { w = 3; h = 2; } break;
@@ -393,7 +376,7 @@ float3 applyPano(float3 color, float3 view, float4 coord, float2 uv)
 			float2 newcoord = uv + transform / 2;
 			col = tex2D(_PanoFlatTex, newcoord);
 		}
-		if (_PanoUseOverlay) {
+		[branch] if (_PanoUseOverlay) {
 			float4 ocol = tex2D(_PanoOverlayTex, uv);
 			if (_PanoUseAlpha) {
 				col.rgb = lerp(col.rgb, ocol.rgb, ocol.a);
@@ -427,7 +410,7 @@ float3 gammaCorrect(float3 color) {
 
 float4 blendColor(float4 color, float mask) {
     float4 shiftcolor;
-	if (_HueShiftMode) {
+	[branch] if (_HueShiftMode) {
 		float3 colhsv = RGBtoHSV(_Color.rgb);
 		float3 inphsv = RGBtoHSV(color.rgb);
 		inphsv.x = colhsv.x;
@@ -457,9 +440,7 @@ FragmentOutput frag(VertexOutput i)
 	color = blendColor(color, _ColorMask_var.b);
 	
 	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
-		[branch] if (_Dither) {
-			clip (dither(color.a, i.pos));
-		}
+		clip (dither(color.a, i.pos));
 	#endif
 	
 	float4 uvs = selectUVs(i.uv, i.uv1);
@@ -528,7 +509,7 @@ FragmentOutput frag(VertexOutput i)
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    if (_Rainbowing == 1) {
+    [branch] if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
@@ -583,9 +564,7 @@ float4 frag4(VertexOutput i) : COLOR
 	color = blendColor(color, _ColorMask_var.b);
 	
 	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
-		[branch] if (_Dither) {
-			clip (dither(color.a, i.pos));
-		}
+		clip (dither(color.a, i.pos));
 	#endif
 	
 	float4 uvs = selectUVs(i.uv, i.uv1);
@@ -621,7 +600,7 @@ float4 frag4(VertexOutput i) : COLOR
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    if (_Rainbowing == 1) {
+    [branch] if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
 		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
@@ -660,9 +639,7 @@ float4 frag3(VertexOutput i) : COLOR
 	color = blendColor(color, _ColorMask_var.b);
 	
 	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
-		[branch] if (_Dither) {
-			clip (dither(color.a, i.pos));
-		}
+		clip (dither(color.a, i.pos));
 	#endif
     
     // Lighting
@@ -685,7 +662,7 @@ float4 frag3(VertexOutput i) : COLOR
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    if (_Rainbowing == 1) {
+    [branch] if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
     }
@@ -713,9 +690,7 @@ float4 frag5(VertexOutput i) : COLOR
 	color = blendColor(color, _ColorMask_var.b);
 	
 	#if defined(_ALPHATEST_ON) && !defined(_ALPHABLEND_ON)
-		[branch] if (_Dither) {
-			clip (dither(color.a, i.pos));
-		}
+		clip (dither(color.a, i.pos));
 	#endif
     
     // Lighting
@@ -734,7 +709,7 @@ float4 frag5(VertexOutput i) : COLOR
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    if (_Rainbowing == 1) {
+    [branch] if (_Rainbowing == 1) {
 		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
 		color.rgb = hueShift(color.rgb, maskcolor.rgb);
     }

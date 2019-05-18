@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.5";
+	static string version = "0.4.5.1";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -594,7 +594,7 @@ public class SynToonInspector : ShaderGUI {
 		EditorGUI.indentLevel += 2;
 		ShaderProperty("_ShadowRampDirection");
 		EditorGUI.indentLevel -= 2;
-		editor.TexturePropertySingleLine(MakeLabel("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), FindProperty("_ShadowTexture"), FindProperty("_ShadowUV"));
+		editor.TexturePropertySingleLine(MakeLabel("Shadow Texture", "(RGB) This is an atlas for what toon ramp to use"), FindProperty("_ShadowTexture"), FindProperty("_ShadowUV"));
 		EditorGUI.indentLevel += 2;
 	}
 	

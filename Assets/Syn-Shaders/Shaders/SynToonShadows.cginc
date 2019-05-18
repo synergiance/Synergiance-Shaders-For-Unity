@@ -55,10 +55,12 @@ half4 frag (FragmentInput i) : SV_TARGET {
 		float dither = tex3D(_DitherMaskLOD, float3(i.vpos.xy * 0.25, alpha * 0.9375)).a;
 		clip (dither - 0.01);
 	#elif defined(_ALPHATEST_ON)
-		if (_Dither) {
+		float clipVal = 1;
+		[branch] if (_Dither) {
 			float dither = tex3D(_DitherMaskLOD, float3(i.vpos.xy * 0.25, alpha * 0.9375)).a;
-			clip (dither - 0.01);
+			clipVal = dither - 0.01;
 		}
+		clip(clipVal);
 	#endif
 	
 	#if defined(SHADOWS_CUBE)
