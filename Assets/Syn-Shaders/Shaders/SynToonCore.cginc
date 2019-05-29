@@ -79,7 +79,6 @@ float _HueShiftMode;
 float _PanoUseOverlay;
 float _PanoUseAlpha;
 float _Dither;
-float _Flatten;
 
 sampler3D _DitherMaskLOD;
 
