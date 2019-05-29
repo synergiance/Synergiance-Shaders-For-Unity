@@ -531,6 +531,7 @@ FragmentOutput frag(VertexOutput i)
     
     // Combining
 	UNITY_APPLY_FOG(i.fogCoord, color);
+	bright.rgb = max(bright.rgb, 0);
 	FragmentOutput output;
 	#if defined(DEFERRED_PASS)
 		output.gBuffer0.rgb = color.rgb;
@@ -548,6 +549,7 @@ FragmentOutput frag(VertexOutput i)
 		#if defined(REFRACTION)
 			output.color = float4(lerp(refractGrab(normalDirection, i.pos, viewDirection) + specular + emissive, output.color.rgb, output.color.a), 1);
 		#endif
+		output.color.a = clamp(output.color.a, 0, 1);
 	#endif
 	return output;
 }
@@ -621,15 +623,14 @@ float4 frag4(VertexOutput i) : COLOR
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
 	bright.rgb = max(bright.rgb, 0);
+	float4 retCol = 0;
 	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
-		float4 retCol = float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
-		retCol.a = clamp(retCol.a, 0, 1);
-		return retCol;
+		retCol = float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
 	} else {
-		float4 retCol = float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
-		retCol.a = clamp(retCol.a, 0, 1);
-		return retCol;
+		retCol = float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
 	}
+	retCol.a = clamp(retCol.a, 0, 1);
+	return retCol;
 }
 
 float4 frag3(VertexOutput i) : COLOR
