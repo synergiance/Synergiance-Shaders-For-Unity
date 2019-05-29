@@ -79,6 +79,7 @@ float _HueShiftMode;
 float _PanoUseOverlay;
 float _PanoUseAlpha;
 float _Dither;
+float _Flatten;
 
 sampler3D _DitherMaskLOD;
 
@@ -620,10 +621,15 @@ float4 frag4(VertexOutput i) : COLOR
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
+	bright.rgb = max(bright.rgb, 0);
 	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
-		return float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
+		float4 retCol = float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
+		retCol.a = clamp(retCol.a, 0, 1);
+		return retCol;
 	} else {
-		return float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
+		float4 retCol = float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
+		retCol.a = clamp(retCol.a, 0, 1);
+		return retCol;
 	}
 }
 
