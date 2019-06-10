@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.5.1";
+	static string version = "0.4.5.2";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -159,6 +159,8 @@ public class SynToonInspector : ShaderGUI {
 	MaterialProperty[] properties;
 	RenderingSettings renderSettings;
 	
+	bool fMain = true, fOptions = false, fEffects = false, fAdvanced = false, fStencil = false;
+	
 	static GUIContent staticLabel = new GUIContent();
 	static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
 	
@@ -172,6 +174,16 @@ public class SynToonInspector : ShaderGUI {
 		staticLabel.text = property.displayName;
 		staticLabel.tooltip = tooltip;
 		return staticLabel;
+	}
+	
+	bool BoldFoldout(bool foldout, GUIContent content) {
+		GUIStyle BFstyle = EditorStyles.foldout;
+		BFstyle.fontStyle = FontStyle.Bold;
+		return EditorGUILayout.Foldout(foldout, content, BFstyle);
+	}
+	
+	bool BoldFoldout(bool foldout, string content) {
+		return BoldFoldout(foldout, MakeLabel(content));
 	}
 	
 	MaterialProperty FindProperty(string name) {
@@ -381,27 +393,29 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoMain() {
-		GUILayout.Label("Main Maps", EditorStyles.boldLabel);
+		fMain = BoldFoldout(fMain, "Main Maps");
 		
-		MaterialProperty mainTex = FindProperty("_MainTex");
-		editor.TexturePropertySingleLine(MakeLabel(mainTex, "Main Color Texture (RGB)"), mainTex, FindProperty("_Color"));
-		EditorGUI.indentLevel += 2;
-		if (renderSettings.showCutoff) DoAlphaCutoff();
-		if (renderSettings.showOverride) DoAlphaOverride();
-		if (renderSettings.showDither) DoDithering();
-		if (renderSettings.showRefract) DoRefract();
-		DoColorMask();
-		EditorGUI.indentLevel -= 2;
-		//DoMetallic();
-		//DoSmoothness();
-		DoNormals();
-		DoOcclusion();
-		DoSpecular();
-		DoEmission();
-		DoRainbow();
-		//DoDetailMask();
-		editor.TextureScaleOffsetProperty(mainTex);
-		DoBrightnessSaturation();
+		if (fMain) {
+			MaterialProperty mainTex = FindProperty("_MainTex");
+			editor.TexturePropertySingleLine(MakeLabel(mainTex, "Main Color Texture (RGB)"), mainTex, FindProperty("_Color"));
+			EditorGUI.indentLevel += 2;
+			if (renderSettings.showCutoff) DoAlphaCutoff();
+			if (renderSettings.showOverride) DoAlphaOverride();
+			if (renderSettings.showDither) DoDithering();
+			if (renderSettings.showRefract) DoRefract();
+			DoColorMask();
+			EditorGUI.indentLevel -= 2;
+			//DoMetallic();
+			//DoSmoothness();
+			DoNormals();
+			DoOcclusion();
+			DoSpecular();
+			DoEmission();
+			DoRainbow();
+			//DoDetailMask();
+			editor.TextureScaleOffsetProperty(mainTex);
+			DoBrightnessSaturation();
+		}
 	}
 	
 	void DoSecondary() {
@@ -410,38 +424,44 @@ public class SynToonInspector : ShaderGUI {
 	
 	void DoOptions() {
 		EditorGUILayout.Space();
-		GUILayout.Label("Options", EditorStyles.boldLabel);
+		fOptions = BoldFoldout(fOptions, "Options");
 		
-		DoShadows();
-		EditorGUILayout.Space();
-		DoOutline();
-		EditorGUILayout.Space();
-		DoSpheres();
+		if (fOptions) {
+			DoShadows();
+			EditorGUILayout.Space();
+			DoOutline();
+			EditorGUILayout.Space();
+			DoSpheres();
+		}
 	}
 	
 	void DoEffects() {
 		EditorGUILayout.Space();
-		GUILayout.Label("Effects", EditorStyles.boldLabel);
+		fEffects = BoldFoldout(fEffects, "Effects");
 		
-		DoPano();
+		if (fEffects) {
+			DoPano();
+		}
 	}
 	
 	void DoAdvanced() {
 		EditorGUILayout.Space();
-		GUILayout.Label("Advanced Options", EditorStyles.boldLabel);
+		fAdvanced = BoldFoldout(fAdvanced, "Advanced Options");
 		
-		editor.RenderQueueField();
-		DoDoubleSided();
-		DoTransFix();
-		DoLightingHack();
-		DoReflectionProbes();
-		DoCastShadows();
-		
-		ShaderProperty("_HueShiftMode", "HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost");
-		ShaderProperty("_OverbrightProtection", "Overbright Protection", "Protects against overbright worlds");
-		ShaderProperty("_CorrectionLevel", "Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray.");
-		
-		DoBatchDisable();
+		if (fAdvanced) {
+			editor.RenderQueueField();
+			DoDoubleSided();
+			DoTransFix();
+			DoLightingHack();
+			DoReflectionProbes();
+			DoCastShadows();
+			
+			ShaderProperty("_HueShiftMode", "HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost");
+			ShaderProperty("_OverbrightProtection", "Overbright Protection", "Protects against overbright worlds");
+			ShaderProperty("_CorrectionLevel", "Gamma Correction", "Use if your colors seem washed out, or your blacks appear gray.");
+			
+			DoBatchDisable();
+		}
 	}
 	
 	void DoAlphaCutoff() {
@@ -894,16 +914,18 @@ public class SynToonInspector : ShaderGUI {
 	
 	void DoStencil() {
 		EditorGUILayout.Space();
-		GUILayout.Label("Stencil Options", EditorStyles.boldLabel);
+		fStencil = BoldFoldout(fStencil, "Stencil Options");
 		
-		ShaderProperty("_stencilcolormask");
-		ShaderProperty("_Stencil");
-		ShaderProperty("_StencilComp");
-		ShaderProperty("_StencilOp");
-		ShaderProperty("_StencilFail");
-		ShaderProperty("_StencilZFail");
-		ShaderProperty("_ZTest");
-		ShaderProperty("_ZWrite");
+		if (fStencil) {
+			ShaderProperty("_stencilcolormask");
+			ShaderProperty("_Stencil");
+			ShaderProperty("_StencilComp");
+			ShaderProperty("_StencilOp");
+			ShaderProperty("_StencilFail");
+			ShaderProperty("_StencilZFail");
+			ShaderProperty("_ZTest");
+			ShaderProperty("_ZWrite");
+		}
 	}
 	
 	void DoCustom() {

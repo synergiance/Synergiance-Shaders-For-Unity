@@ -1,5 +1,8 @@
 Change Log
 
+0.4.5.2:
+Allow interface to collapse
+
 0.4.5.1:
 Fixed AMD crash
 
