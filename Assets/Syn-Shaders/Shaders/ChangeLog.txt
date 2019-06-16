@@ -1,7 +1,9 @@
 Change Log
 
 0.4.5.2:
+Lighting sanity check implemented
 Allow interface to collapse
+Fix slight bug in the editor where switching to transparent wouldn't actually make the material transparent
 
 0.4.5.1:
 Fixed AMD crash

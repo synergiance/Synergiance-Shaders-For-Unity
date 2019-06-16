@@ -154,6 +154,7 @@ Material:
     - _ReadMask: 255
     - _SaturationBoost: 0
     - _ShadeEmission: 0
+    - _ShadowAmbAdd: 0
     - _ShadowAmbient: 0.8
     - _ShadowIntensity: 0.1
     - _ShadowMode: 1
@@ -191,7 +192,7 @@ Material:
     - _stencilcolormask: 15
     m_Colors:
     - _BackFaceTint: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 0.372}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _EmissionPulseColor: {r: 0, g: 0, b: 0, a: 1}
     - _LightColor: {r: 1, g: 1, b: 1, a: 1}

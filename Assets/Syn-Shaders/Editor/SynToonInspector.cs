@@ -374,6 +374,7 @@ public class SynToonInspector : ShaderGUI {
 		
 		EditorGUI.BeginChangeCheck();
 		mode = (RenderingMode)EditorGUILayout.EnumPopup(MakeLabel("Rendering Mode"), mode);
+		renderSettings = RenderingSettings.modes[(int)mode];
 		if (EditorGUI.EndChangeCheck()) {
 			RecordAction("Rendering Mode");
 			SetKeyword("_ALPHATEST_ON", mode == RenderingMode.Cutout);
@@ -387,7 +388,6 @@ public class SynToonInspector : ShaderGUI {
 				SetupMaterialShaderSelect(m);
 			}
 		}
-		renderSettings = RenderingSettings.modes[(int)mode];
 		
 		EditorGUI.showMixedValue = false;
 	}
@@ -945,6 +945,8 @@ public class SynToonInspector : ShaderGUI {
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
             case OutlineMode.Normal:
+                shaderName += "-Outline";
+                break;
             case OutlineMode.Screenspace:
                 shaderName += "-Outline";
                 break;
@@ -957,8 +959,23 @@ public class SynToonInspector : ShaderGUI {
                 shaderName += "/Cutout";
                 break;
             case RenderingMode.Fade:
+                shaderName += "/Transparent";
+                if (transFix > 0) shaderName += "Fix";
+                if (transFix > 1) shaderName += "2";
+                if (doubleSided) shaderName += "DS";
+                break;
             case RenderingMode.Multiply:
+                shaderName += "/Transparent";
+                if (transFix > 0) shaderName += "Fix";
+                if (transFix > 1) shaderName += "2";
+                if (doubleSided) shaderName += "DS";
+                break;
             case RenderingMode.Alphablend:
+                shaderName += "/Transparent";
+                if (transFix > 0) shaderName += "Fix";
+                if (transFix > 1) shaderName += "2";
+                if (doubleSided) shaderName += "DS";
+                break;
             case RenderingMode.Custom:
                 shaderName += "/Transparent";
                 if (transFix > 0) shaderName += "Fix";

@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.5.1
+// v0.4.5.2
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
