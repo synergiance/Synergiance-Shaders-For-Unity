@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.5.2";
+	static string version = "0.4.5.3";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -945,8 +945,6 @@ public class SynToonInspector : ShaderGUI {
         switch ((OutlineMode)material.GetFloat("_OutlineMode"))
         {
             case OutlineMode.Normal:
-                shaderName += "-Outline";
-                break;
             case OutlineMode.Screenspace:
                 shaderName += "-Outline";
                 break;
@@ -959,23 +957,8 @@ public class SynToonInspector : ShaderGUI {
                 shaderName += "/Cutout";
                 break;
             case RenderingMode.Fade:
-                shaderName += "/Transparent";
-                if (transFix > 0) shaderName += "Fix";
-                if (transFix > 1) shaderName += "2";
-                if (doubleSided) shaderName += "DS";
-                break;
             case RenderingMode.Multiply:
-                shaderName += "/Transparent";
-                if (transFix > 0) shaderName += "Fix";
-                if (transFix > 1) shaderName += "2";
-                if (doubleSided) shaderName += "DS";
-                break;
             case RenderingMode.Alphablend:
-                shaderName += "/Transparent";
-                if (transFix > 0) shaderName += "Fix";
-                if (transFix > 1) shaderName += "2";
-                if (doubleSided) shaderName += "DS";
-                break;
             case RenderingMode.Custom:
                 shaderName += "/Transparent";
                 if (transFix > 0) shaderName += "Fix";
