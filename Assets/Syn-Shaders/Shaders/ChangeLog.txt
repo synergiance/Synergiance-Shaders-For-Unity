@@ -1,5 +1,8 @@
 Change Log
 
+0.4.5.3:
+Remove added duplicate code I added while trying to fix the bug last update
+
 0.4.5.2:
 Lighting sanity check implemented
 Allow interface to collapse
