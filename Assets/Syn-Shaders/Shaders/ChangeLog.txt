@@ -1,5 +1,9 @@
 Change Log
 
+0.4.5.4:
+Added option under panosphere effect to apply the effect to emission
+Updated Unity to 2017.4.28f1
+
 0.4.5.3:
 Remove added duplicate code I added while trying to fix the bug last update
 
