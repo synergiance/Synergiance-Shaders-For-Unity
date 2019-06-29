@@ -4,8 +4,8 @@ Shader "Synergiance/Toon-Outline/TransparentFix2"
 {
 	Properties
 	{
-		_MainTex("Main Texture", 2D) = "white" {}
-		_Color("Color", Color) = (1,1,1,1)
+		[HDR]_MainTex("Main Texture", 2D) = "white" {}
+		[HDR]_Color("Color", Color) = (1,1,1,1)
 		_ColorMask("ColorMask", 2D) = "black" {}
         _RainbowMask ("Rainbow Mask", 2D) = "white" {}
         _Speed("Speed", Range(0,10)) = 3
@@ -76,6 +76,7 @@ Shader "Synergiance/Toon-Outline/TransparentFix2"
 		[Toggle(_)] _OverrideRealtime("Override Realtime Lights", Float) = 0
 		[Toggle(_)] _PanoUseOverlay("Overlay", Float) = 0
 		[Toggle(_)] _PanoUseAlpha("Use Alpha Channel", Float) = 0
+		[Toggle(_)] _PanoEmission("Panosphere On Emission", Float) = 0
 		[Toggle(_)] _Dither("Dithered Transparency", Float) = 0
 
 		// Blending state

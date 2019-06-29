@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.5.3";
+	static string version = "0.4.5.4";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -773,6 +773,7 @@ public class SynToonInspector : ShaderGUI {
 		editor.TexturePropertySingleLine(MakeLabel("Overlay Texture", flavor), FindProperty(prop), FindProperty("_OverlayBlendMode"));
 		EditorGUI.indentLevel += 2;
 		ShaderProperty("_PanoBlend", "Blend", "Mix between normal albedo and Overlay");
+		/*if (FindProperty("_EmissionMap").textureValue)*/ ShaderProperty("_PanoEmission", "Apply to Emission", "Apply this pano effect to the emission");
 		Vec2Prop(MakeLabel(op1 + " Speed", op2 + " the overlay texture (Set to 0 to turn off)"), FindProperty("_PanoRotationSpeedX"), FindProperty("_PanoRotationSpeedY"));
 		EditorGUI.indentLevel -= 2;
 	}

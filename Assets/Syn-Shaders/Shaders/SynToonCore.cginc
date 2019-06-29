@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.4.5.3
+// v0.4.5.4
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -78,6 +78,7 @@ float _CullMode;
 float _HueShiftMode;
 float _PanoUseOverlay;
 float _PanoUseAlpha;
+float _PanoEmission;
 float _Dither;
 
 sampler3D _DitherMaskLOD;
@@ -502,6 +503,9 @@ FragmentOutput frag(VertexOutput i)
     
     // Secondary Effects
     color.rgb = applyPano(color.rgb, viewDirection, i.pos, i.uv.xy);
+	[branch] if (_PanoEmission == 1) {
+		emissive = applyPano(emissive, viewDirection, i.pos, i.uv.xy);
+	}
     
     // Primary effects
     // Saturation boost
