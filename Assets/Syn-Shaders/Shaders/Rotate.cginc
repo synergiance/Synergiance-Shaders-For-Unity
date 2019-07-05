@@ -1,8 +1,10 @@
 float3 RotatePointAroundOrigin(float3 input, float2 angles) {
     // float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
-    float2 a = float2(cos(angles.y), sin(angles.y));
+	float2 sn, cs;
+	sincos(angles, sn, cs);
+    float2 a = float2(cs.y, sn.y);
     float2 b = float2(a.y * -1, a.x);
-    float2 c = float2(cos(angles.x), sin(angles.x));
+    float2 c = float2(cs.x, sn.x);
     float3 d = float3(c.x * a.x, a.y, c.y * a.x);
     float3 e = float3(c.x * b.x, b.y, c.y * b.x);
     float3 f = normalize(cross(d, e));
@@ -11,12 +13,24 @@ float3 RotatePointAroundOrigin(float3 input, float2 angles) {
     return float3(h);
 }
 
-float3 RotatePointAroundAxis(float3 input, float3 axis, float angle) {
+float3x3 GetRotationMatrixAxis(float3 axis, float angle) {
 	float3 n = normalize(axis);
 	// 3D matrix formula from axis and angle
-	float3 a = float3(cos(angle) + n.x * n.x * (1 - cos(angle)), n.x * n.y * (1 - cos(angle)) - n.z * sin(angle), n.x * n.z * (1 - cos(angle)) + n.y * sin(angle));
-	float3 b = float3(n.x * n.y * (1 - cos(angle)) + n.z * sin(angle), cos(angle) + n.y * n.y * (1 - cos(angle)), n.y * n.z * (1 - cos(angle)) - n.x * sin(angle));
-	float3 c = float3(n.x * n.z * (1 - cos(angle)) - n.y * sin(angle), n.y * n.z * (1 - cos(angle)) + n.x * sin(angle), cos(angle) + n.z * n.z * (1 - cos(angle)));
-	float3x3 r = float3x3(a, b, c);
-	return mul(input, r);
+	float cs, sn;
+	sincos(angle, sn, cs);
+	float om = 1 - cs;
+	float xx = n.x * n.x;
+	float yy = n.y * n.y;
+	float zz = n.z * n.z;
+	float xy = n.x * n.y;
+	float xz = n.x * n.z;
+	float yz = n.y * n.z;
+	float3 a = float3(cs + xx * om, xy * om - n.z * sn, xz * om + n.y * sn);
+	float3 b = float3(xy * om + n.z * sn, cs + yy * om, yz * om - n.x * sn);
+	float3 c = float3(xz * om - n.y * sn, yz * om + n.x * sn, cs + zz * om);
+	return float3x3(a, b, c);
+}
+
+float3 RotatePointAroundAxis(float3 input, float3 axis, float angle) {
+	return mul(input, GetRotationMatrixAxis(axis, angle));
 }

@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.5.4";
+	static string version = "0.4.6b4";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -159,7 +159,7 @@ public class SynToonInspector : ShaderGUI {
 	MaterialProperty[] properties;
 	RenderingSettings renderSettings;
 	
-	bool fMain = true, fOptions = false, fEffects = false, fAdvanced = false, fStencil = false;
+	bool fMain = true, fOptions = false, fEffects = false, fAdvanced = false, fStencil = false, fCustom = false;
 	
 	static GUIContent staticLabel = new GUIContent();
 	static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
@@ -238,6 +238,10 @@ public class SynToonInspector : ShaderGUI {
 			m.SetFloat(property, setTo);
 			editor.PropertiesChanged();
 		}
+	}
+	
+	void MakeGradientEditor(MaterialProperty property, GUIContent display) {
+		//
 	}
 	
 	void ShaderProperty(string enumName) {
@@ -411,7 +415,6 @@ public class SynToonInspector : ShaderGUI {
 			DoOcclusion();
 			DoSpecular();
 			DoEmission();
-			DoRainbow();
 			//DoDetailMask();
 			editor.TextureScaleOffsetProperty(mainTex);
 			DoBrightnessSaturation();
@@ -441,6 +444,8 @@ public class SynToonInspector : ShaderGUI {
 		
 		if (fEffects) {
 			DoPano();
+			EditorGUILayout.Space();
+			DoRainbow();
 		}
 	}
 	
@@ -498,11 +503,39 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoRainbow() {
-		EditorGUI.indentLevel += 2;
-		ShaderProperty("_Rainbowing", "Rainbow", "Rainbow Mask (RGB) with Rainbow Speed");
-		EditorGUI.indentLevel -= 2;
-		if (FindProperty("_Rainbowing").floatValue == 1) editor.TexturePropertySingleLine(MakeLabel("Rainbow Mask", "Rainbow Mask (RGB) with Rainbow Speed"), FindProperty("_RainbowMask"), FindProperty("_Speed"));
-		
+		MaterialProperty rainbowing = FindProperty("_Rainbowing");
+		editor.ShaderProperty(rainbowing, MakeLabel("Color Change", "Color changing"));
+		if (rainbowing.floatValue >= 1) {
+			MaterialProperty colChangeMode = FindProperty("_ColChangeMode");
+			MaterialProperty colChangeEffect = FindProperty("_ColChangeEffect");
+			MaterialProperty colChangeGeomEffect = FindProperty("_ColChangeGeomEffect");
+			MaterialProperty colChangeSteps = FindProperty("_ColChangeSteps");
+			MaterialProperty rainbowMask = FindProperty("_RainbowMask");
+			if (colChangeGeomEffect.floatValue == 0) {
+				editor.TexturePropertySingleLine(MakeLabel("Color Change Speed", "Color Change Mask (RGB) with Speed Setting"), rainbowMask, FindProperty("_Speed"));
+				EditorGUI.indentLevel += 2;
+			} else {
+				EditorGUI.indentLevel += 2;
+				ShaderProperty("_Speed", "Color Change Speed");
+			}
+			editor.ShaderProperty(colChangeSteps, MakeLabel("Steps", "Number of steps, 0 is smooth"));
+			editor.ShaderProperty(colChangeMode, MakeLabel("Color Mode"));
+			if (colChangeSteps.floatValue > 0) {
+				editor.ShaderProperty(colChangeEffect, MakeLabel("Color Effect"));
+				if (!rainbowMask.textureValue) editor.ShaderProperty(colChangeGeomEffect, MakeLabel("Geometry Effect"));
+				if (colChangeEffect.floatValue > 0 || colChangeGeomEffect.floatValue > 0) {
+					ShaderProperty("_ColChangePercent", "Change Time", "Time it takes to change color in percent, whether its a color effect or geometry effect");
+				}
+			}
+			ShaderProperty("_ColChangeDirection", "Direction", "The direction that the wave will occur");
+			if (colChangeMode.floatValue == 1) {
+				MaterialProperty colChangeCustomRamp = FindProperty("_ColChangeCustomRamp");
+				editor.ShaderProperty(colChangeCustomRamp, MakeLabel("Custom Ramp Texture", "Use a texture instead of the gradient editor"));
+				if (colChangeCustomRamp.floatValue == 1) editor.TexturePropertySingleLine(MakeLabel("Ramp Texture"), FindProperty("_ColChangeRamp"));
+				else MakeGradientEditor(FindProperty("_ColChangeRamp"), MakeLabel("Ramp Gradient"));
+			}
+			EditorGUI.indentLevel -= 2;
+		}
 	}
 	
 	void DoEmission() {
@@ -931,11 +964,13 @@ public class SynToonInspector : ShaderGUI {
 	
 	void DoCustom() {
 		EditorGUILayout.Space();
-		GUILayout.Label("Blending Options", EditorStyles.boldLabel);
+		fCustom = BoldFoldout(fCustom, "Blending Options");
 		
-		ShaderProperty("_SrcBlend");
-		ShaderProperty("_DstBlend");
-		ShaderProperty("_BlendOp");
+		if (fCustom) {
+			ShaderProperty("_SrcBlend");
+			ShaderProperty("_DstBlend");
+			ShaderProperty("_BlendOp");
+		}
 	}
 
     void SetupMaterialShaderSelect(Material material)

@@ -65,6 +65,14 @@ Shader "Synergiance/Toon/Cutout"
 		_OverbrightProtection("Overbright Protection", Range(0, 1)) = 0
 		_BackFaceTint("Backface Tint", Color) = (1, 1, 1, 1)
 		
+		_ColChangePercent("Color Change Time", Range(0, 1)) = 0.25
+		[Enum(Rainbow,0,Gradient,1)]_ColChangeMode("Color Change Mode", Float) = 0
+		[Toggle(_)]_ColChangeCustomRamp("Custom Color Texture", Float) = 0
+		[HDR]_ColChangeRamp("Custom Color Ramp Texture", 2D) = "red" {}
+		[IntRange]_ColChangeSteps("Color Change Steps", Range(0, 1000)) = 0
+		[Enum(None,0,UV,1,Height,2,View Distance,3)]_ColChangeDirection("Color Change Direction", Float) = 0
+		[Enum(None,0,Fade,1,FadeThrough,2,Oversaturate,3)]_ColChangeEffect("Color Change Effect", Float) = 1
+		[Enum(None,0,Flip,1,Shrink,2,Twist,3,Flyout,4,Flyin,5)]_ColChangeGeomEffect("Color Change Geometry Effect", Float) = 0
 		[Enum(None,0,Full,1,Emission Only,2)] _Rainbowing("Rainbow", Float) = 0
 		[Enum(Regular Lighting,0,Unlit,1,Unlit Outline,2)] _Unlit("Light Mode", Float) = 0
 		[Toggle(_)] _PulseEmission("Pulse Emission", Float) = 0

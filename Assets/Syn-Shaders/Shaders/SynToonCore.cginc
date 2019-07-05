@@ -1,7 +1,12 @@
 // SynToon by Synergiance
-// v0.4.5.4
+// v0.4.6b4
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
+
+#define PI 3.14159
+#define ONEOVERPI 0.31831
+#define IDENTITYMATRIX float3x3(float3(1,0,0),float3(0,1,0),float3(0,0,1))
+#define NOZERO(x) (x == 0 ? 0.000001 : x)
 
 #include "UnityPBSLighting.cginc"
 #include "AutoLight.cginc"
@@ -63,6 +68,14 @@ float _ProbeStrength;
 float _ProbeClarity;
 float3 _BackFaceTint;
 float _BackFaceShadowed;
+float _ColChangeSteps;
+float _ColChangeEffect;
+float _ColChangeGeomEffect;
+float _ColChangeDirection;
+float _ColChangeMode;
+float _ColChangeCustomRamp;
+Texture2D _ColChangeRamp;
+float _ColChangePercent;
 
 float _OutlineMode;
 float _OutlineColorMode;
@@ -100,11 +113,9 @@ struct v2g
     fixed3 direct : COLOR1;
     fixed3 indirect : COLOR2;
     float4 posWorld : TEXCOORD2;
-    float3 normalDir : TEXCOORD3;
-    float3 tangentDir : TEXCOORD4;
-    float3 bitangentDir : TEXCOORD5;
-    float3 reflectionMap : TEXCOORD9;
-    float lightModifier : TEXCOORD10;
+    float4 tangent : TEXCOORD3;
+    float3 reflectionMap : TEXCOORD4;
+    float2 lightModifier : TEXCOORD5;
 	float4 pos : CLIP_POS;
 	UNITY_SHADOW_COORDS(6)
 	UNITY_FOG_COORDS(7)
@@ -118,7 +129,7 @@ struct VertexOutput
 	float4 pos : SV_POSITION;
 	float4 uv : TEXCOORD0;
 	float4 uv1 : TEXCOORD1;
-    float3 normal : NORMAL;
+    //float3 normal : NORMAL;
     fixed4 amb : COLOR0; //
     fixed3 direct : COLOR1; //
     fixed3 indirect : COLOR2; //
@@ -128,6 +139,7 @@ struct VertexOutput
 	float3 bitangentDir : TEXCOORD5;
     float3 reflectionMap : TEXCOORD9; //
     float lightModifier : TEXCOORD10; //
+	float4 offsets : TEXCOORD11;
 	float4 col : COLOR3;
 	bool is_outline : IS_OUTLINE;
 	UNITY_SHADOW_COORDS(6)
@@ -153,11 +165,19 @@ float grayscaleSH9(float3 normalDirection)
     return dot(ShadeSH9(half4(normalDirection, 1.0)), grayscale_vector);
 }
 
+float genRainbowOffset() {
+	return _Time[1] * _Speed * _Speed * _Speed;
+}
+
+float rand(float x, float y){
+	return frac(sin(x*12.8927 + y*77.343)*44257.8944);
+}
+
 // Rainbowing Effect
-float3 hueShift(float3 col, float3 mask)
+float3 hueShift(float3 col, float3 mask, float offset)
 {
     float3 newc = col;
-    newc = float3(applyHue(newc, _Time[1] * _Speed * _Speed * _Speed));
+    newc = float3(applyHue(newc, offset));
     newc = float3((newc * mask) + (col * (1 - mask)));
     return newc;
 }
@@ -185,13 +205,11 @@ v2g vert(appdata_full v)
 	UNITY_INITIALIZE_OUTPUT(v2g, o);
 	o.pos = UnityObjectToClipPos(v.vertex);
     o.normal = v.normal;
-    o.normalDir = normalize(UnityObjectToWorldNormal(v.normal));
     float3 lcHSV = RGBtoHSV(_LightColor.rgb);
     o.amb = lerp(_LightColor0, float4(HSVtoRGB(float3(lcHSV.xy, RGBtoHSV(_LightColor0.rgb).z)), _LightColor0.z), _LightOverride);
     o.direct = ShadeSH9(half4(0.0, 1.0, 0.0, 1.0));
     o.indirect = ShadeSH9(half4(0.0, -1.0, 0.0, 1.0));
-    o.tangentDir = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz);
-    o.bitangentDir = normalize(cross(o.normalDir, o.tangentDir) * v.tangent.w);
+    o.tangent = v.tangent;
     o.posWorld = mul(unity_ObjectToWorld, v.vertex);
     o.vertex = v.vertex;
     o.uv.xy = TRANSFORM_TEX(v.texcoord, _MainTex);
@@ -211,10 +229,11 @@ v2g vert(appdata_full v)
 		float3 lightColor = o.direct + o.amb.rgb * 2 + o.reflectionMap;
 		float brightness = lightColor.r * 0.3 + lightColor.g * 0.59 + lightColor.b * 0.11;
 		float correctedBrightness = -1 / (brightness * 2 + 1) + 1 + brightness * 0.1;
-		o.lightModifier = correctedBrightness / brightness;
+		o.lightModifier.x = correctedBrightness / brightness;
 	} else {
-		o.lightModifier = 1;
+		o.lightModifier.x = 1;
 	}
+	o.lightModifier.y = genRainbowOffset();
 	
 	float4 uvShadow = float4(o.uv.xy, selectUVs(o.uv, o.uv1).xy);
 	#if defined(VERTEXLIGHT_ON)
@@ -424,6 +443,67 @@ float4 blendColor(float4 color, float mask) {
     return lerp(shiftcolor.rgba, color.rgba, mask);
 }
 
+float calcColChangeScale(float offset) {
+	return offset / _ColChangeSteps;
+}
+
+float calcColorDirectionOffset(float offset, float2 uv, float3 posWorld) {
+	[branch] switch(_ColChangeDirection) {
+		case 1: offset += calcColChangeScale(uv.x); break;
+		case 2: offset += calcColChangeScale(posWorld.y); break;
+		case 3: offset += calcColChangeScale(distance(_WorldSpaceCameraPos, posWorld)); break;
+	}
+	return offset;
+}
+
+float calcColorOffset(float offset, float timing, inout float percent, inout float2 floorOff) {
+	[branch] if (_ColChangeSteps > 0) {
+		float3 offsets;
+		offsets.x = offset;
+		offsets.x *= 0.00277778; // 1 / 360
+		offsets.x *= _ColChangeSteps;
+		offsets.y = floor(offsets.x);
+		offsets.z = offsets.y;
+		[branch] if (_ColChangeEffect > 0 || _ColChangeGeomEffect > 0) {
+			percent = offsets.x - offsets.y;
+			[branch] if (_ColChangeEffect == 0) {
+				offsets.x = offsets.y + step(timing, percent);
+			} else {
+				offsets.x = offsets.y + smoothstep(1 - _ColChangePercent, 1, percent);
+			}
+		} else {
+			offsets.x = offsets.y;
+		}
+		offsets /= _ColChangeSteps;
+		offsets *= 360;
+		offset = offsets.x;
+		floorOff = offsets.yz;
+	}
+	return offset;
+}
+
+float3 calcColorChange(float3 color, VertexOutput i) {
+	float offset = i.offsets.x;
+	float percent = i.offsets.y;
+	float2 floorOff = i.offsets.zw;
+	[branch] if (_ColChangeEffect > 1) {
+		float timing = 1 - _ColChangePercent * 0.5;
+		float relative = smoothstep(timing, 1, percent) + smoothstep(1 - timing, _ColChangePercent, 1 - percent);
+		offset = percent > timing ? floorOff.y : floorOff.x;
+		color = hueShift(color, _RainbowMask.Sample(sampler_MainTex, i.uv.xy).rgb, offset);
+		/*
+		[branch] if (_ColChangeEffect == 2) {
+			//
+		} else {
+			//
+		}
+		*/
+	} else {
+		color = hueShift(color, _RainbowMask.Sample(sampler_MainTex, i.uv.xy).rgb, offset);
+	}
+	return color;
+}
+
 FragmentOutput frag(VertexOutput i)
 {
     // Variables
@@ -460,7 +540,7 @@ FragmentOutput frag(VertexOutput i)
     float4 bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
-		lightModifier = lerp(1, (i.lightModifier + 1) * 0.5, _OverbrightProtection);
+		lightModifier = lerp(1, (i.lightModifier.x + 1) * 0.5, _OverbrightProtection);
 	}
 	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
 	float3 ambient = float3(0, 0, 0);
@@ -513,11 +593,15 @@ FragmentOutput frag(VertexOutput i)
     hsvcol.y *= 1 + _SaturationBoost;
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
-    [branch] if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
-		color.rgb = hueShift(color.rgb, maskcolor.rgb);
-		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
-		emissive = hueShift(emissive, maskcolor.rgb);
+    [branch] switch(_Rainbowing) {
+		case 1:
+			color.rgb = calcColorChange(color.rgb, i);
+			bright.rgb = calcColorChange(bright.rgb, i);
+			emissive = calcColorChange(emissive, i);
+			break;
+		case 2:
+			emissive = calcColorChange(emissive, i);
+			break;
     }
 
     // Outline
@@ -589,7 +673,7 @@ float4 frag4(VertexOutput i) : COLOR
     bright.rgb *= tex2D(_OcclusionMap, i.uv.xy).r;
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
-		lightModifier = lerp(1, i.lightModifier * saturate(i.lightModifier) * 0.5, _OverbrightProtection);
+		lightModifier = lerp(1, i.lightModifier.x * saturate(i.lightModifier.x) * 0.5, _OverbrightProtection);
 	}
 	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness * attenuation;
 	[branch] if (_Unlit == 1) {
@@ -607,9 +691,8 @@ float4 frag4(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     [branch] if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
-		color.rgb = hueShift(color.rgb, maskcolor.rgb);
-		bright.rgb = hueShift(bright.rgb, maskcolor.rgb);
+		color.rgb = calcColorChange(color.rgb, i);
+		bright.rgb = calcColorChange(bright.rgb, i);
     }
 
     // Outline
@@ -656,7 +739,7 @@ float4 frag3(VertexOutput i) : COLOR
     float _AmbientLight = 0.8;
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
-		lightModifier = lerp(1, (i.lightModifier + 1) * 0.5, _OverbrightProtection);
+		lightModifier = lerp(1, (i.lightModifier.x + 1) * 0.5, _OverbrightProtection);
 	}
 	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
 	#ifdef LIGHTMAP_ON
@@ -673,8 +756,7 @@ float4 frag3(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     [branch] if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
-		color.rgb = hueShift(color.rgb, maskcolor.rgb);
+		color.rgb = calcColorChange(color.rgb, i);
     }
     
     // Secondary Effects
@@ -706,7 +788,7 @@ float4 frag5(VertexOutput i) : COLOR
     // Lighting
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
-		lightModifier = lerp(1, i.lightModifier * saturate(i.lightModifier) * 0.5, _OverbrightProtection);
+		lightModifier = lerp(1, i.lightModifier.x * saturate(i.lightModifier.x) * 0.5, _OverbrightProtection);
 	}
 	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness;
 	[branch] if ((_Unlit == 1) || (_Unlit == 2)) {
@@ -720,8 +802,7 @@ float4 frag5(VertexOutput i) : COLOR
     color.rgb = HSVtoRGB(hsvcol);
     // Rainbow
     [branch] if (_Rainbowing == 1) {
-		float4 maskcolor = _RainbowMask.Sample(sampler_MainTex, i.uv.xy);
-		color.rgb = hueShift(color.rgb, maskcolor.rgb);
+		color.rgb = calcColorChange(color.rgb, i);
     }
     
     // Secondary Effects
@@ -744,24 +825,95 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutput, o);
+	float4 averagePosition = mul(unity_ObjectToWorld, (IN[0].vertex + IN[1].vertex + IN[2].vertex) / 3);
+	float3 averageNormalDirection = UnityObjectToWorldNormal(normalize(IN[0].normal + IN[1].normal + IN[2].normal));
+	float4 averageTangentDirection = float4(normalize(mul(unity_ObjectToWorld, float4(normalize(IN[0].tangent.xyz + IN[1].tangent.xyz + IN[2].tangent.xyz), 0.0)).xyz), (IN[0].tangent.w + IN[1].tangent.w + IN[2].tangent.w) / 3);
+	float3 averageBitangentDirection = normalize(cross(averageNormalDirection, averageTangentDirection.xyz) * averageTangentDirection.w);
+	float size = (distance(IN[0].vertex, IN[1].vertex) + distance(IN[1].vertex, IN[2].vertex) + distance(IN[2].vertex, IN[0].vertex)) * 0.5;
+	float2 uv = (IN[0].uv.xy + IN[1].uv.xy + IN[2].uv.xy) / 3;
+	float timing = 1 - _ColChangePercent;
+	float3 rotationAxis = float3(0,0,0);
+	float3x3 rotationMatrix = IDENTITYMATRIX;
+	[branch] if (_ColChangeGeomEffect == 1) {
+		float3 viewDirection = normalize(_WorldSpaceCameraPos - averagePosition.xyz);
+		[branch] switch (_ColChangeDirection) {
+			case 0: // None
+				float rNum = rand(uv.x, uv.y) * 62.831853;
+				rotationAxis = RotatePointAroundAxis(averageTangentDirection.xyz, averageNormalDirection, rNum);
+				break;
+			case 1: // UV
+				rotationAxis = averageTangentDirection.xyz;
+				break;
+			case 2: // Height
+				rotationAxis = normalize(cross(averageNormalDirection, float3(0, 1, 0)));
+				break;
+			case 3: // View Distance
+				rotationAxis = normalize(cross(averageNormalDirection, viewDirection));
+				break;
+		}
+		float3 locBitangent = normalize(cross(rotationAxis, averageNormalDirection));
+		float3 triangleSpaceView = normalize(mul(float3x3(averageNormalDirection, locBitangent, rotationAxis), viewDirection));
+		float location = atan(triangleSpaceView.y / NOZERO(triangleSpaceView.x)) * ONEOVERPI + 0.5;
+		timing = lerp(1 - _ColChangePercent, 1, smoothstep(0, 1, saturate(location)));
+	}
+	[branch] if (_ColChangeGeomEffect > 2) {
+		timing = 1 - _ColChangePercent * 0.5;
+	}
+	float percent = 0;
+	float relative = 0;
+	float2 floorOff = float2(0, 0);
+	float offset = calcColorOffset(IN[0].lightModifier.y, timing, percent, floorOff);
+	[branch] if (_ColChangeGeomEffect > 0) offset = calcColorDirectionOffset(offset, uv, averagePosition.xyz);
+	[branch] if (_ColChangeGeomEffect == 1) {
+		float position = smoothstep(1 - _ColChangePercent, 1, percent);
+		float rotationAngle = (percent >= timing ? position - 1 : position) * PI;
+		rotationMatrix = GetRotationMatrixAxis(rotationAxis, rotationAngle);
+	}
+	[branch] if (_ColChangeGeomEffect == 2) {
+		rotationMatrix = GetRotationMatrixAxis(averageNormalDirection, smoothstep(1 - _ColChangePercent, 1, percent) * PI * 2);
+	}
+	[branch] if (_ColChangeGeomEffect > 2) relative = smoothstep(timing, 1, percent) + smoothstep(1 - timing, _ColChangePercent, 1 - percent);
 	for (int ii = 0; ii < 3; ii++)
 	{
-		o.pos = UnityObjectToClipPos(IN[ii].vertex);
+		float4 newVert = mul(unity_ObjectToWorld, IN[ii].vertex);
+		float3 newNormal = UnityObjectToWorldNormal(IN[ii].normal);
+		float3 newTangent = normalize(mul(unity_ObjectToWorld, float4(IN[ii].tangent.xyz, 0.0)).xyz);
+		[branch] switch (_ColChangeGeomEffect) {
+			case 1: // Flip
+			case 2: // Twist
+				newVert.xyz = mul(rotationMatrix, newVert.xyz - averagePosition.xyz) + averagePosition.xyz;
+				newNormal = mul(rotationMatrix, newNormal);
+				newTangent = mul(rotationMatrix, newTangent);
+				break;
+			case 3: // Shrink
+				newVert = lerp(averagePosition, newVert, relative);
+				break;
+			case 4: // Flyout
+				newVert = lerp(newVert + float4(averageNormalDirection * size, 0), newVert, relative);
+				break;
+			case 5: // Flyin
+				newVert = lerp(newVert - float4(averageNormalDirection * size, 0), newVert, relative);
+				break;
+			default:
+				offset = calcColorDirectionOffset(offset, uv, newVert);
+				break;
+		}
+		o.pos = UnityWorldToClipPos(newVert.xyz);
 		o.uv = IN[ii].uv;
 		o.uv1 = IN[ii].uv1;
 		o.col = fixed4(1., 1., 1., 0.);
-		o.posWorld = mul(unity_ObjectToWorld, IN[ii].vertex);
-		o.normalDir = UnityObjectToWorldNormal(IN[ii].normal);
-		o.tangentDir = IN[ii].tangentDir;
-		o.bitangentDir = IN[ii].bitangentDir;
+		o.posWorld = newVert;
+		o.normalDir = newNormal;
+		o.tangentDir = newTangent;
+		o.bitangentDir = normalize(cross(newNormal, newTangent) * IN[ii].tangent.w);
 		o.is_outline = false;
-        o.normal = IN[ii].normal;
         
         o.amb = IN[ii].amb;
         o.direct = IN[ii].direct;
         o.indirect = IN[ii].indirect;
         o.reflectionMap = IN[ii].reflectionMap;
-        o.lightModifier = IN[ii].lightModifier;
+        o.lightModifier = IN[ii].lightModifier.x;
+		o.offsets = float4(offset, percent, floorOff);
 
 		// Pass-through the shadow coordinates if this pass has shadows.
 		SYN_TRANSFER_SHADOW(IN[ii], o)
@@ -800,16 +952,16 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		o.col = fixed4( _outline_color.r, _outline_color.g, _outline_color.b, 1);
 		o.posWorld = mul(unity_ObjectToWorld, IN[ii].vertex);
 		o.normalDir = UnityObjectToWorldNormal(IN[ii].normal);
-		o.tangentDir = IN[ii].tangentDir;
-		o.bitangentDir = IN[ii].bitangentDir;
+		o.tangentDir = normalize(mul(unity_ObjectToWorld, float4(IN[ii].tangent.xyz, 0.0)).xyz);
+		o.bitangentDir = normalize(cross(o.normalDir, o.tangentDir) * IN[ii].tangent.w);
 		o.is_outline = false;
-        o.normal = IN[ii].normal;
         
         o.amb = IN[ii].amb;
         o.direct = IN[ii].direct;
         o.indirect = IN[ii].indirect;
         o.reflectionMap = IN[ii].reflectionMap;
-        o.lightModifier = IN[ii].lightModifier;
+        o.lightModifier = IN[ii].lightModifier.x;
+		o.offsets = float4(0, 0, 0, 0);
 
 		// Pass-through the shadow coordinates if this pass has shadows.
 		SYN_TRANSFER_SHADOW(IN[ii], o)
