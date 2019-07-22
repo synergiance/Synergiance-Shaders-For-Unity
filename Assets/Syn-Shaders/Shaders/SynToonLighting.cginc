@@ -58,6 +58,15 @@ float4 _ShadowTint;
 float _shadow_coverage;
 float _shadow_feather;
 float _ShadowIntensity;
+float _SSIntensity;
+float _SSDistortion;
+float _SSPower;
+
+struct SynLighting {
+	float3 lightDir;
+	float noScale;
+	float attenOverride;
+};
 
 float3 BoxProjection(float3 direction, float3 position, float4 cubemapPosition, float3 boxMin, float3 boxMax) {
 	#if UNITY_SPECCUBE_BOX_PROJECTION
@@ -101,12 +110,66 @@ float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 li
 	return specular;
 }
 
-float GetLightScale(float3 position, float3 normal, float atten) {
+// Work on this!
+// half3 probeLightDir = unity_SHAr.xyz + unity_SHAg.xyz + unity_SHAb.xyz;
+// if(length(unity_SHAr.xyz*unity_SHAr.w + unity_SHAg.xyz*unity_SHAg.w + unity_SHAb.xyz*unity_SHAb.w) == 0)
+
+SynLighting GetLightDirection(float3 position) {
+	bool isZero = DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01);
+	SynLighting lightVar;
+	lightVar.lightDir = float3(0, 0, 0);
+	lightVar.noScale = 0;
+	lightVar.attenOverride = isZero ? 1 : 0;
+	[branch] switch (_LightingHack) {
+		case 1:  //  World Static Light: Places light at a specific vector relative to the world.
+			lightVar.lightDir = normalize(_StaticToonLight.rgb - position);
+			break;
+		case 2:  //  Local Static Light: Places light at a specific vector relative to the model.
+			lightVar.lightDir = normalize(_StaticToonLight.rgb);
+			break;
+//		case 3:  //  Object Static Light: Places light at a specific vector relative to the model in object space.
+//			break;
+		default: //  Normal lighting
+			[branch] if (!isZero) {
+				lightVar.lightDir = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
+			} else {
+				lightVar.noScale = 1;
+			}
+			break;
+	}
+	[branch] if (_LightingHack > 0) {
+		[branch] if (_OverrideRealtime) {
+			lightVar.attenOverride = 1;
+		} else {
+			if (!isZero) {
+				lightVar.lightDir = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
+			} else {
+				lightVar.noScale = 1;
+			}
+		}
+	}
+	return lightVar;
+}
+
+float GetLightScale(SynLighting lightVar, float3 normal, float atten) {
+	float lightScale = 1;
+	[branch] if (!lightVar.noScale) {
+		lightScale = dot(normal, lightVar.lightDir) * 0.5 + 0.5;
+	}
+	#if defined(IS_OPAQUE)
+		[branch] if (_shadowcast_intensity > 0 && !lightVar.attenOverride) {
+			lightScale *= atten;
+		}
+	#endif
+	return lightScale;
+}
+
+float4 GetLightScaleDirection(float3 position, float3 normal, float atten) {
 	float lightScale = 1;
 	float3 lightDirection = float3(0, 0, 0);
 	[branch] if (_LightingHack == 2) { //         Local Static Light: Places light at a specific vector relative to the model.
 		lightDirection = normalize(_StaticToonLight.rgb);
-	} else if (_LightingHack == 1) { //  World Static Light: Places light at a specific vector relative to the world.
+	} else [branch] if (_LightingHack == 1) { //  World Static Light: Places light at a specific vector relative to the world.
 		lightDirection = normalize(_StaticToonLight.rgb - position);
 	//} else if (_LightingHack == 3) { // Object Static Light: Places light at a specific vector relative to the model in object space.
 	} else { //                          Normal lighting
@@ -118,7 +181,7 @@ float GetLightScale(float3 position, float3 normal, float atten) {
 		}
 	}
 	[branch] if (_LightingHack > 0) {
-		if (!_OverrideRealtime) {
+		[branch] if (!_OverrideRealtime) {
 			[branch] if (!DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
 				lightDirection = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
 			} else {
@@ -137,7 +200,7 @@ float GetLightScale(float3 position, float3 normal, float atten) {
 			lightScale *= atten;
 		}
 	#endif
-	return lightScale;
+	return float4(lightDirection, lightScale);
 }
 
 float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
@@ -172,9 +235,9 @@ float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
 			{
 				lightScale *= tex2Dlod(_OcclusionMap, uv).r;
 				[branch] if (_ShadowRampDirection) { // Horizontal
-					bright.rgb = tex2Dlod(_ShadowRamp, float4(lightScale * tex2Dlod(_OcclusionMap, uv).r, LinearToGammaSpace(tex2Dlod(_ShadowTexture, uv1)).r, 0, 0)).rgb;
+					bright.rgb = tex2Dlod(_ShadowRamp, float4(lightScale * tex2Dlod(_OcclusionMap, uv).r, clamp(LinearToGammaSpace(tex2Dlod(_ShadowTexture, uv1)).r, 0.01, 0.99), 0, 0)).rgb;
 				} else { // Vertical
-					bright.rgb = tex2Dlod(_ShadowRamp, float4(LinearToGammaSpace(tex2Dlod(_ShadowTexture, uv1)).r, lightScale * tex2Dlod(_OcclusionMap, uv).r, 0, 0)).rgb;
+					bright.rgb = tex2Dlod(_ShadowRamp, float4(clamp(LinearToGammaSpace(tex2Dlod(_ShadowTexture, uv1)).r, 0.01, 0.99), lightScale * tex2Dlod(_OcclusionMap, uv).r, 0, 0)).rgb;
 				}
 			}
 			break;
@@ -191,11 +254,16 @@ float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
 	return bright;
 }
 
+float CalcScattering(float3 lightDir, float3 normalDir, float3 viewDir) {
+	float3 halfDir = normalize(lightDir + normalDir * _SSDistortion);
+	return pow(saturate(dot(viewDir, -halfDir)), _SSPower);
+}
+
 float4 calcShadow(float3 position, float3 normal, float atten, float4 uvs, float3 color)
 {// Generate the shadow based on the light direction
 	float4 bright = float4(1.0, 1.0, 1.0, 1.0);
 	[branch] if (_ShadowMode > 0) {
-		float lightScale = GetLightScale(position, normal, atten);
+		float lightScale = GetLightScale(GetLightDirection(position), normal, atten);
 		bright = GetStyledShadow(lightScale, uvs, color);
 	}
 	return bright;

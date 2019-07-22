@@ -64,6 +64,10 @@ Shader "Synergiance/Toon-Outline/Refraction"
 		_IndexofRefraction("Index of Refraction", Range( -3 , 4)) = 1
 		_OverbrightProtection("Overbright Protection", Range(0, 1)) = 0
 		_BackFaceTint("Backface Tint", Color) = (1, 1, 1, 1)
+		_SSIntensity("Subsurface Scattering", Range(0, 1)) = 0
+		_SSDistortion("Subsurface Distortion", Range(0, 1)) = 0
+		_SSPower("Subsurface Lighting Power", Float) = 20
+		_SSThickness("Subsurface Thickness Map", 2D) = "white" {}
 		
 		_ColChangePercent("Color Change Time", Range(0, 1)) = 0.25
 		[Enum(Rainbow,0,Gradient,1)]_ColChangeMode("Color Change Mode", Float) = 0

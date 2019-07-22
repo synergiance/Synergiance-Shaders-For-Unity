@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.6b4";
+	static string version = "0.4.6b5";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -460,6 +460,7 @@ public class SynToonInspector : ShaderGUI {
 			DoLightingHack();
 			DoReflectionProbes();
 			DoCastShadows();
+			DoSubsurface();
 			
 			ShaderProperty("_HueShiftMode", "HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost");
 			ShaderProperty("_OverbrightProtection", "Overbright Protection", "Protects against overbright worlds");
@@ -924,6 +925,18 @@ public class SynToonInspector : ShaderGUI {
 			GUI.enabled = false;
 			ShaderProperty("_shadowcast_intensity", "Shadow Intensity", "This is how much other objects affect your shadow");
 			GUI.enabled = true;
+		}
+	}
+	
+	void DoSubsurface() {
+		MaterialProperty intensity = FindProperty("_SSIntensity");
+		editor.ShaderProperty(intensity, MakeLabel("Subsurface Scattering", "Subsurface scattering intensity.  Drag right to reveal more options"));
+		if (intensity.floatValue > 0) {
+			EditorGUI.indentLevel += 1;
+			ShaderProperty("_SSDistortion", "Distortion", "Light distortion for subsurface scattering effect.");
+			ShaderProperty("_SSPower", "Power", "How wide is the effect");
+			ShaderProperty("_SSThickness", "Thickness Map", "This is how thick the object is");
+			EditorGUI.indentLevel -= 1;
 		}
 	}
 	

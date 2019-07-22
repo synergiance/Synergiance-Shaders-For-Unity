@@ -77,6 +77,8 @@ float _ColChangeCustomRamp;
 Texture2D _ColChangeRamp;
 float _ColChangePercent;
 
+Texture2D _SSThickness;
+
 float _OutlineMode;
 float _OutlineColorMode;
 
@@ -537,12 +539,24 @@ FragmentOutput frag(VertexOutput i)
 	fixed shadowAtten = getShadowAttenuation(i) * occlusion;
     float _AmbientLight = 0.8;
     //float3 directLighting = (saturate(i.direct + i.reflectionMap + i.amb.rgb) + i.amb.rgb) / 2;
-    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
 		lightModifier = lerp(1, (i.lightModifier.x + 1) * 0.5, _OverbrightProtection);
 	}
 	float3 lightColor = saturate((lerp(0.0, i.direct, _AmbientLight ) + i.amb.rgb + i.reflectionMap) * lightModifier) * _Brightness;
+	float4 bright = float4(1,1,1,1);
+	float3 subsurface = float3(0,0,0);
+	[branch] if (_ShadowMode > 0 || _SSIntensity > 0) {
+		SynLighting lightVar = GetLightDirection(i.posWorld.xyz);
+		[branch] if (_ShadowMode > 0) {
+			bright = GetStyledShadow(GetLightScale(lightVar, normalDirection, shadowAtten), uvShadow, color.rgb);
+			//bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
+		}
+		[branch] if (_SSIntensity > 0) {
+			float thickness = _SSThickness.Sample(sampler_MainTex, i.uv.xy).r;
+			subsurface = max(CalcScattering(lightVar.lightDir, normalDirection, viewDirection) * _SSIntensity * thickness * lightColor, 0);
+		}
+	}
 	float3 ambient = float3(0, 0, 0);
 	#ifdef LIGHTMAP_ON
 		ambient += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1.xy));
@@ -630,10 +644,11 @@ FragmentOutput frag(VertexOutput i)
 		output.gBuffer3 = float4(emissive, 1);
 	#else
 		[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
-			output.color = float4(lightColor + ambient, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(emissive + specular, 0);
+			output.color = float4(lightColor + ambient, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a);
 		} else {
-			output.color = float4(bright.rgb * lightColor + ambient, _AlphaOverride) * color + float4(emissive + specular, 0);
+			output.color = float4(bright.rgb * lightColor + ambient, _AlphaOverride) * color;
 		}
+		output.color += float4(emissive + specular + subsurface, 0);
 		#if defined(REFRACTION)
 			output.color = float4(lerp(refractGrab(normalDirection, i.pos, viewDirection) + specular + emissive, output.color.rgb, output.color.a), 1);
 		#endif
@@ -667,15 +682,27 @@ float4 frag4(VertexOutput i) : COLOR
 	int isBackFace = calcBackFace(i, viewDirection) ? 1 : 0;
 	
 	fixed attenuation = getAttenuation(i);
-	//fixed shadowAtten = lerp(getShadowAttenuation(i), 1.0 - _BackFaceShadowed, isBackFace);
-	fixed shadowAtten = getShadowAttenuation(i);
-    float4 bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
-    bright.rgb *= tex2D(_OcclusionMap, i.uv.xy).r;
 	float lightModifier = 1;
 	[branch] if (_OverbrightProtection > 0) {
 		lightModifier = lerp(1, i.lightModifier.x * saturate(i.lightModifier.x) * 0.5, _OverbrightProtection);
 	}
 	float3 lightColor = saturate(i.amb.rgb * lightModifier) * _Brightness * attenuation;
+	//fixed shadowAtten = lerp(getShadowAttenuation(i), 1.0 - _BackFaceShadowed, isBackFace);
+	fixed shadowAtten = getShadowAttenuation(i);
+	float4 bright = float4(1,1,1,1);
+	float3 subsurface = float3(0,0,0);
+	[branch] if (_ShadowMode > 0 || _SSIntensity > 0) {
+		SynLighting lightVar = GetLightDirection(i.posWorld.xyz);
+		[branch] if (_ShadowMode > 0) {
+			bright = GetStyledShadow(GetLightScale(lightVar, normalDirection, shadowAtten), uvShadow, color.rgb);
+			//bright = calcShadow(i.posWorld.xyz, normalDirection, shadowAtten, uvShadow, color.rgb);
+		}
+		[branch] if (_SSIntensity > 0) {
+			float thickness = _SSThickness.Sample(sampler_MainTex, i.uv.xy).r;
+			subsurface = max(CalcScattering(lightVar.lightDir, normalDirection, viewDirection) * _SSIntensity * thickness * lightColor, 0);
+		}
+	}
+    bright.rgb *= tex2D(_OcclusionMap, i.uv.xy).r;
 	[branch] if (_Unlit == 1) {
 		lightColor = float3(0, 0, 0);
 	}
@@ -714,7 +741,7 @@ float4 frag4(VertexOutput i) : COLOR
 	[branch] if (_ShadowMode == 3 && _ShadowTextureMode == 0) {
 		retCol = float4(lightColor, _AlphaOverride) * float4(lerp(bright.rgb, color.rgb, bright.a), color.a) + float4(specular, 0);
 	} else {
-		retCol = float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular, 0);
+		retCol = float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular + subsurface, 0);
 	}
 	retCol.a = clamp(retCol.a, 0, 1);
 	return retCol;
