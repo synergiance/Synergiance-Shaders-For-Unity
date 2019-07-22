@@ -68,6 +68,8 @@ Shader "Synergiance/Toon/TransparentFix"
 		_SSDistortion("Subsurface Distortion", Range(0, 1)) = 0
 		_SSPower("Subsurface Lighting Power", Float) = 20
 		_SSThickness("Subsurface Thickness Map", 2D) = "white" {}
+		_SSTint("Subsurface Tint", Color) = (1,1,1,1)
+		_SSTintMap("Subsurface Tint Map", 2D) = "white" {}
 		
 		_ColChangePercent("Color Change Time", Range(0, 1)) = 0.25
 		[Enum(Rainbow,0,Gradient,1)]_ColChangeMode("Color Change Mode", Float) = 0

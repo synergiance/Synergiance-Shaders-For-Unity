@@ -446,6 +446,8 @@ public class SynToonInspector : ShaderGUI {
 			DoPano();
 			EditorGUILayout.Space();
 			DoRainbow();
+			EditorGUILayout.Space();
+			DoSubsurface();
 		}
 	}
 	
@@ -460,7 +462,6 @@ public class SynToonInspector : ShaderGUI {
 			DoLightingHack();
 			DoReflectionProbes();
 			DoCastShadows();
-			DoSubsurface();
 			
 			ShaderProperty("_HueShiftMode", "HSB mode", "This will make it so you can change the color of your material completely, but any color variation will be lost");
 			ShaderProperty("_OverbrightProtection", "Overbright Protection", "Protects against overbright worlds");
@@ -930,13 +931,15 @@ public class SynToonInspector : ShaderGUI {
 	
 	void DoSubsurface() {
 		MaterialProperty intensity = FindProperty("_SSIntensity");
-		editor.ShaderProperty(intensity, MakeLabel("Subsurface Scattering", "Subsurface scattering intensity.  Drag right to reveal more options"));
 		if (intensity.floatValue > 0) {
-			EditorGUI.indentLevel += 1;
+			editor.TexturePropertySingleLine(MakeLabel("Subsurface Scattering", "Subsurface scattering intensity.  Use thickness map to the left to control local scattering intensity."), FindProperty("_SSThickness"), intensity);
+			EditorGUI.indentLevel += 2;
 			ShaderProperty("_SSDistortion", "Distortion", "Light distortion for subsurface scattering effect.");
 			ShaderProperty("_SSPower", "Power", "How wide is the effect");
-			ShaderProperty("_SSThickness", "Thickness Map", "This is how thick the object is");
-			EditorGUI.indentLevel -= 1;
+			EditorGUI.indentLevel -= 2;
+			editor.TexturePropertySingleLine(MakeLabel("Subsurface Tint", "Tints the light in the subsurface."), FindProperty("_SSTintMap"), FindProperty("_SSTint"));
+		} else {
+			editor.ShaderProperty(intensity, MakeLabel("Subsurface Scattering", "Subsurface scattering intensity.  Drag right to reveal more options"));
 		}
 	}
 	

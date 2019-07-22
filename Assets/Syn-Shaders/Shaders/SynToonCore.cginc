@@ -78,6 +78,8 @@ Texture2D _ColChangeRamp;
 float _ColChangePercent;
 
 Texture2D _SSThickness;
+Texture2D _SSTintMap;
+float3 _SSTint;
 
 float _OutlineMode;
 float _OutlineColorMode;
@@ -554,7 +556,11 @@ FragmentOutput frag(VertexOutput i)
 		}
 		[branch] if (_SSIntensity > 0) {
 			float thickness = _SSThickness.Sample(sampler_MainTex, i.uv.xy).r;
-			subsurface = max(CalcScattering(lightVar.lightDir, normalDirection, viewDirection) * _SSIntensity * thickness * lightColor, 0);
+			float3 sscolor = _SSTintMap.Sample(sampler_MainTex, i.uv.xy).rgb * _SSTint;
+			[branch] if (_Rainbowing) {
+				sscolor = calcColorChange(sscolor, i);
+			}
+			subsurface = max(CalcScattering(lightVar.lightDir, normalDirection, viewDirection) * _SSIntensity * thickness, 0) * lightColor * sscolor;
 		}
 	}
 	float3 ambient = float3(0, 0, 0);
