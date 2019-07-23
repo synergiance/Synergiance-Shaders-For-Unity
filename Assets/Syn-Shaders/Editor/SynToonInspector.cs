@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.6b5";
+	static string version = "0.4.6b6";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -528,6 +528,7 @@ public class SynToonInspector : ShaderGUI {
 				if (colChangeEffect.floatValue > 0 || colChangeGeomEffect.floatValue > 0) {
 					ShaderProperty("_ColChangePercent", "Change Time", "Time it takes to change color in percent, whether its a color effect or geometry effect");
 				}
+				if (colChangeEffect.floatValue == 2) ShaderProperty("_ColChangeColor", "Color");
 			}
 			ShaderProperty("_ColChangeDirection", "Direction", "The direction that the wave will occur");
 			if (colChangeMode.floatValue == 1) {

@@ -72,6 +72,7 @@ Shader "Synergiance/Toon/TransparentFix"
 		_SSTintMap("Subsurface Tint Map", 2D) = "white" {}
 		
 		_ColChangePercent("Color Change Time", Range(0, 1)) = 0.25
+		_ColChangeColor("Color Change Color", Color) = (1,1,1,1)
 		[Enum(Rainbow,0,Gradient,1)]_ColChangeMode("Color Change Mode", Float) = 0
 		[Toggle(_)]_ColChangeCustomRamp("Custom Color Texture", Float) = 0
 		[HDR]_ColChangeRamp("Custom Color Ramp Texture", 2D) = "red" {}

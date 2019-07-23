@@ -76,6 +76,7 @@ float _ColChangeMode;
 float _ColChangeCustomRamp;
 Texture2D _ColChangeRamp;
 float _ColChangePercent;
+float4 _ColChangeColor;
 
 Texture2D _SSThickness;
 Texture2D _SSTintMap;
@@ -493,15 +494,16 @@ float3 calcColorChange(float3 color, VertexOutput i) {
 	[branch] if (_ColChangeEffect > 1) {
 		float timing = 1 - _ColChangePercent * 0.5;
 		float relative = smoothstep(timing, 1, percent) + smoothstep(1 - timing, _ColChangePercent, 1 - percent);
-		offset = percent > timing ? floorOff.y : floorOff.x;
-		color = hueShift(color, _RainbowMask.Sample(sampler_MainTex, i.uv.xy).rgb, offset);
-		/*
 		[branch] if (_ColChangeEffect == 2) {
-			//
+			offset = percent > timing ? floorOff.y : floorOff.x;
+			color = hueShift(color, _RainbowMask.Sample(sampler_MainTex, i.uv.xy).rgb, offset);
+			color = lerp(color, _ColChangeColor.rgb, (1 - relative) * _ColChangeColor.a);
 		} else {
-			//
+			offset = lerp(floorOff.x, floorOff.y, smoothstep(floorOff.x, floorOff.y, i.offsets.x));
+			color = hueShift(color, _RainbowMask.Sample(sampler_MainTex, i.uv.xy).rgb, offset);
+			float3 intensity = dot(color, float3(0.299,0.587,0.114));
+			color = lerp(intensity, color, (1 - relative) * 50 + 1);
 		}
-		*/
 	} else {
 		color = hueShift(color, _RainbowMask.Sample(sampler_MainTex, i.uv.xy).rgb, offset);
 	}
