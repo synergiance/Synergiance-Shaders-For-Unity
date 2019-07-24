@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.4.6b6";
+	static string version = "0.5.0b7";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -21,7 +21,7 @@ public class SynToonInspector : ShaderGUI {
     }
     
     public enum LightingHack {
-        None, World, Local
+        None, WorldPosition, WorldDirection, LocalDirection
     }
     
     public enum SphereMode {
@@ -892,8 +892,9 @@ public class SynToonInspector : ShaderGUI {
 		}
 		switch (lHack)
 		{
-			case LightingHack.World:
-			case LightingHack.Local:
+			case LightingHack.WorldPosition:
+			case LightingHack.WorldDirection:
+			case LightingHack.LocalDirection:
 				EditorGUI.indentLevel += 2;
 				ShaderProperty("_OverrideRealtime", "Override All", "Override All lights not just directionless lights");
 				Vec3Prop(MakeLabel("Light Coordinate", "Static World Light Position"), FindProperty("_StaticToonLight"));

@@ -1,13 +1,14 @@
 Change Log
 
 
-0.4.6:
+0.5:
 Remove added duplicate code I added while trying to fix the bug last update
 Added option under panosphere effect to apply the effect to emission
 Moved Rainbowing down to effects
 Added new rainbow modes
 Added collapsible interface to blending options
 Added subsurface scattering
+Added local light direction in object space for light override
 Updated Unity to 2017.4.28f1
 
 0.4.5.2:

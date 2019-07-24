@@ -2,7 +2,7 @@
 #define SYN_TOON_LIGHTING
 
 #define GET_LIGHTDIR(p,l) normalize(lerp(l.xyz, l.xyz - p.xyz, l.w))
-#define DIR_IS_ZERO(i, t) (abs(i.x + i.y + i.z) < t)
+#define DIR_IS_ZERO(i, t) (abs(i.x) + abs(i.y) + abs(i.z) < t)
 
 // Modified versions of Unity macros, designed to allow shadows to be moved within geometry functions unaltered
 #if defined(HANDLE_SHADOWS_BLENDING_IN_GI)
@@ -63,7 +63,7 @@ float _SSDistortion;
 float _SSPower;
 
 struct SynLighting {
-	float3 lightDir;
+	half3 lightDir;
 	float noScale;
 	float attenOverride;
 };
@@ -110,14 +110,10 @@ float3 calcSpecular(float3 lightDir, float3 viewDir, float3 normalDir, float3 li
 	return specular;
 }
 
-// Work on this!
-// half3 probeLightDir = unity_SHAr.xyz + unity_SHAg.xyz + unity_SHAb.xyz;
-// if(length(unity_SHAr.xyz*unity_SHAr.w + unity_SHAg.xyz*unity_SHAg.w + unity_SHAb.xyz*unity_SHAb.w) == 0)
-
 SynLighting GetLightDirection(float3 position) {
 	bool isZero = DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01);
 	SynLighting lightVar;
-	lightVar.lightDir = float3(0, 0, 0);
+	lightVar.lightDir = half3(0, 0, 0);
 	lightVar.noScale = 0;
 	lightVar.attenOverride = isZero ? 1 : 0;
 	[branch] switch (_LightingHack) {
@@ -127,8 +123,9 @@ SynLighting GetLightDirection(float3 position) {
 		case 2:  //  Local Static Light: Places light at a specific vector relative to the model.
 			lightVar.lightDir = normalize(_StaticToonLight.rgb);
 			break;
-//		case 3:  //  Object Static Light: Places light at a specific vector relative to the model in object space.
-//			break;
+		case 3:  //  Object Static Light: Places light at a specific vector relative to the model in object space.
+			lightVar.lightDir = normalize(mul(unity_ObjectToWorld, float4(_StaticToonLight.rgb, 0.0)).xyz);
+			break;
 		default: //  Normal lighting
 			[branch] if (!isZero) {
 				lightVar.lightDir = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
@@ -141,9 +138,14 @@ SynLighting GetLightDirection(float3 position) {
 		[branch] if (_OverrideRealtime) {
 			lightVar.attenOverride = 1;
 		} else {
-			if (!isZero) {
+			[branch] if (!isZero) {
 				lightVar.lightDir = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
 			} else {
+				// Xiexe's light probe dominant direction calculation
+				half3 probeLightDir = unity_SHAr.xyz + unity_SHAg.xyz + unity_SHAb.xyz;
+				[flatten] if(!DIR_IS_ZERO(probeLightDir, 0.1)) {
+					lightVar.lightDir = probeLightDir;
+				}
 				lightVar.noScale = 1;
 			}
 		}
@@ -162,45 +164,6 @@ float GetLightScale(SynLighting lightVar, float3 normal, float atten) {
 		}
 	#endif
 	return lightScale;
-}
-
-float4 GetLightScaleDirection(float3 position, float3 normal, float atten) {
-	float lightScale = 1;
-	float3 lightDirection = float3(0, 0, 0);
-	[branch] if (_LightingHack == 2) { //         Local Static Light: Places light at a specific vector relative to the model.
-		lightDirection = normalize(_StaticToonLight.rgb);
-	} else [branch] if (_LightingHack == 1) { //  World Static Light: Places light at a specific vector relative to the world.
-		lightDirection = normalize(_StaticToonLight.rgb - position);
-	//} else if (_LightingHack == 3) { // Object Static Light: Places light at a specific vector relative to the model in object space.
-	} else { //                          Normal lighting
-		[branch] if (!DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
-			lightDirection = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
-			lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
-		} else {
-			atten = 1;
-		}
-	}
-	[branch] if (_LightingHack > 0) {
-		[branch] if (!_OverrideRealtime) {
-			[branch] if (!DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
-				lightDirection = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
-			} else {
-				atten = 1;
-			}
-		} else {
-			atten = 1;
-		}
-		[branch] if (DIR_IS_ZERO(_WorldSpaceLightPos0, 0.01)) {
-			atten = 1;
-		}
-		lightScale = dot(normal, lightDirection) * 0.5 + 0.5;
-	}
-	#if defined(IS_OPAQUE)
-		[branch] if (_shadowcast_intensity > 0) {
-			lightScale *= atten;
-		}
-	#endif
-	return float4(lightDirection, lightScale);
 }
 
 float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
