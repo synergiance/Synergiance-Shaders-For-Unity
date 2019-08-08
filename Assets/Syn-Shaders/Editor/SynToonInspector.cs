@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.5.0b8";
+	static string version = "0.5.0";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
