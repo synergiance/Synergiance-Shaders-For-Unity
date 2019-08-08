@@ -508,7 +508,7 @@ public class SynToonInspector : ShaderGUI {
 		MaterialProperty rainbowing = FindProperty("_Rainbowing");
 		editor.ShaderProperty(rainbowing, MakeLabel("Color Change", "Color changing"));
 		if (rainbowing.floatValue >= 1) {
-			//MaterialProperty colChangeMode = FindProperty("_ColChangeMode");
+			MaterialProperty colChangeMode = FindProperty("_ColChangeMode");
 			MaterialProperty colChangeEffect = FindProperty("_ColChangeEffect");
 			MaterialProperty colChangeGeomEffect = FindProperty("_ColChangeGeomEffect");
 			MaterialProperty colChangeSteps = FindProperty("_ColChangeSteps");
@@ -521,7 +521,7 @@ public class SynToonInspector : ShaderGUI {
 				ShaderProperty("_Speed", "Color Change Speed");
 			}
 			editor.ShaderProperty(colChangeSteps, MakeLabel("Steps", "Number of steps, 0 is smooth"));
-			editor.ShaderProperty(colChangeMode, MakeLabel("Color Mode"));
+			//editor.ShaderProperty(colChangeMode, MakeLabel("Color Mode"));
 			if (colChangeSteps.floatValue > 0) {
 				editor.ShaderProperty(colChangeEffect, MakeLabel("Color Effect"));
 				if (!rainbowMask.textureValue) editor.ShaderProperty(colChangeGeomEffect, MakeLabel("Geometry Effect"));
