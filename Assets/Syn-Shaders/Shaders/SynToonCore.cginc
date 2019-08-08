@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.5.0b7
+// v0.5.8
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -7,6 +7,11 @@
 #define ONEOVERPI 0.31831
 #define IDENTITYMATRIX float3x3(float3(1,0,0),float3(0,1,0),float3(0,0,1))
 #define NOZERO(x) (x == 0 ? 0.000001 : x)
+#if defined(USING_STEREO_MATRICES)
+	#define _WorldSpaceCameraCenterPos ((unity_StereoWorldSpaceCameraPos[0] + unity_StereoWorldSpaceCameraPos[1]) * 0.5)
+#else
+	#define _WorldSpaceCameraCenterPos _WorldSpaceCameraPos
+#endif
 
 #include "UnityPBSLighting.cginc"
 #include "AutoLight.cginc"
@@ -212,7 +217,7 @@ v2g vert(appdata_full v)
     o.normal = v.normal;
     float3 lcHSV = RGBtoHSV(_LightColor.rgb);
     o.amb = lerp(_LightColor0, float4(HSVtoRGB(float3(lcHSV.xy, RGBtoHSV(_LightColor0.rgb).z)), _LightColor0.z), _LightOverride);
-    o.direct = ShadeSH9(half4(0.0, 1.0, 0.0, 1.0));
+    o.direct = ShadeSH9(half4(0.0, 0.0, 0.0, 1.0));
     o.indirect = ShadeSH9(half4(0.0, -1.0, 0.0, 1.0));
     o.tangent = v.tangent;
     o.posWorld = mul(unity_ObjectToWorld, v.vertex);
@@ -660,7 +665,11 @@ FragmentOutput frag(VertexOutput i)
 		#if defined(REFRACTION)
 			output.color = float4(lerp(refractGrab(normalDirection, i.pos, viewDirection) + specular + emissive, output.color.rgb, output.color.a), 1);
 		#endif
-		output.color.a = clamp(output.color.a, 0, 1);
+		#ifdef IS_OPAQUE
+			output.color.a = 1;
+		#else
+			output.color.a = clamp(output.color.a, 0, 1);
+		#endif
 	#endif
 	return output;
 }
@@ -751,7 +760,11 @@ float4 frag4(VertexOutput i) : COLOR
 	} else {
 		retCol = float4(bright.rgb * lightColor, _AlphaOverride) * color + float4(specular + subsurface, 0);
 	}
-	retCol.a = clamp(retCol.a, 0, 1);
+	#ifdef IS_OPAQUE
+		retCol.a = 0;
+	#else
+		retCol.a = clamp(retCol.a, 0, 1);
+	#endif
 	return retCol;
 }
 
@@ -801,6 +814,9 @@ float4 frag3(VertexOutput i) : COLOR
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
+	#ifdef IS_OPAQUE
+		color.a = 1;
+	#endif
     return float4(lightColor, _AlphaOverride) * color * getAttenuation(i) * getShadowAttenuation(i);
     //return float4(_LightColor0.rgb, _AlphaOverride) * color;
 }
@@ -851,6 +867,9 @@ float4 frag5(VertexOutput i) : COLOR
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
+	#ifdef IS_OPAQUE
+		color.a = 0;
+	#endif
     return float4(lightColor, _AlphaOverride) * color * getAttenuation(i) * getShadowAttenuation(i);
     //return float4(_LightColor0.rgb, _AlphaOverride) * color;
 }
@@ -883,7 +902,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 				rotationAxis = normalize(cross(averageNormalDirection, float3(0, 1, 0)));
 				break;
 			case 3: // View Distance
-				rotationAxis = normalize(cross(averageNormalDirection, viewDirection));
+				rotationAxis = normalize(cross(averageNormalDirection, normalize(_WorldSpaceCameraCenterPos - averagePosition.xyz)));
 				break;
 		}
 		float3 locBitangent = normalize(cross(rotationAxis, averageNormalDirection));

@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.5.0b7";
+	static string version = "0.5.0b8";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -508,7 +508,7 @@ public class SynToonInspector : ShaderGUI {
 		MaterialProperty rainbowing = FindProperty("_Rainbowing");
 		editor.ShaderProperty(rainbowing, MakeLabel("Color Change", "Color changing"));
 		if (rainbowing.floatValue >= 1) {
-			MaterialProperty colChangeMode = FindProperty("_ColChangeMode");
+			//MaterialProperty colChangeMode = FindProperty("_ColChangeMode");
 			MaterialProperty colChangeEffect = FindProperty("_ColChangeEffect");
 			MaterialProperty colChangeGeomEffect = FindProperty("_ColChangeGeomEffect");
 			MaterialProperty colChangeSteps = FindProperty("_ColChangeSteps");
@@ -526,11 +526,13 @@ public class SynToonInspector : ShaderGUI {
 				editor.ShaderProperty(colChangeEffect, MakeLabel("Color Effect"));
 				if (!rainbowMask.textureValue) editor.ShaderProperty(colChangeGeomEffect, MakeLabel("Geometry Effect"));
 				if (colChangeEffect.floatValue > 0 || colChangeGeomEffect.floatValue > 0) {
+					EditorGUILayout.HelpBox("Color change effects are currently incomplete.  They will function, but will be improved in a later version.", MessageType.Info);
 					ShaderProperty("_ColChangePercent", "Change Time", "Time it takes to change color in percent, whether its a color effect or geometry effect");
 				}
 				if (colChangeEffect.floatValue == 2) ShaderProperty("_ColChangeColor", "Color");
 			}
 			ShaderProperty("_ColChangeDirection", "Direction", "The direction that the wave will occur");
+			colChangeMode.floatValue = 0;
 			if (colChangeMode.floatValue == 1) {
 				MaterialProperty colChangeCustomRamp = FindProperty("_ColChangeCustomRamp");
 				editor.ShaderProperty(colChangeCustomRamp, MakeLabel("Custom Ramp Texture", "Use a texture instead of the gradient editor"));
