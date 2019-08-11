@@ -158,7 +158,7 @@ Shader "Synergiance/Toon-Outline/Transparent"
 			Name "OUTLINE"
             
             //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend]
+            Blend [_SrcBlend] [_DstBlend], Zero One
             ZWrite [_ZWrite]
             Cull Front
             
@@ -191,7 +191,7 @@ Shader "Synergiance/Toon-Outline/Transparent"
 			Name "OUTLINE_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
             //Blend SrcAlpha One
-			Blend [_SrcBlend] One
+			Blend [_SrcBlend] One, Zero One
             Cull Front
 
 			CGPROGRAM

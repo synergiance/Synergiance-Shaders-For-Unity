@@ -155,7 +155,7 @@ Shader "Synergiance/Toon/Transparent"
 			Name "FORWARD"
             
             //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend]
+            Blend [_SrcBlend] [_DstBlend], Zero One
             ZWrite [_ZWrite]
             
 			Tags
@@ -187,7 +187,7 @@ Shader "Synergiance/Toon/Transparent"
 			Name "FORWARD_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
             //Blend SrcAlpha One
-			Blend [_SrcBlend] One
+			Blend [_SrcBlend] One, Zero One
 
 			CGPROGRAM
             #pragma shader_feature _ALPHATEST_ON

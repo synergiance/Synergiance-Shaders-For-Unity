@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.5.0
+// v0.5.1b2
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -263,7 +263,7 @@ float dither(float alpha, float4 clipPos) {
 	float clipVal = 1;
 	[branch] if (_Dither) {
 		float4 screenPos = UNITY_PROJ_COORD(ComputeScreenPos(clipPos));
-		clipVal = tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, alpha * 0.9375)).a - 0.01;
+		clipVal = tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, min(smoothstep(0, 1, alpha), 0.99))).a - 0.01;
 	}
 	return clipVal;
 }

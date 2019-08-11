@@ -154,7 +154,7 @@ Shader "Synergiance/Toon/TransparentDS"
 			Name "BACKSIDE"
             
             //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend]
+            Blend [_SrcBlend] [_DstBlend], Zero One
             ZWrite [_ZWrite]
             Cull Front
             
@@ -187,7 +187,7 @@ Shader "Synergiance/Toon/TransparentDS"
 			Name "BACKSIDE_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
             //Blend SrcAlpha One
-			Blend [_SrcBlend] One
+			Blend [_SrcBlend] One, Zero One
             Cull Front
 
 			CGPROGRAM

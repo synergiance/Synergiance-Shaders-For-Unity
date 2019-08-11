@@ -140,14 +140,14 @@ SynLighting GetLightDirection(float3 position) {
 		} else {
 			[branch] if (!isZero) {
 				lightVar.lightDir = GET_LIGHTDIR(position, _WorldSpaceLightPos0);
-			} else {
+			}/* else {
 				// Xiexe's light probe dominant direction calculation
-				half3 probeLightDir = unity_SHAr.xyz + unity_SHAg.xyz + unity_SHAb.xyz;
+				half3 probeLightDir = normalize(unity_SHAr.xyz + unity_SHAg.xyz + unity_SHAb.xyz);
 				[flatten] if(!DIR_IS_ZERO(probeLightDir, 0.1)) {
 					lightVar.lightDir = probeLightDir;
 				}
 				lightVar.noScale = 1;
-			}
+			}*/
 		}
 	}
 	return lightVar;
