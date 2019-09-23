@@ -208,7 +208,7 @@ Shader "Synergiance/Toon"
         {
 			Name "FORWARD_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
-            Blend One One
+            Blend One One, Zero One
 			Fog { Color (0,0,0,0) } // in additive pass fog should be black
 			ZWrite Off
 			ZTest LEqual

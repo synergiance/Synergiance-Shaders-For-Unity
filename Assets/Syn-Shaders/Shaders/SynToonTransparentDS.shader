@@ -154,7 +154,7 @@ Shader "Synergiance/Toon/TransparentDS"
 			Name "BACKSIDE"
             
             //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend], Zero One
+            Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
             ZWrite [_ZWrite]
             Cull Front
             

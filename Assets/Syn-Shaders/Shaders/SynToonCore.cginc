@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.5.1b2
+// v0.5.1
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 
@@ -60,9 +60,11 @@ sampler2D _PanoOverlayTex;
 float _PanoRotationSpeedX;
 float _PanoRotationSpeedY;
 float _PanoBlend;
-sampler2D _SpecularMap;
+Texture2D _SpecularMap;
+Texture2D _AnisoTex;
 float _SpecularPower;
 float3 _SpecularColor;
+// float _SpecularEncodedChannels; // Work on your stupid code girl just do it
 float _UVScrollX;
 float _UVScrollY;
 float _SphereMode;
@@ -105,11 +107,6 @@ float _PanoEmission;
 float _Dither;
 
 sampler3D _DitherMaskLOD;
-
-#include "SynToonLighting.cginc"
-#if defined(REFRACTION)
-#include "Refraction.cginc"
-#endif
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -169,6 +166,11 @@ struct FragmentOutput {
 		float4 color : SV_Target;
 	#endif
 };
+
+#include "SynToonLighting.cginc"
+#if defined(REFRACTION)
+#include "Refraction.cginc"
+#endif
 
 float grayscaleSH9(float3 normalDirection)
 {
@@ -642,7 +644,7 @@ FragmentOutput frag(VertexOutput i)
     // Sphere
 	color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
 	
-	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, shadowAtten * bright.a, _ProbeStrength, i.posWorld) * tex2D(_OcclusionMap, i.uv).r;
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i, shadowAtten * bright.a, _ProbeStrength) * tex2D(_OcclusionMap, i.uv).r;
     
     // Combining
 	UNITY_APPLY_FOG(i.fogCoord, color);
@@ -749,7 +751,7 @@ float4 frag4(VertexOutput i) : COLOR
 	// Sphere
     color.rgb = applySphere(color.rgb, viewDirection, normalDirection, uvSphere);
 	
-	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i.uv, attenuation * bright.a, 0, float3(0, 0, 0)) * tex2D(_OcclusionMap, i.uv).r;
+	float3 specular = calcSpecular(normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.posWorld.xyz, _WorldSpaceLightPos0.w)), viewDirection, normalDirection, bright.rgb * lightColor, i, attenuation * bright.a, 0) * tex2D(_OcclusionMap, i.uv).r;
     
     // Combining
     UNITY_APPLY_FOG(i.fogCoord, color);
@@ -905,6 +907,15 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 				rotationAxis = normalize(cross(averageNormalDirection, normalize(_WorldSpaceCameraCenterPos - averagePosition.xyz)));
 				break;
 		}
+		/*
+		float position = smoothstep(1 - _ColChangePercent, 1, IN[0].lightModifier.y - floor(IN[0].lightModifier.y));
+		float3 newAverageNormal = RotatePointAroundAxis(averageNormalDirection, rotationAxis, position * PI);
+		[flatten] if (dot(viewDirection, newAverageNormal) < 0 != dot(viewDirection, averageNormalDirection) < 0) {
+			timing = 0;
+		} else {
+			timing = 1;
+		}
+		*/
 		float3 locBitangent = normalize(cross(rotationAxis, averageNormalDirection));
 		float3 triangleSpaceView = normalize(mul(float3x3(averageNormalDirection, locBitangent, rotationAxis), viewDirection));
 		float location = atan(triangleSpaceView.y / NOZERO(triangleSpaceView.x)) * ONEOVERPI + 0.5;

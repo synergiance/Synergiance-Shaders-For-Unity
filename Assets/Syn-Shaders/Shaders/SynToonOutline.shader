@@ -159,7 +159,7 @@ Shader "Synergiance/Toon-Outline"
 			Name "OUTLINE"
             
             //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend]
+            Blend One Zero
             ZWrite [_ZWrite]
             Cull Front
             
@@ -191,7 +191,7 @@ Shader "Synergiance/Toon-Outline"
 			Name "OUTLINE_DELTA"
 			Tags { "LightMode" = "ForwardAdd" }
             //Blend SrcAlpha One
-			Blend [_SrcBlend] One
+			Blend One One, Zero One
             Cull Front
 			Fog { Color (0,0,0,0) } // in additive pass fog should be black
 			ZWrite Off

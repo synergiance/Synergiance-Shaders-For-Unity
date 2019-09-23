@@ -155,7 +155,7 @@ Shader "Synergiance/Toon/Transparent"
 			Name "FORWARD"
             
             //Blend SrcAlpha OneMinusSrcAlpha
-            Blend [_SrcBlend] [_DstBlend], Zero One
+            Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
             ZWrite [_ZWrite]
             
 			Tags
