@@ -1,6 +1,12 @@
 Change Log
 
 
+0.5.2:
+Add matcap blending with a mask, you can now change the color of your matcaps
+Add preprocessor variables to help reduce compile time
+Add second level of shadow for artistic freedom
+Reorganized shader code files (You will need to delete the folder for this to not break)
+
 0.5.1:
 Disable probe light direction calculation
 Alter dithering curve

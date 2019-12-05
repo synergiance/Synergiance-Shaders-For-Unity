@@ -1,7 +1,8 @@
 // SynToon by Synergiance
-// v0.5.1
+// v0.5.2
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
+#define ALPHA_RAINBOW_CORE_INCLUDED
 
 #define PI 3.14159
 #define ONEOVERPI 0.31831
@@ -49,7 +50,10 @@ Texture2D _SphereAddTex;
 Texture2D _SphereMulTex;
 Texture2D _SphereMultiTex;
 Texture2D _SphereAtlas;
-SamplerState sampler_SphereAtlas;
+Texture2D _SphereMask;
+float4 _SphereMask_ST;
+float3 _SphereTint;
+float _SphereBlend;
 int _SphereNum;
 uniform float4 _StaticToonLight;
 float _OverlayMode;
@@ -110,8 +114,7 @@ sampler3D _DitherMaskLOD;
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
-struct v2g
-{
+struct v2g {
     float4 vertex : POSITION;
     float4 uv : TEXCOORD0;
     float4 uv1 : TEXCOORD1;
@@ -131,8 +134,7 @@ struct v2g
 	#endif
 };
 
-struct VertexOutput
-{
+struct VertexOutput {
 	float4 pos : SV_POSITION;
 	float4 uv : TEXCOORD0;
 	float4 uv1 : TEXCOORD1;
@@ -172,8 +174,7 @@ struct FragmentOutput {
 #include "Refraction.cginc"
 #endif
 
-float grayscaleSH9(float3 normalDirection)
-{
+float grayscaleSH9(float3 normalDirection) {
     return dot(ShadeSH9(half4(normalDirection, 1.0)), grayscale_vector);
 }
 
@@ -186,8 +187,7 @@ float rand(float x, float y){
 }
 
 // Rainbowing Effect
-float3 hueShift(float3 col, float3 mask, float offset)
-{
+float3 hueShift(float3 col, float3 mask, float offset) {
     float3 newc = col;
     newc = float3(applyHue(newc, offset));
     newc = float3((newc * mask) + (col * (1 - mask)));
@@ -211,8 +211,7 @@ float4 selectUVs(float4 uvs1, float4 uvs2) {
 	return uvs;
 }
 
-v2g vert(appdata_full v)
-{
+v2g vert(appdata_full v) {
     v2g o;
 	UNITY_INITIALIZE_OUTPUT(v2g, o);
 	o.pos = UnityObjectToClipPos(v.vertex);
@@ -261,11 +260,37 @@ v2g vert(appdata_full v)
     return o;
 }
 
+// "R2" dithering
+// Magic numbers can be found in the following web page under the section "Dithering in computer graphics"
+// http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+float intensity(float2 coord) {
+	const float a1 = 0.75487766624669276;
+	const float a2 = 0.569840290998;
+	return frac(a1 * coord.x + a2 * coord.y);
+}
+
+// Triangle function
+float T(float z) {
+	return z >= 0.5 ? 2.0 - 2.0 * z : 2.0 * z;
+}
+
+// Silent implementation
+float r2func(float alpha, float2 coord) {
+	float mask = T(intensity(coord + _SinTime.x % 4));
+	float alpha2 = saturate(alpha + alpha * mask);
+	clip(alpha2 - 1.0 / 255.0); // No-HDR bug fix
+	return alpha2;
+}
+
+float dither_nockeck(float alpha, float4 clipPos) {
+	float4 screenPos = UNITY_PROJ_COORD(ComputeScreenPos(clipPos));
+	return tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, min(smoothstep(0, 1, alpha), 0.99))).a - 0.01;
+}
+
 float dither(float alpha, float4 clipPos) {
 	float clipVal = 1;
 	[branch] if (_Dither) {
-		float4 screenPos = UNITY_PROJ_COORD(ComputeScreenPos(clipPos));
-		clipVal = tex3D(_DitherMaskLOD, float3((screenPos.xy + 1) * 0.25, min(smoothstep(0, 1, alpha), 0.99))).a - 0.01;
+		clipVal = dither_nockeck(alpha, clipPos);
 	}
 	return clipVal;
 }
@@ -342,17 +367,19 @@ float3 artsyOutline(float3 color, float3 view, float3 normal, float2 uv, inout f
 float3 applySphere(float3 color, float3 view, float3 normal, float2 uv)
 {// Applies add and multiply spheres
 	[branch] if (_SphereMode > 0) { // Don't execute without sphere mode set
+		uv = TRANSFORM_TEX(uv, _SphereMask);
 		float3 tangent = normalize(cross(view, float3(0.0, 1.0, 0.0)));
 		float3 bitangent = normalize(cross(tangent, view));
 		float3 viewNormal = normalize(mul(float3x3(tangent, bitangent, view), normal));
 		float2 sphereUv = viewNormal.xy * 0.5 + 0.5;
+		float4 sphMask = _SphereMask.Sample(sampler_MainTex, uv);
 		//float2 sphereUv = capCoord * 0.5 + 0.5;
 		[branch] if (_SphereMode == 1) { // Add
-			float4 sphereAdd = _SphereAddTex.Sample(sampler_SphereAtlas, sphereUv);
-			color += sphereAdd.rgb;
+			float4 sphereAdd = _SphereAddTex.Sample(sampler_MainTex, sphereUv);
+			color = color + sphereAdd.rgb * _SphereBlend * _SphereTint * sphMask.rgb;
 		} else if (_SphereMode == 2) { // Multiply
-			float4 sphereMul = _SphereMulTex.Sample(sampler_SphereAtlas, sphereUv);
-			color *= sphereMul.rgb;
+			float4 sphereMul = _SphereMulTex.Sample(sampler_MainTex, sphereUv);
+			color = color * lerp(1, sphereMul.rgb * _SphereTint * sphMask.rgb, _SphereBlend * sphMask.a);
 		} else { // Multiple
 			uint w, h;
 			[flatten] switch(_SphereNum) {
@@ -377,16 +404,15 @@ float3 applySphere(float3 color, float3 view, float3 normal, float2 uv)
 				default: { w = 1; h = 1; } break;
 			}
 			float2 dim = float2(w, h);
-			float3 atlCol = LinearToGammaSpace(_SphereAtlas.Sample(sampler_SphereAtlas, uv));
+			float3 atlCol = LinearToGammaSpace(_SphereAtlas.Sample(sampler_MainTex, uv));
 			float2 sel = atlCol.rg;
 			sel.g = 1 - sel.g;
 			sel *= dim;
 			sel = clamp(floor(sel), float2(0, 0), dim - 1) / dim;
 			sphereUv /= float2(w, h);
 			sphereUv += sel;
-			float4 sphCol = _SphereMultiTex.Sample(sampler_SphereAtlas, sphereUv);
-			float3 dbgCol = lerp(atlCol.rgb, float3(sel, 0), 0.75);
-			color = lerp(lerp(color + sphCol.rgb, color * sphCol.rgb, atlCol.b), dbgCol, 0);
+			float3 sphCol = _SphereMultiTex.Sample(sampler_MainTex, sphereUv).rgb;
+			color = lerp(color + sphCol.rgb * _SphereBlend * _SphereTint * sphMask.rgb, color * lerp(1, sphCol.rgb * _SphereTint * sphMask.rgb, _SphereBlend * sphMask.a), atlCol.b);
 		}
 	}
     return color;
@@ -881,13 +907,14 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutput, o);
+	float timing = 1 - _ColChangePercent;
+	#if defined(GEOMEFFECT)
 	float4 averagePosition = mul(unity_ObjectToWorld, (IN[0].vertex + IN[1].vertex + IN[2].vertex) / 3);
 	float3 averageNormalDirection = UnityObjectToWorldNormal(normalize(IN[0].normal + IN[1].normal + IN[2].normal));
 	float4 averageTangentDirection = float4(normalize(mul(unity_ObjectToWorld, float4(normalize(IN[0].tangent.xyz + IN[1].tangent.xyz + IN[2].tangent.xyz), 0.0)).xyz), (IN[0].tangent.w + IN[1].tangent.w + IN[2].tangent.w) / 3);
 	float3 averageBitangentDirection = normalize(cross(averageNormalDirection, averageTangentDirection.xyz) * averageTangentDirection.w);
 	float size = (distance(IN[0].vertex, IN[1].vertex) + distance(IN[1].vertex, IN[2].vertex) + distance(IN[2].vertex, IN[0].vertex)) * 0.5;
 	float2 uv = (IN[0].uv.xy + IN[1].uv.xy + IN[2].uv.xy) / 3;
-	float timing = 1 - _ColChangePercent;
 	float3 rotationAxis = float3(0,0,0);
 	float3x3 rotationMatrix = IDENTITYMATRIX;
 	[branch] if (_ColChangeGeomEffect == 1) {
@@ -924,10 +951,12 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 	[branch] if (_ColChangeGeomEffect > 2) {
 		timing = 1 - _ColChangePercent * 0.5;
 	}
+	#endif // GEOMEFFECT
 	float percent = 0;
 	float relative = 0;
 	float2 floorOff = float2(0, 0);
 	float offset = calcColorOffset(IN[0].lightModifier.y, timing, percent, floorOff);
+	#if defined(GEOMEFFECT)
 	[branch] if (_ColChangeGeomEffect > 0) offset = calcColorDirectionOffset(offset, uv, averagePosition.xyz);
 	[branch] if (_ColChangeGeomEffect == 1) {
 		float position = smoothstep(1 - _ColChangePercent, 1, percent);
@@ -938,11 +967,13 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 		rotationMatrix = GetRotationMatrixAxis(averageNormalDirection, smoothstep(1 - _ColChangePercent, 1, percent) * PI * 2);
 	}
 	[branch] if (_ColChangeGeomEffect > 2) relative = smoothstep(timing, 1, percent) + smoothstep(1 - timing, _ColChangePercent, 1 - percent);
+	#endif // GEOMEFFECT
 	for (int ii = 0; ii < 3; ii++)
 	{
 		float4 newVert = mul(unity_ObjectToWorld, IN[ii].vertex);
 		float3 newNormal = UnityObjectToWorldNormal(IN[ii].normal);
 		float3 newTangent = normalize(mul(unity_ObjectToWorld, float4(IN[ii].tangent.xyz, 0.0)).xyz);
+		#if defined(GEOMEFFECT)
 		[branch] switch (_ColChangeGeomEffect) {
 			case 1: // Flip
 			case 2: // Twist
@@ -963,6 +994,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 				offset = calcColorDirectionOffset(offset, uv, newVert);
 				break;
 		}
+		#endif // GEOMEFFECT
 		o.pos = UnityWorldToClipPos(newVert.xyz);
 		o.uv = IN[ii].uv;
 		o.uv1 = IN[ii].uv1;

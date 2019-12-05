@@ -4,9 +4,11 @@ inline float3 applyHue(float3 aColor, float aHue)
 {
     float angle = radians(aHue);
     float3 k = float3(0.57735, 0.57735, 0.57735);
-    float cosAngle = cos(angle);
+	float sinAngle;
+    float cosAngle;
+	sincos(angle, sinAngle, cosAngle);
     //Rodrigues' rotation formula
-    return aColor * cosAngle + cross(k, aColor) * sin(angle) + k * dot(k, aColor) * (1 - cosAngle);
+    return aColor * cosAngle + cross(k, aColor) * sinAngle + k * dot(k, aColor) * (1 - cosAngle);
 }
  
  

@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 public class SynToonInspector : ShaderGUI {
 	
-	static string version = "0.5.1";
+	static string version = "0.5.2";
     
 	public enum OutlineMode {
         None, Artsy, Normal, Screenspace
@@ -50,11 +50,11 @@ public class SynToonInspector : ShaderGUI {
 	}
 	*/
 	
-	enum RenderingMode {
+	public enum RenderingMode {
 		Opaque, Cutout, Fade, Multiply, Alphablend, Custom, Refract
 	}
 	
-	struct RenderingSettings {
+	public struct RenderingSettings {
 		public BlendMode srcBlend, dstBlend;
 		public BlendOp operation;
 		public bool zWrite, showShadows, showCutoff, showOverride, showRefract, showTransFix, showCustom, showDither;
@@ -154,51 +154,51 @@ public class SynToonInspector : ShaderGUI {
 		};
 	}
 	
-	Material target;
-	MaterialEditor editor;
-	MaterialProperty[] properties;
-	RenderingSettings renderSettings;
+	protected Material target;
+	protected MaterialEditor editor;
+	protected MaterialProperty[] properties;
+	protected RenderingSettings renderSettings;
 	
-	bool fMain = true, fOptions = false, fEffects = false, fAdvanced = false, fStencil = false, fCustom = false;
+	protected bool fMain = true, fOptions = false, fEffects = false, fAdvanced = false, fStencil = false, fCustom = false;
 	
-	static GUIContent staticLabel = new GUIContent();
-	static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
+	protected static GUIContent staticLabel = new GUIContent();
+	protected static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
 	
-	static GUIContent MakeLabel(string text, string tooltip = null) {
+	protected static GUIContent MakeLabel(string text, string tooltip = null) {
 		staticLabel.text = text;
 		staticLabel.tooltip = tooltip;
 		return staticLabel;
 	}
 	
-	static GUIContent MakeLabel(MaterialProperty property, string tooltip = null) {
+	protected static GUIContent MakeLabel(MaterialProperty property, string tooltip = null) {
 		staticLabel.text = property.displayName;
 		staticLabel.tooltip = tooltip;
 		return staticLabel;
 	}
 	
-	bool BoldFoldout(bool foldout, GUIContent content) {
+	protected bool BoldFoldout(bool foldout, GUIContent content) {
 		GUIStyle BFstyle = EditorStyles.foldout;
 		BFstyle.fontStyle = FontStyle.Bold;
 		return EditorGUILayout.Foldout(foldout, content, BFstyle);
 	}
 	
-	bool BoldFoldout(bool foldout, string content) {
+	protected bool BoldFoldout(bool foldout, string content) {
 		return BoldFoldout(foldout, MakeLabel(content));
 	}
 	
-	MaterialProperty FindProperty(string name) {
+	protected MaterialProperty FindProperty(string name) {
 		return FindProperty(name, properties);
 	}
 	
-	void RecordAction(string label) {
+	protected void RecordAction(string label) {
 		editor.RegisterPropertyChangeUndo(label);
 	}
 	
-	bool IsKeywordEnabled(string keyword) {
+	protected bool IsKeywordEnabled(string keyword) {
 		return target.IsKeywordEnabled(keyword);
 	}
 	
-	void SetKeyword(string keyword, bool state) {
+	protected void SetKeyword(string keyword, bool state) {
 		if (state) {
 			foreach (Material m in editor.targets) {
 				m.EnableKeyword(keyword);
@@ -210,29 +210,29 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	bool KeywordToggle(string keyword, GUIContent display) {
+	protected bool KeywordToggle(string keyword, GUIContent display) {
 		EditorGUI.BeginChangeCheck();
 		bool state = EditorGUILayout.Toggle(display, IsKeywordEnabled(keyword));
 		if (EditorGUI.EndChangeCheck()) SetKeyword(keyword, state);
 		return state;
 	}
 	
-	bool KeywordToggle(string keyword, string display) {
+	protected bool KeywordToggle(string keyword, string display) {
 		return KeywordToggle(keyword, MakeLabel(display));
 	}
 	
-	bool ReverseKeywordToggle(string keyword, GUIContent display) {
+	protected bool ReverseKeywordToggle(string keyword, GUIContent display) {
 		EditorGUI.BeginChangeCheck();
 		bool state = !EditorGUILayout.Toggle(display, !IsKeywordEnabled(keyword));
 		if (EditorGUI.EndChangeCheck()) SetKeyword(keyword, state);
 		return !state;
 	}
 	
-	bool ReverseKeywordToggle(string keyword, string display) {
+	protected bool ReverseKeywordToggle(string keyword, string display) {
 		return ReverseKeywordToggle(keyword, MakeLabel(display));
 	}
 	
-	void ConvertKeyword(Material m, string keyword, string property, float setTo) {
+	protected void ConvertKeyword(Material m, string keyword, string property, float setTo) {
 		if (m.IsKeywordEnabled(keyword)) {
 			m.DisableKeyword(keyword);
 			m.SetFloat(property, setTo);
@@ -240,28 +240,39 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void MakeGradientEditor(MaterialProperty property, GUIContent display) {
+	protected void MakeGradientEditor(MaterialProperty property, GUIContent display) {
 		//
 	}
 	
-	void ShaderProperty(string enumName) {
-		MaterialProperty enumProp = FindProperty(enumName);
-		editor.ShaderProperty(enumProp, MakeLabel(enumProp));
+	protected void ShaderProperty(MaterialProperty prop) {
+		editor.ShaderProperty(prop, MakeLabel(prop));
 	}
 	
-	void ShaderProperty(string enumName, string display) {
+	protected void ShaderProperty(MaterialProperty prop, string display) {
+		editor.ShaderProperty(prop, MakeLabel(display));
+	}
+	
+	protected void ShaderProperty(MaterialProperty prop, string display, string display2) {
+		editor.ShaderProperty(prop, MakeLabel(display, display2));
+	}
+	
+	protected void ShaderProperty(string enumName) {
+		ShaderProperty(FindProperty(enumName));
+	}
+	
+	protected void ShaderProperty(string enumName, string display) {
 		editor.ShaderProperty(FindProperty(enumName), MakeLabel(display));
 	}
 	
-	void ShaderProperty(string enumName, string display, string display2) {
+	protected void ShaderProperty(string enumName, string display, string display2) {
 		editor.ShaderProperty(FindProperty(enumName), MakeLabel(display, display2));
 	}
 	
-	void Vec2Prop(string label, MaterialProperty prop1, MaterialProperty prop2) {
+	protected void Vec2Prop(string label, MaterialProperty prop1, MaterialProperty prop2) {
 		Vec2Prop(MakeLabel(label), prop1, prop2);
 	}
 	
-	void Vec2Prop(GUIContent label, MaterialProperty prop1, MaterialProperty prop2) {
+	protected void Vec2Prop(GUIContent label, MaterialProperty prop1, MaterialProperty prop2) {
 		EditorGUI.BeginChangeCheck();
 		EditorGUI.showMixedValue = prop1.hasMixedValue || prop2.hasMixedValue;
 		Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop1), EditorStyles.layerMaskField, new GUILayoutOption[0]);
@@ -273,11 +284,11 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void Vec3Prop(string label, MaterialProperty prop) {
+	protected void Vec3Prop(string label, MaterialProperty prop) {
 		Vec3Prop(MakeLabel(label), prop);
 	}
 	
-	void Vec3Prop(GUIContent label, MaterialProperty prop) {
+	protected void Vec3Prop(GUIContent label, MaterialProperty prop) {
 		EditorGUI.BeginChangeCheck();
 		EditorGUI.showMixedValue = prop.hasMixedValue;
 		Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop), EditorStyles.layerMaskField, new GUILayoutOption[0]);
@@ -286,7 +297,7 @@ public class SynToonInspector : ShaderGUI {
 		if (EditorGUI.EndChangeCheck()) prop.vectorValue = new Vector4(vec3.x, vec3.y, vec3.z, prop.vectorValue.w);
 	}
 	
-	static bool ToonRampTextureNeedsFixing(MaterialProperty prop) {
+	protected static bool ToonRampTextureNeedsFixing(MaterialProperty prop) {
 		if (prop.type != MaterialProperty.PropType.Texture) return false;
 		
 		foreach (Material m in prop.targets) {
@@ -298,7 +309,7 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	/*
-	static void FixToonRampTexture(MaterialProperty prop) {
+	protected static void FixToonRampTexture(MaterialProperty prop) {
 		foreach (Material m in prop.targets)
 			m.GetTexture(prop.name).wrapMode = TextureWrapMode.Clamp;
 	}
@@ -315,14 +326,14 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void SanitizeKeywords() {
+	protected void SanitizeKeywords() {
 		foreach (Material m in editor.targets) {
 			RemoveKeywords(m);
 			ConvertKeywords(m);
 		}
 	}
 	
-	void RemoveKeywords(Material m) {
+	protected void RemoveKeywords(Material m) {
 		m.DisableKeyword("NO_SHADOW");
 		m.DisableKeyword("TINTED_SHADOW");
 		m.DisableKeyword("RAMP_SHADOW");
@@ -343,7 +354,7 @@ public class SynToonInspector : ShaderGUI {
 		m.DisableKeyword("DISABLE_SHADOW");
 	}
 	
-	void ConvertKeywords(Material m) {
+	protected void ConvertKeywords(Material m) {
 		ConvertKeyword(m, "RAINBOW", "_Rainbowing", 1);
 		ConvertKeyword(m, "PULSE", "_PulseEmission", 1);
 		ConvertKeyword(m, "SHADEEMISSION", "_ShadeEmission", 1);
@@ -371,7 +382,7 @@ public class SynToonInspector : ShaderGUI {
 		GUILayout.Label("Version: " + version);
 	}
 	
-	void DoRenderingMode() {
+	protected virtual void DoRenderingMode() {
 		MaterialProperty blendMode = FindProperty("_Mode");
 		EditorGUI.showMixedValue = blendMode.hasMixedValue;
 		RenderingMode mode = (RenderingMode)blendMode.floatValue;
@@ -396,7 +407,7 @@ public class SynToonInspector : ShaderGUI {
 		EditorGUI.showMixedValue = false;
 	}
 	
-	void DoMain() {
+	protected virtual void DoMain() {
 		fMain = BoldFoldout(fMain, "Main Maps");
 		
 		if (fMain) {
@@ -421,11 +432,11 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoSecondary() {
+	protected void DoSecondary() {
 		GUILayout.Label("Secondary Maps", EditorStyles.boldLabel);
 	}
 	
-	void DoOptions() {
+	protected virtual void DoOptions() {
 		EditorGUILayout.Space();
 		fOptions = BoldFoldout(fOptions, "Options");
 		
@@ -438,7 +449,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoEffects() {
+	protected void DoEffects() {
 		EditorGUILayout.Space();
 		fEffects = BoldFoldout(fEffects, "Effects");
 		
@@ -451,7 +462,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoAdvanced() {
+	protected void DoAdvanced() {
 		EditorGUILayout.Space();
 		fAdvanced = BoldFoldout(fAdvanced, "Advanced Options");
 		
@@ -488,11 +499,11 @@ public class SynToonInspector : ShaderGUI {
 		ShaderProperty("_ChromaticAberration", "Chromatic Abberation", "Strength of chromatic abberation effect");
 	}
 	
-	void DoColorMask() {
+	protected void DoColorMask() {
 		editor.TexturePropertySingleLine(MakeLabel("Color Mask", "Masks Color Tinting (B)"), FindProperty("_ColorMask"));
 	}
 	
-	void DoNormals() {
+	protected void DoNormals() {
 		MaterialProperty map = FindProperty("_BumpMap");
 		Texture tex = map.textureValue;
 		EditorGUI.BeginChangeCheck();
@@ -504,7 +515,7 @@ public class SynToonInspector : ShaderGUI {
 		*/
 	}
 	
-	void DoRainbow() {
+	protected virtual void DoRainbow() {
 		MaterialProperty rainbowing = FindProperty("_Rainbowing");
 		editor.ShaderProperty(rainbowing, MakeLabel("Color Change", "Color changing"));
 		if (rainbowing.floatValue >= 1) {
@@ -543,7 +554,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoEmission() {
+	protected void DoEmission() {
 		MaterialProperty map = FindProperty("_EmissionMap");
 		Texture tex = map.textureValue;
 		//EditorGUI.BeginChangeCheck();
@@ -562,7 +573,7 @@ public class SynToonInspector : ShaderGUI {
 		*/
 	}
 	
-	void DoOcclusion() {
+	protected void DoOcclusion() {
 		MaterialProperty map = FindProperty("_OcclusionMap");
 		Texture tex = map.textureValue;
 		//EditorGUI.BeginChangeCheck();
@@ -574,16 +585,16 @@ public class SynToonInspector : ShaderGUI {
 		*/
 	}
 	
-	void DoSpecular() {
+	protected void DoSpecular() {
 		editor.TexturePropertySingleLine(MakeLabel("Specular", "Specular Map (RGB) with Specular Power"), FindProperty("_SpecularMap"), FindProperty("_SpecularColor"), FindProperty("_SpecularPower"));
 	}
 	
-	void DoBrightnessSaturation() {
+	protected void DoBrightnessSaturation() {
 		ShaderProperty("_Brightness", "Brightness", "How much light gets to your model.  This can have a better effect than darkening the color");
 		ShaderProperty("_SaturationBoost", "Saturation Boost", "This will boost the saturation, don't turn it up too high unless you know what you're doing");
 	}
 	
-	void DoShadows() {
+	protected void DoShadows() {
 		MaterialProperty shadowMode = FindProperty("_ShadowMode");
 		ShadowMode sMode = (ShadowMode)shadowMode.floatValue;
 
@@ -622,9 +633,16 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoShadowTint() {
+		MaterialProperty useSecondShadow = FindProperty("_UseSecondShadow");
+		ShaderProperty(useSecondShadow);
 		ShaderProperty("_shadow_coverage", "Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
 		ShaderProperty("_shadow_feather", "Blur", "Slide to the left for crisp toons, to the right for smooth shading");
 		ShaderProperty("_ShadowTint", "Tint Color", "This will tint your shadows, try pinkish colors for skin");
+		if (useSecondShadow.floatValue > 0) {
+			ShaderProperty("_ShadowTint2", "Tint Color 2", "This will tint your shadows, try pinkish colors for skin");
+			ShaderProperty("_shadow_coverage2", "Coverage 2", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
+			ShaderProperty("_shadow_feather2", "Blur 2", "Slide to the left for crisp toons, to the right for smooth shading");
+		}
 	}
 	
 	void DoShadowToon() {
@@ -636,10 +654,19 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoShadowTexture() {
+		MaterialProperty useSecondShadow = FindProperty("_UseSecondShadow");
+		ShaderProperty(useSecondShadow);
 		ShaderProperty("_shadow_coverage", "Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
 		ShaderProperty("_shadow_feather", "Blur", "Slide to the left for crisp toons, to the right for smooth shading");
 		EditorGUI.indentLevel -= 2;
 		editor.TexturePropertySingleLine(MakeLabel("Shadow Texture", "(RGB) This is what your model will look like with only ambient light"), FindProperty("_ShadowTexture"), FindProperty("_ShadowUV"));
+		if (useSecondShadow.floatValue > 0) {
+			editor.TexturePropertySingleLine(MakeLabel("Shadow Texture 2", "(RGB) This is what your model will look like with only ambient light"), FindProperty("_ShadowTexture2"));
+			EditorGUI.indentLevel += 2;
+			ShaderProperty("_shadow_coverage2", "Coverage 2", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
+			ShaderProperty("_shadow_feather2", "Blur 2", "Slide to the left for crisp toons, to the right for smooth shading");
+			EditorGUI.indentLevel -= 2;
+		}
 		EditorGUI.indentLevel += 2;
 		ShaderProperty("_ShadowTextureMode");
 	}
@@ -657,11 +684,18 @@ public class SynToonInspector : ShaderGUI {
 	}
 	
 	void DoShadowAuto() {
+		MaterialProperty useSecondShadow = FindProperty("_UseSecondShadow");
+		ShaderProperty(useSecondShadow);
 		ShaderProperty("_shadow_coverage", "Coverage", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
 		ShaderProperty("_shadow_feather", "Blur", "Slide to the left for crisp toons, to the right for smooth shading");
 		ShaderProperty("_ShadowIntensity", "Intensity", "Slide to the right to make shadows more noticeable");
 		ShaderProperty("_ShadowAmbient", "Ambient Light", "Slide to the left for shadow light, to the right for direct light");
 		ShaderProperty("_ShadowTint", "Ambiant Color", "This is the ambient light tint, use it lightly");
+		if (useSecondShadow.floatValue > 0) {
+			ShaderProperty("_ShadowTint2", "Ambiant Color 2", "This is the ambient light tint, use it lightly");
+			ShaderProperty("_shadow_coverage2", "Coverage 2", "How much of your character is shadowed? I'd recommend somewhere between 0.5 for crisp toons and 0.65 for smooth shading");
+			ShaderProperty("_shadow_feather2", "Blur 2", "Slide to the left for crisp toons, to the right for smooth shading");
+		}
 	}
 	
 	void DoOutline() {
@@ -719,7 +753,7 @@ public class SynToonInspector : ShaderGUI {
 		ShaderProperty("_outline_width", "Width", "This is the width of the outline");
 	}
 	
-	void DoSpheres() {
+	protected void DoSpheres() {
 		MaterialProperty sphereMode = FindProperty("_SphereMode");
 		SphereMode sphMode = (SphereMode)sphereMode.floatValue;
 
@@ -746,6 +780,14 @@ public class SynToonInspector : ShaderGUI {
 			case SphereMode.None:
 			default:
 				break;
+		}
+		if (sphMode > 0) {
+			EditorGUI.indentLevel += 2;
+			MaterialProperty sphereMask = FindProperty("_SphereMask");
+			ShaderProperty("_SphereBlend");
+			EditorGUI.indentLevel -= 2;
+			editor.TexturePropertySingleLine(MakeLabel("Sphere RGB Mask", "Sphere Mask (RGB)"), sphereMask, FindProperty("_SphereTint"));
+			editor.TextureScaleOffsetProperty(sphereMask);
 		}
 	}
 	
@@ -857,7 +899,7 @@ public class SynToonInspector : ShaderGUI {
 		GUI.enabled = true;
 	}
 	
-	void DoTransFix() {
+	protected virtual void DoTransFix() {
 		MaterialProperty transFix = FindProperty("_TransFix");
 		TransFix tFix = (TransFix)transFix.floatValue;
 		if (renderSettings.showTransFix) {
@@ -880,7 +922,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoLightingHack() {
+	protected void DoLightingHack() {
 		MaterialProperty lightingHack = FindProperty("_LightingHack");
 		LightingHack lHack = (LightingHack)lightingHack.floatValue;
 
@@ -914,7 +956,7 @@ public class SynToonInspector : ShaderGUI {
 		GUI.enabled = true;
 	}
 	
-	void DoReflectionProbes() {
+	protected void DoReflectionProbes() {
 		ShaderProperty("_ProbeStrength", "Probe Strength", "Strength of reflection probes on this material");
 		if (target.GetFloat("_ProbeStrength") > 0) {
 			EditorGUI.indentLevel += 1;
@@ -923,7 +965,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoCastShadows() {
+	protected virtual void DoCastShadows() {
 		if (renderSettings.showShadows) {
 			ShaderProperty("_shadowcast_intensity", "Shadow Intensity", "This is how much other objects affect your shadow");
 		} else {
@@ -933,7 +975,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoSubsurface() {
+	protected void DoSubsurface() {
 		MaterialProperty intensity = FindProperty("_SSIntensity");
 		if (intensity.floatValue > 0) {
 			editor.TexturePropertySingleLine(MakeLabel("Subsurface Scattering", "Subsurface scattering intensity.  Use thickness map to the left to control local scattering intensity."), FindProperty("_SSThickness"), intensity);
@@ -947,7 +989,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoBatchDisable() {
+	protected void DoBatchDisable() {
 		bool batchDisable = target.GetFloat("_DisableBatching") > 0;
 		EditorGUI.BeginChangeCheck();
 		batchDisable = EditorGUILayout.Toggle(MakeLabel("Disable Batching", "Enable this if you have batching problems"), batchDisable);
@@ -966,7 +1008,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoStencil() {
+	protected void DoStencil() {
 		EditorGUILayout.Space();
 		fStencil = BoldFoldout(fStencil, "Stencil Options");
 		
@@ -982,7 +1024,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 	
-	void DoCustom() {
+	protected void DoCustom() {
 		EditorGUILayout.Space();
 		fCustom = BoldFoldout(fCustom, "Blending Options");
 		
@@ -993,7 +1035,7 @@ public class SynToonInspector : ShaderGUI {
 		}
 	}
 
-    void SetupMaterialShaderSelect(Material material)
+    protected virtual void SetupMaterialShaderSelect(Material material)
     {
         bool doubleSided = material.GetFloat("_CullMode") == 0;
 		string shaderName = "Synergiance/Toon";

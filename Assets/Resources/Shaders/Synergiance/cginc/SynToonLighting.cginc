@@ -52,11 +52,16 @@ float _shadowcast_intensity;
 float _ShadowAmbient;
 sampler2D _ShadowRamp;
 sampler2D _ShadowTexture;
+sampler2D _ShadowTexture2;
 int _ShadowRampDirection;
 int _ShadowTextureMode;
 float4 _ShadowTint;
+float4 _ShadowTint2;
+float _UseSecondShadow;
 float _shadow_coverage;
+float _shadow_coverage2;
 float _shadow_feather;
+float _shadow_feather2;
 float _ShadowIntensity;
 float _SSIntensity;
 float _SSDistortion;
@@ -197,8 +202,15 @@ float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
 	[branch] switch (_ShadowMode) {
 		case 1: // Tinted Shadow
 			{
-				float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2Dlod(_OcclusionMap, uv).r;
-				bright.rgb = lerp(_ShadowTint.rgb, float3(1.0, 1.0, 1.0), lightContrib);
+				float occlusion = tex2Dlod(_OcclusionMap, uv).r;
+				float lightContrib = 1;
+				bright.rgb = _ShadowTint.rgb;
+				[branch] if (_UseSecondShadow) {
+					lightContrib = saturate(smoothstep((1 - _shadow_feather2) * _shadow_coverage2, _shadow_coverage2, lightScale)) * occlusion;
+					bright.rgb = lerp(_ShadowTint2.rgb, bright.rgb, lightContrib);
+				}
+				lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * occlusion;
+				bright.rgb = lerp(bright.rgb, float3(1, 1, 1), lightContrib);
 			}
 			break;
 		case 2: // Ramp Shadow
@@ -209,9 +221,15 @@ float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
 			break;
 		case 3: // Texture Shadow
 			{
+				float occlusion = tex2Dlod(_OcclusionMap, uv).r;
 				bright.rgb = tex2Dlod(_ShadowTexture, uv1);
+				float lightContrib = 1;
+				[branch] if (_UseSecondShadow) {
+					lightContrib = saturate(smoothstep((1 - _shadow_feather2) * _shadow_coverage2, _shadow_coverage2, lightScale)) * occlusion;
+					bright.rgb = lerp(tex2Dlod(_ShadowTexture2, uv1).rgb, bright.rgb, lightContrib);
+				}
 				[branch] if (_ShadowTextureMode) { // Tint
-					float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2Dlod(_OcclusionMap, uv);
+					lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * occlusion;
 					bright.rgb = lerp(bright.rgb, float3(1.0, 1.0, 1.0), lightContrib);
 				} else { // Texture
 					bright.a = lightScale * tex2Dlod(_OcclusionMap, uv).r;
@@ -230,8 +248,13 @@ float4 GetStyledShadow(float lightScale, float4 uvs, float3 color) {
 			break;
 		case 5: // Auto Shadow
 			{
-				float lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * tex2Dlod(_OcclusionMap, uv).r;
-				float3 tintColor = lerp(bright.rgb, pow(color, 2), _ShadowIntensity) * lerp(float3(0,0,0), _ShadowTint, _ShadowAmbient);
+				float occlusion = tex2Dlod(_OcclusionMap, uv).r;
+				float lightContrib = 1;
+				[branch] if (_UseSecondShadow) {
+					lightContrib = saturate(smoothstep((1 - _shadow_feather2) * _shadow_coverage2, _shadow_coverage2, lightScale)) * occlusion;
+				}
+				float3 tintColor = lerp(bright.rgb, pow(color, 2), _ShadowIntensity) * lerp(float3(0,0,0), lerp(_ShadowTint2, _ShadowTint, lightContrib), _ShadowAmbient);
+				lightContrib = saturate(smoothstep((1 - _shadow_feather) * _shadow_coverage, _shadow_coverage, lightScale)) * occlusion;
 				bright.rgb = lerp(tintColor, float3(1.0, 1.0, 1.0), lightContrib);
 			}
 			break;
@@ -256,6 +279,7 @@ float4 calcShadow(float3 position, float3 normal, float atten, float4 uvs, float
 	return bright;
 }
 
+// Basically copied out of the unity include files, with some modifications
 float3 Shade4PointLightsStyled (
     float4 lightPosX, float4 lightPosY, float4 lightPosZ,
     float3 lightColor0, float3 lightColor1, float3 lightColor2, float3 lightColor3,

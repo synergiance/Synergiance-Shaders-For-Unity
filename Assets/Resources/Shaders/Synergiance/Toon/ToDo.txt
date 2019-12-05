@@ -1,10 +1,8 @@
 To Do:
 
-Remove Keywords
 Fix lighting code
-UV Scrolling
-Triangle manipulation
-Tesselation?
+Tesselation? - Nah
+Add Rimlight
 
 Effects:
 Primary effects, rainbow, wave rainbow, texture swap

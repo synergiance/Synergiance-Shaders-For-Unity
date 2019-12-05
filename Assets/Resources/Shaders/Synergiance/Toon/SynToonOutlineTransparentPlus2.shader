@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (TransparentFix)
+// Synergiance Toon Shader (Outline/TransparentFix2)
 
-Shader "Synergiance/Toon/TransparentFix"
+Shader "Synergiance/Toon-Outline/TransparentFix2"
 {
 	Properties
 	{
@@ -12,15 +12,20 @@ Shader "Synergiance/Toon/TransparentFix"
 		_LightColor("Light Color", Color) = (1,1,1,1)
 		_LightOverride("Light Override", Range(0,1)) = 0
         _ShadowTint("Shadow Tint", Color) = (0.75,0.75,0.75,1)
+        _ShadowTint2("Shadow Tint 2", Color) = (0.75,0.75,0.75,1)
         _ShadowRamp("Toon Texture", 2D) = "white" {}
         _ShadowTexture("Shadow Texture", 2D) = "black" {}
+        _ShadowTexture2("Shadow Texture 2", 2D) = "black" {}
+		[Toggle(_)]_UseSecondShadow("Use Second Shadow", Float) = 0
         [Enum(Vertical,0,Horizontal,1)] _ShadowRampDirection("Ramp Direction", Int) = 1
         [Enum(Texture,0,Tint,1)] _ShadowTextureMode("Texture Tint", Int) = 1
 		[Enum(UV1,0,UV2,1,UV3,2,UV4,3)] _ShadowUV("Shadow Atlas UV Map", Int) = 0
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0.8
         _ShadowAmbAdd("Ambient", Range(0,1)) = 0
         _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
-        _shadow_feather("Shadow Feather", Range(0,1)) = 0.2
+        _shadow_coverage2("Second Shadow Coverage", Range(0,1)) = 0.3
+        _shadow_feather("Shadow Blur", Range(0,1)) = 0.2
+        _shadow_feather2("Second Shadow Blur", Range(0,1)) = 0.8
         _shadowcast_intensity("Shadow cast intensity", Range(0,1)) = 0.75
         _ShadowIntensity("Shadow Intensity", Range(0,1)) = 0.1
 		_outline_width("outline_width", Range(0,1)) = 0.2
@@ -39,6 +44,9 @@ Shader "Synergiance/Toon/TransparentFix"
 		_OcclusionMap("Occlusion Map", 2D) = "white" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
+		_SphereTint("Sphere Color", Color) = (1,1,1,1)
+		_SphereMask("Sphere Mask", 2D) = "white" {}
+		_SphereBlend("Sphere Bland", Range(0,3)) = 1
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
 		_SphereMultiTex("Sphere (Multiple)", 2D) = "white" {}
@@ -96,7 +104,7 @@ Shader "Synergiance/Toon/TransparentFix"
 
 		// Blending state
 		[HideInInspector] _Mode ("__mode", Float) = 0.0
-		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
+		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[Enum(None,0,Level1,1,Level2,2)] _TransFix("__transparent_fix", Float) = 0.0
@@ -128,7 +136,7 @@ Shader "Synergiance/Toon/TransparentFix"
 	{
 		Tags
 		{
-			"Queue" = "Transparent+50"
+			"Queue" = "Transparent+100"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
@@ -152,6 +160,10 @@ Shader "Synergiance/Toon/TransparentFix"
         UsePass "Synergiance/Toon/Transparent/FORWARD"
         
         UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
+
+        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE"
+        
+        UsePass "Synergiance/Toon-Outline/Transparent/OUTLINE_DELTA"
 		
 		UsePass "Synergiance/Toon/Transparent/DEFERRED"
 		

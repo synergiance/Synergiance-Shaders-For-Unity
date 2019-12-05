@@ -1,6 +1,6 @@
-// Synergiance Toon Shader (TransparentFix2)
+// Synergiance Toon Shader (Outline/Transparent)
 
-Shader "Synergiance/Toon/TransparentFix2"
+Shader "Synergiance/Toon-Outline/Transparent"
 {
 	Properties
 	{
@@ -12,15 +12,20 @@ Shader "Synergiance/Toon/TransparentFix2"
 		_LightColor("Light Color", Color) = (1,1,1,1)
 		_LightOverride("Light Override", Range(0,1)) = 0
         _ShadowTint("Shadow Tint", Color) = (0.75,0.75,0.75,1)
+        _ShadowTint2("Shadow Tint 2", Color) = (0.75,0.75,0.75,1)
         _ShadowRamp("Toon Texture", 2D) = "white" {}
         _ShadowTexture("Shadow Texture", 2D) = "black" {}
+        _ShadowTexture2("Shadow Texture 2", 2D) = "black" {}
+		[Toggle(_)]_UseSecondShadow("Use Second Shadow", Float) = 0
         [Enum(Vertical,0,Horizontal,1)] _ShadowRampDirection("Ramp Direction", Int) = 1
         [Enum(Texture,0,Tint,1)] _ShadowTextureMode("Texture Tint", Int) = 1
 		[Enum(UV1,0,UV2,1,UV3,2,UV4,3)] _ShadowUV("Shadow Atlas UV Map", Int) = 0
         _ShadowAmbient("Ambient Light", Range(0,1)) = 0.8
         _ShadowAmbAdd("Ambient", Range(0,1)) = 0
         _shadow_coverage("Shadow Coverage", Range(0,1)) = 0.6
-        _shadow_feather("Shadow Feather", Range(0,1)) = 0.2
+        _shadow_coverage2("Second Shadow Coverage", Range(0,1)) = 0.3
+        _shadow_feather("Shadow Blur", Range(0,1)) = 0.2
+        _shadow_feather2("Second Shadow Blur", Range(0,1)) = 0.8
         _shadowcast_intensity("Shadow cast intensity", Range(0,1)) = 0.75
         _ShadowIntensity("Shadow Intensity", Range(0,1)) = 0.1
 		_outline_width("outline_width", Range(0,1)) = 0.2
@@ -39,6 +44,9 @@ Shader "Synergiance/Toon/TransparentFix2"
 		_OcclusionMap("Occlusion Map", 2D) = "white" {}
 		_Cutoff("Alpha cutoff", Range(0,1)) = 0.5
 		_AlphaOverride("Alpha override", Range(0,10)) = 1
+		_SphereTint("Sphere Color", Color) = (1,1,1,1)
+		_SphereMask("Sphere Mask", 2D) = "white" {}
+		_SphereBlend("Sphere Bland", Range(0,3)) = 1
 		_SphereAddTex("Sphere (Add)", 2D) = "black" {}
 		_SphereMulTex("Sphere (Multiply)", 2D) = "white" {}
 		_SphereMultiTex("Sphere (Multiple)", 2D) = "white" {}
@@ -95,8 +103,8 @@ Shader "Synergiance/Toon/TransparentFix2"
 		[Toggle(_)] _Dither("Dithered Transparency", Float) = 0
 
 		// Blending state
-		[HideInInspector] _Mode ("__mode", Float) = 0.0
-		[HideInInspector] _OutlineMode("__outline_mode", Float) = 0.0
+		[HideInInspector] _Mode ("__mode", Float) = 1.0
+		[HideInInspector] _OutlineMode("__outline_mode", Float) = 1.0
 		[HideInInspector] _OutlineColorMode("__outline_color_mode", Float) = 0.0
 		[HideInInspector] _LightingHack("__lighting_hack", Float) = 0.0
 		[Enum(None,0,Level1,1,Level2,2)] _TransFix("__transparent_fix", Float) = 0.0
@@ -128,7 +136,7 @@ Shader "Synergiance/Toon/TransparentFix2"
 	{
 		Tags
 		{
-			"Queue" = "Transparent+100"
+			"Queue" = "Transparent"
 			"PreviewType" = "Sphere"
             //"RenderType" = "Opaque"
 		}
@@ -152,6 +160,64 @@ Shader "Synergiance/Toon/TransparentFix2"
         UsePass "Synergiance/Toon/Transparent/FORWARD"
         
         UsePass "Synergiance/Toon/Transparent/FORWARD_DELTA"
+
+		Pass
+		{
+			Name "OUTLINE"
+            
+            //Blend SrcAlpha OneMinusSrcAlpha
+            Blend [_SrcBlend] [_DstBlend], One OneMinusSrcAlpha
+            ZWrite [_ZWrite]
+            Cull Front
+            
+			Tags
+			{
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+            #pragma shader_feature _ALPHATEST_ON
+			#define _ALPHABLEND_ON
+			#define BASE_PASS
+            #include "../cginc/SynToonCore.cginc"
+            
+			#pragma vertex vert
+			#pragma geometry geom2
+			#pragma fragment frag3
+            
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+            
+			ENDCG
+		}
+        
+        Pass
+        {
+			Name "OUTLINE_DELTA"
+			Tags { "LightMode" = "ForwardAdd" }
+            //Blend SrcAlpha One
+			Blend [_SrcBlend] One, Zero One
+            Cull Front
+
+			CGPROGRAM
+            #pragma shader_feature _ALPHATEST_ON
+			#define _ALPHABLEND_ON
+			#include "../cginc/SynToonCore.cginc"
+			#pragma vertex vert
+			#pragma geometry geom2
+			#pragma fragment frag5
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+            
+            ENDCG
+        }
 		
 		UsePass "Synergiance/Toon/Transparent/DEFERRED"
 		
