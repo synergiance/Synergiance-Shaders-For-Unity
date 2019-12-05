@@ -162,7 +162,9 @@ public class SynToonInspector : ShaderGUI {
 	protected bool fMain = true, fOptions = false, fEffects = false, fAdvanced = false, fStencil = false, fCustom = false;
 	
 	protected static GUIContent staticLabel = new GUIContent();
+	#if UNITY_2017
 	protected static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
+	#endif
 	
 	protected static GUIContent MakeLabel(string text, string tooltip = null) {
 		staticLabel.text = text;
@@ -295,6 +297,14 @@ public class SynToonInspector : ShaderGUI {
 		Vector3 vec3 = EditorGUI.Vector3Field(controlRect, label, new Vector3(prop.vectorValue.x, prop.vectorValue.y, prop.vectorValue.z));
 		EditorGUI.showMixedValue = false;
 		if (EditorGUI.EndChangeCheck()) prop.vectorValue = new Vector4(vec3.x, vec3.y, vec3.z, prop.vectorValue.w);
+	}
+	
+	protected void HDRColorTextureProperty(GUIContent label, MaterialProperty textureProp, MaterialProperty colorProperty, bool showAlpha) {
+		#if UNITY_2017
+		editor.TexturePropertyWithHDRColor(label, textureProp, colorProperty, emissionConfig, showAlpha);
+		#else
+		editor.TexturePropertyWithHDRColor(label, textureProp, colorProperty, showAlpha);
+		#endif
 	}
 	
 	protected static bool ToonRampTextureNeedsFixing(MaterialProperty prop) {
@@ -558,7 +568,8 @@ public class SynToonInspector : ShaderGUI {
 		MaterialProperty map = FindProperty("_EmissionMap");
 		Texture tex = map.textureValue;
 		//EditorGUI.BeginChangeCheck();
-		editor.TexturePropertyWithHDRColor(MakeLabel("Emission", "Emission (RGB)"), map, FindProperty("_EmissionColor"), emissionConfig, false);
+		//editor.TexturePropertyWithHDRColor(MakeLabel("Emission", "Emission (RGB)"), map, FindProperty("_EmissionColor"), emissionConfig, false);
+		HDRColorTextureProperty(MakeLabel("Emission", "Emission Texture (RGB)"), map, FindProperty("_EmissionColor"), false);
 		MaterialProperty pulse = FindProperty("_PulseEmission");
 		if (pulse.floatValue == 1) editor.TexturePropertySingleLine(MakeLabel("Emission Pulse", "Emission Pulse (RGB) and Pulse Speed"), FindProperty("_EmissionPulseMap"), FindProperty("_EmissionPulseColor"), FindProperty("_EmissionSpeed"));
 		EditorGUI.indentLevel += 2;

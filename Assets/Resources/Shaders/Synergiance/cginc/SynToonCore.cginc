@@ -14,60 +14,61 @@
 	#define _WorldSpaceCameraCenterPos _WorldSpaceCameraPos
 #endif
 
-#include "UnityPBSLighting.cginc"
-#include "AutoLight.cginc"
-#include "Lighting.cginc"
-#include "HSB.cginc"
-#include "Rotate.cginc"
-
+samplerCUBE _PanoSphereTex;
+sampler3D _DitherMaskLOD;
+sampler2D _OcclusionMap;
+sampler2D _outline_tex;
+//sampler2D _ToonTex;
+sampler2D _PanoFlatTex;
+sampler2D _PanoOverlayTex;
 SamplerState sampler_MainTex;
 Texture2D _MainTex;
 Texture2D _BumpMap;
 Texture2D _ColorMask;
 Texture2D _EmissionMap;
-float4 _MainTex_ST;
-sampler2D _OcclusionMap;
-float4 _EmissionColor;
-float _EmissionSpeed;
 Texture2D _EmissionPulseMap;
-float4 _EmissionPulseColor;
-float _Brightness;
-float _CorrectionLevel;
-float4 _Color;
-float4 _LightColor;
-float _LightOverride;
-float _Cutoff;
-float _AlphaOverride;
-float _SaturationBoost;
 Texture2D _RainbowMask;
-float _Speed;
-uniform float _outline_width;
-uniform float _outline_feather;
-uniform float4 _outline_color;
-sampler2D _outline_tex;
-//sampler2D _ToonTex;
 Texture2D _SphereAddTex;
 Texture2D _SphereMulTex;
 Texture2D _SphereMultiTex;
 Texture2D _SphereAtlas;
 Texture2D _SphereMask;
+Texture2D _SpecularMap;
+Texture2D _AnisoTex;
+Texture2D _ColChangeRamp;
+Texture2D _SSThickness;
+Texture2D _SSTintMap;
+float4 _MainTex_ST;
 float4 _SphereMask_ST;
+float4 _EmissionColor;
+float4 _EmissionPulseColor;
+float4 _Color;
+float4 _LightColor;
+float4 _ColChangeColor;
+uniform float4 _outline_color;
+uniform float4 _StaticToonLight;
 float3 _SphereTint;
+float3 _SpecularColor;
+float3 _BackFaceTint;
+float3 _SSTint;
+float _EmissionSpeed;
+float _Brightness;
+float _CorrectionLevel;
+float _LightOverride;
+float _Cutoff;
+float _AlphaOverride;
+float _SaturationBoost;
+float _Speed;
+uniform float _outline_width;
+uniform float _outline_feather;
 float _SphereBlend;
 int _SphereNum;
-uniform float4 _StaticToonLight;
 float _OverlayMode;
 float _OverlayBlendMode;
-samplerCUBE _PanoSphereTex;
-sampler2D _PanoFlatTex;
-sampler2D _PanoOverlayTex;
 float _PanoRotationSpeedX;
 float _PanoRotationSpeedY;
 float _PanoBlend;
-Texture2D _SpecularMap;
-Texture2D _AnisoTex;
 float _SpecularPower;
-float3 _SpecularColor;
 // float _SpecularEncodedChannels; // Work on your stupid code girl just do it
 float _UVScrollX;
 float _UVScrollY;
@@ -77,7 +78,6 @@ int _SphereUV;
 int _ShadowUV;
 float _ProbeStrength;
 float _ProbeClarity;
-float3 _BackFaceTint;
 float _BackFaceShadowed;
 float _ColChangeSteps;
 float _ColChangeEffect;
@@ -85,13 +85,7 @@ float _ColChangeGeomEffect;
 float _ColChangeDirection;
 float _ColChangeMode;
 float _ColChangeCustomRamp;
-Texture2D _ColChangeRamp;
 float _ColChangePercent;
-float4 _ColChangeColor;
-
-Texture2D _SSThickness;
-Texture2D _SSTintMap;
-float3 _SSTint;
 
 float _OutlineMode;
 float _OutlineColorMode;
@@ -110,7 +104,12 @@ float _PanoUseAlpha;
 float _PanoEmission;
 float _Dither;
 
-sampler3D _DitherMaskLOD;
+#include "UnityPBSLighting.cginc"
+#include "AutoLight.cginc"
+#include "Lighting.cginc"
+#include "HSB.cginc"
+#include "Rotate.cginc"
+
 
 static const float3 grayscale_vector = float3(0, 0.3823529, 0.01845836);
 
@@ -252,7 +251,7 @@ v2g vert(appdata_full v) {
 			unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0,
 			unity_LightColor[0].rgb, unity_LightColor[1].rgb,
 			unity_LightColor[2].rgb, unity_LightColor[3].rgb,
-			unity_4LightAtten0, o.posWorld, o.normalDir,
+			unity_4LightAtten0, o.posWorld, UnityObjectToWorldNormal(o.normal),
 			uvShadow, float3(0, 0, 0)
 		);
 	#endif

@@ -46,17 +46,15 @@
     fixed destName = tex2D(_LightTexture0, lightCoord).w;
 #endif
 
+sampler2D _ShadowRamp;
+sampler2D _ShadowTexture;
+sampler2D _ShadowTexture2;
+float4 _ShadowTint;
+float4 _ShadowTint2;
 float _LightingHack;
 float _OverrideRealtime;
 float _shadowcast_intensity;
 float _ShadowAmbient;
-sampler2D _ShadowRamp;
-sampler2D _ShadowTexture;
-sampler2D _ShadowTexture2;
-int _ShadowRampDirection;
-int _ShadowTextureMode;
-float4 _ShadowTint;
-float4 _ShadowTint2;
 float _UseSecondShadow;
 float _shadow_coverage;
 float _shadow_coverage2;
@@ -68,6 +66,8 @@ float _SSDistortion;
 float _SSPower;
 float _Anisotropic;
 float _AnisoOffset;
+int _ShadowRampDirection;
+int _ShadowTextureMode;
 
 struct SynLighting {
 	half3 lightDir;
