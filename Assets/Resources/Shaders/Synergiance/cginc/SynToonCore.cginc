@@ -1,5 +1,5 @@
 // SynToon by Synergiance
-// v0.5.2
+// v0.5.3
 
 #ifndef ALPHA_RAINBOW_CORE_INCLUDED
 #define ALPHA_RAINBOW_CORE_INCLUDED
@@ -128,9 +128,7 @@ struct v2g {
 	float4 pos : CLIP_POS;
 	UNITY_SHADOW_COORDS(6)
 	UNITY_FOG_COORDS(7)
-	#if defined(VERTEXLIGHT_ON)
-		float3 vertexLightColor : TEXCOORD8;
-	#endif
+	float3 vertexLightColor : TEXCOORD8;
 };
 
 struct VertexOutput {
@@ -152,9 +150,7 @@ struct VertexOutput {
 	bool is_outline : IS_OUTLINE;
 	UNITY_SHADOW_COORDS(6)
 	UNITY_FOG_COORDS(7)
-	#if defined(VERTEXLIGHT_ON)
-		float3 vertexLightColor : TEXCOORD8;
-	#endif
+	float3 vertexLightColor : TEXCOORD8;
 };
 
 struct FragmentOutput {
@@ -254,6 +250,8 @@ v2g vert(appdata_full v) {
 			unity_4LightAtten0, o.posWorld, UnityObjectToWorldNormal(o.normal),
 			uvShadow, float3(0, 0, 0)
 		);
+	#else
+		o.vertexLightColor = 0;
 	#endif
     
     return o;
@@ -313,7 +311,10 @@ bool calcBackFace(inout VertexOutput i, float3 viewDirection) {
 	bool backFace = false;
 	[branch] switch (_CullMode) {
 		case 0:
-			backFace = dot(viewDirection, i.normalDir) < 0;
+			#ifndef NORMAL_FLIP_IN_VERTEX
+			//backFace = dot(viewDirection, i.normalDir) < 0;
+			backFace = i.indirect.x < 0;
+			#endif
 			break;
 		case 1:
 			backFace = true;
@@ -330,14 +331,16 @@ float3 calcNormal(inout VertexOutput i, float3 viewDirection) {
     float3x3 tangentTransform = float3x3(i.tangentDir, i.bitangentDir, i.normalDir);
     float3 _BumpMap_var = UnpackNormal(_BumpMap.Sample(sampler_MainTex, i.uv.xy));
     float3 normalDirection = normalize(mul(_BumpMap_var.rgb, tangentTransform));
+	#ifndef NORMAL_FLIP_IN_VERTEX
 	[branch] if (_FlipBackfaceNorms && _CullMode == 0) {
-		[flatten] if (dot(viewDirection, i.normalDir) < 0) {
+		[flatten] if (/* dot(viewDirection, i.normalDir) */ i.indirect.x < 0) {
 			normalDirection *= -1;
 		}
 	}
 	[branch] if (_CullMode == 1) {
 		normalDirection *= -1;
 	}
+	#endif
 	return normalDirection;
 }
 
@@ -601,9 +604,7 @@ FragmentOutput frag(VertexOutput i)
 	#ifdef LIGHTMAP_ON
 		ambient += DecodeLightmap(UNITY_SAMPLE_TEX2D(unity_Lightmap, i.uv1.xy));
 	#endif
-	#if defined(VERTEXLIGHT_ON)
-		ambient += i.vertexLightColor;
-	#endif
+	ambient += i.vertexLightColor;
 	//ambient += max(0, ShadeSH9(float4(normalDirection, 1)));
 	[branch] if (_Unlit == 1) {
 		lightColor = float3(1, 1, 1);
@@ -907,9 +908,11 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 	VertexOutput o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutput, o);
 	float timing = 1 - _ColChangePercent;
-	#if defined(GEOMEFFECT)
 	float4 averagePosition = mul(unity_ObjectToWorld, (IN[0].vertex + IN[1].vertex + IN[2].vertex) / 3);
 	float3 averageNormalDirection = UnityObjectToWorldNormal(normalize(IN[0].normal + IN[1].normal + IN[2].normal));
+	float3 viewDirection = normalize(_WorldSpaceCameraPos - averagePosition.xyz);
+	fixed backfrontdot = dot(viewDirection, averageNormalDirection);
+	#if defined(GEOMEFFECT)
 	float4 averageTangentDirection = float4(normalize(mul(unity_ObjectToWorld, float4(normalize(IN[0].tangent.xyz + IN[1].tangent.xyz + IN[2].tangent.xyz), 0.0)).xyz), (IN[0].tangent.w + IN[1].tangent.w + IN[2].tangent.w) / 3);
 	float3 averageBitangentDirection = normalize(cross(averageNormalDirection, averageTangentDirection.xyz) * averageTangentDirection.w);
 	float size = (distance(IN[0].vertex, IN[1].vertex) + distance(IN[1].vertex, IN[2].vertex) + distance(IN[2].vertex, IN[0].vertex)) * 0.5;
@@ -917,7 +920,6 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 	float3 rotationAxis = float3(0,0,0);
 	float3x3 rotationMatrix = IDENTITYMATRIX;
 	[branch] if (_ColChangeGeomEffect == 1) {
-		float3 viewDirection = normalize(_WorldSpaceCameraPos - averagePosition.xyz);
 		[branch] switch (_ColChangeDirection) {
 			case 0: // None
 				float rNum = rand(uv.x, uv.y) * 62.831853;
@@ -1010,6 +1012,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         o.reflectionMap = IN[ii].reflectionMap;
         o.lightModifier = IN[ii].lightModifier.x;
 		o.offsets = float4(offset, percent, floorOff);
+		o.indirect.x = backfrontdot;
 
 		// Pass-through the shadow coordinates if this pass has shadows.
 		SYN_TRANSFER_SHADOW(IN[ii], o)
@@ -1019,9 +1022,7 @@ void geom(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 			o.fogCoord = IN[ii].fogCoord;
 		#endif
 		
-		#if defined(VERTEXLIGHT_ON)
-			o.vertexLightColor = IN[ii].vertexLightColor;
-		#endif
+		o.vertexLightColor = IN[ii].vertexLightColor;
 
 		tristream.Append(o);
 	}
@@ -1034,6 +1035,10 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 {
 	VertexOutput o;
 	UNITY_INITIALIZE_OUTPUT(VertexOutput, o);
+	float4 averagePosition = mul(unity_ObjectToWorld, (IN[0].vertex + IN[1].vertex + IN[2].vertex) / 3);
+	float3 averageNormalDirection = UnityObjectToWorldNormal(normalize(IN[0].normal + IN[1].normal + IN[2].normal));
+	float3 viewDirection = normalize(_WorldSpaceCameraPos - averagePosition.xyz);
+	fixed backfrontdot = dot(viewDirection, averageNormalDirection);
 	for (int ii = 0; ii < 3; ii++)
 	{
 		[branch] if (_OutlineMode == 2) {
@@ -1058,6 +1063,7 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
         o.reflectionMap = IN[ii].reflectionMap;
         o.lightModifier = IN[ii].lightModifier.x;
 		o.offsets = float4(0, 0, 0, 0);
+		o.indirect.x = backfrontdot;
 
 		// Pass-through the shadow coordinates if this pass has shadows.
 		SYN_TRANSFER_SHADOW(IN[ii], o)
@@ -1067,9 +1073,7 @@ void geom2(triangle v2g IN[3], inout TriangleStream<VertexOutput> tristream)
 			o.fogCoord = IN[ii].fogCoord;
 		#endif
 		
-		#if defined(VERTEXLIGHT_ON)
-			o.vertexLightColor = IN[ii].vertexLightColor;
-		#endif
+		o.vertexLightColor = IN[ii].vertexLightColor;
 
 		tristream.Append(o);
 	}
