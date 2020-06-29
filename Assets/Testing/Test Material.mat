@@ -4,10 +4,11 @@
 Material:
   serializedVersion: 6
   m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
   m_Name: Test Material
-  m_Shader: {fileID: 4800000, guid: 3afbc9f78f42312429de8490b1dd433d, type: 3}
+  m_Shader: {fileID: 4800000, guid: f3913cbf5cba058479eba7161fe9f203, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -19,6 +20,10 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ColChangeRamp:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -78,11 +83,23 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _SSThickness:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SSTintMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _ShadowRamp:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ShadowTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ShadowTexture2:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -95,6 +112,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SphereAtlas:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SphereMask:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -111,19 +132,30 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
+    - _ADstBlend: 0
+    - _ASrcBlend: 1
     - _AlphaOverride: 1
+    - _AmbDirection: 0.25
     - _BlendOp: 0
     - _Brightness: 1
     - _BumpScale: 1
     - _ChromaticAberration: 0.1
+    - _ColChangeCustomRamp: 0
+    - _ColChangeDirection: 0
+    - _ColChangeEffect: 1
+    - _ColChangeGeomEffect: 0
+    - _ColChangeMode: 0
+    - _ColChangePercent: 0.25
+    - _ColChangeSteps: 0
     - _CorrectionLevel: 0
     - _CullMode: 0
-    - _Cutoff: 0.5
+    - _Cutoff: 0
     - _DetailNormalMapScale: 1
     - _DisableBatching: 0
     - _Dither: 0
     - _DstBlend: 0
     - _EmissionSpeed: 3
+    - _Exposure: 1
     - _FlipBackfaceNorms: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.5
@@ -142,16 +174,22 @@ Material:
     - _OverlayMode: 0
     - _OverrideRealtime: 0
     - _PanoBlend: 1
+    - _PanoEmission: 0
     - _PanoRotationSpeedX: 0
     - _PanoRotationSpeedY: 0
     - _PanoUseAlpha: 0
     - _PanoUseOverlay: 0
     - _Parallax: 0.02
+    - _Premultiply: 0
     - _ProbeClarity: 0
     - _ProbeStrength: 0
     - _PulseEmission: 0
     - _Rainbowing: 0
     - _ReadMask: 255
+    - _ReflPower: 0
+    - _SSDistortion: 0
+    - _SSIntensity: 0
+    - _SSPower: 20
     - _SaturationBoost: 0
     - _ShadeEmission: 0
     - _ShadowAmbAdd: 0
@@ -163,9 +201,12 @@ Material:
     - _ShadowUV: 0
     - _SleepEmission: 0
     - _SmoothnessTextureChannel: 0
+    - _SpecFeather: 0.1
+    - _SpecPower: 0.5
     - _SpecularHighlights: 1
     - _SpecularPower: 1
     - _Speed: 3
+    - _SphereBlend: 1
     - _SphereMode: 0
     - _SphereNum: 4
     - _SphereUV: 0
@@ -175,11 +216,16 @@ Material:
     - _StencilFail: 0
     - _StencilOp: 0
     - _StencilZFail: 0
+    - _ToonAmb: 0.5
+    - _ToonCoverage: 0.5
+    - _ToonFeather: 0.1
+    - _ToonIntensity: 0
     - _TransFix: 0
     - _UVScrollX: 0
     - _UVScrollY: 0
     - _UVSec: 0
     - _Unlit: 0
+    - _UseSecondShadow: 0
     - _WriteMask: 255
     - _ZTest: 4
     - _ZWrite: 1
@@ -187,16 +233,24 @@ Material:
     - _outline_tint: 0.5
     - _outline_width: 0.2
     - _shadow_coverage: 0.6
+    - _shadow_coverage2: 0.3
     - _shadow_feather: 0.2
+    - _shadow_feather2: 0.8
     - _shadowcast_intensity: 1
     - _stencilcolormask: 15
     m_Colors:
     - _BackFaceTint: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 1, g: 1, b: 1, a: 0.372}
+    - _ColChangeColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _EmissionPulseColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FallbackLightDir: {r: 0.5, g: 1, b: 0.25, a: 1}
     - _LightColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SSTint: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowTint: {r: 0.75, g: 0.75, b: 0.75, a: 1}
+    - _ShadowTint2: {r: 0.75, g: 0.75, b: 0.75, a: 1}
     - _SpecularColor: {r: 0, g: 0, b: 0, a: 1}
+    - _SphereTint: {r: 1, g: 1, b: 1, a: 1}
     - _StaticToonLight: {r: 1, g: 1.5, b: 1.5, a: 0}
+    - _ToonColor: {r: 0, g: 0, b: 0, a: 0}
     - _outline_color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
