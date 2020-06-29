@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version { get { return "0.10"; } }
+		protected override string version { get { return "0.10b1"; } }
 
 		protected virtual bool hasEffects { get { return false; }}
 
