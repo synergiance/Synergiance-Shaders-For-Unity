@@ -13,6 +13,7 @@
 fixed _AmbDirection;
 fixed _ToonAmb;
 half3 _FallbackLightDir;
+fixed _PointLightLitShade;
 #ifdef SHADOWMAP
 	Texture2D _ToonMap;
 	#ifdef SECONDSHADOWLAYER
@@ -23,6 +24,7 @@ half3 _FallbackLightDir;
 	sampler2D _ShadowRamp;
 #endif
 fixed _ToonIntensity;
+//fixed _PointLightBleed;
 #if !defined(USES_GRADIENTS) && !defined(SHADOWRAMP) && !defined(SHADOWMAP)
 	fixed _ToonFeather;
 	fixed _ToonCoverage;
@@ -48,10 +50,15 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 			float4 sample = tex2D(_ShadowRamp, ndotl * shade);
 		#endif
 		float3 lightCol = atten * lightColor;
-		#ifdef BASE_PASS
-			lightCol *= lerp(lerp(fixed3(1,1,1), albedo, _ToonIntensity), float3(1,1,1), sample.a);
+		#ifdef SPOT
+			lightCol *= sample.a;
 		#else
-			lightCol = lerp(float3(0,0,0), lightCol, sample.a);
+			float3 shadeCol = lerp(fixed3(1,1,1), albedo, _ToonIntensity);
+			#ifdef BASE_PASS
+				lightCol *= lerp(shadeCol, float3(1,1,1), sample.a);
+			#elif defined(ADD_PASS)
+				lightCol *= lerp(shadeCol * _PointLightLitShade, float3(1,1,1), sample.a);
+			#endif
 		#endif
 		return max(0, lightCol) * sample.rgb;
 	#else
@@ -60,9 +67,12 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 		#else
 			fixed feather = max((ddx(ndotl) + ddy(ndotl)) * 2, _ToonFeather);
 		#endif
-		fixed3 shadeCol = fixed3(0,0,0);
-		#ifdef BASE_PASS
+		fixed3 shadeCol = 0;
+		#ifndef SPOT
 			shadeCol = _ToonColor.rgb * lerp(fixed3(1,1,1), albedo, _ToonIntensity);
+			#ifdef ADD_PASS
+				shadeCol *= _PointLightLitShade;
+			#endif
 		#endif
 		return max(0, lerp(shadeCol, fixed3(1,1,1), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor);
 	#endif
@@ -109,20 +119,18 @@ void calcAmbient(inout shadingData s) {
 	s.light.rgb += s.vertLight.rgb + calcAmbientInternal(s.normal.xyz, s.color.rgb, s.light.r * s.light.g);
 }
 
-#if defined(USES_GRADIENTS) || defined(SHADOWRAMP)
-	float3 calcStyledAtten(float atten) {
+float3 calcStyledAtten(float atten) {
+	#if defined(USES_GRADIENTS) || defined(SHADOWRAMP)
 		#ifdef USES_GRADIENTS
 			float4 sample = SampleGradientToon(atten);
 		#else
 			float4 sample = tex2Dlod(_ShadowRamp, float4(atten, atten, 0, 0));
 		#endif
 		return saturate(sample.rgb * sample.a);
-	}
-#else
-	float calcStyledAtten(float atten) {
+	#else
 		return saturate(stylizeAtten(atten, _ToonFeather, _ToonCoverage));
-	}
-#endif
+	#endif
+}
 
 // Basically copied out of the unity include files, with some modifications
 float3 Shade4PointLightsStyled (

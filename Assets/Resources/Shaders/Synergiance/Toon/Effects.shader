@@ -42,6 +42,9 @@ Shader "Synergiance/AckToon/Effects" {
 		_AmbDirection ("Directional Ambient", Range(0,1)) = 0.25
 		_ToonAmb ("Toonstyle Ambient", Range(0,1)) = 0.5
 		_FallbackLightDir ("Fallback Light Direction", Vector) = (0.5, 1, 0.25)
+		_PointLightLitShade ("Point Light Lit Shade", Range(0, 1)) = 0.2
+		_FakeLight ("Fake Light", Range(0, 1)) = 0
+		[HDR]_FakeLightCol ("Fake Light Color", Color) = (1, 1, 1)
 		
 		_ToonFeather ("Feather", Range(0, 1)) = 0.1
 		_ToonCoverage ("Coverage", Range(0, 1)) = 0.5
@@ -115,6 +118,7 @@ Shader "Synergiance/AckToon/Effects" {
 			
             #define BASE_PASS
 			#define COLOR_EFFECTS
+			#define FAKE_LIGHT
             #include "../cginc/Effects.cginc"
             
 			#pragma vertex vert

@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version { get { return "0.10b1"; } }
+		protected override string version { get { return "0.10b2"; } }
 
 		protected virtual bool hasEffects { get { return false; }}
 
@@ -123,7 +123,10 @@ namespace Synergiance.Shaders.AckToon {
 		protected virtual void DoOptions() {
 			ShaderProperty("_Exposure");
 			ShaderProperty("_AmbDirection");
+			ShaderProperty("_PointLightLitShade");
 			ShaderProperty("_ToonAmb");
+			ShowPropertyIfExists("_FakeLight", "Fake Light", "Promenance of the fake light.  Direction is based on fallback light direction.");
+			ShowPropertyIfExists("_FakeLightCol", "Fake Light Color", "This is the color of the fake light when the promenance is at its highest");
 			Vec3Prop(MakeLabel("Fallback Light Direction", "This is the direction the light will appear to come from when there is no directional light in the world."), FindProperty("_FallbackLightDir"));
 			ShaderProperty("_ReflPower");
 		}

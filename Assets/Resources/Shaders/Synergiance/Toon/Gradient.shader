@@ -39,6 +39,9 @@ Shader "Synergiance/AckToon/Gradient" {
 		_FallbackLightDir ("Fallback Light Direction", Vector) = (0.5, 1, 0.25)
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
 		_ToonIntensity ("Surface Intensity", Range(0, 1)) = 0
+		_PointLightLitShade ("Point Light Lit Shade", Range(0, 1)) = 0.2
+		_FakeLight ("Fake Light", Range(0, 1)) = 0
+		[HDR]_FakeLightCol ("Fake Light Color", Color) = (1, 1, 1)
 		
 		// Toon Gradients
 		_ToonAlpha1 ("Toon Alpha 1", Vector) = (0,    0,    0)
@@ -122,6 +125,7 @@ Shader "Synergiance/AckToon/Gradient" {
 			#define BASE_PASS
 			#define COLOR_EFFECTS
 			#define USES_GRADIENTS
+			#define FAKE_LIGHT
             #include "../cginc/ToonCore.cginc"
             
 			#pragma vertex vert

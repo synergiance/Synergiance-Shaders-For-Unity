@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Test Material
-  m_Shader: {fileID: 4800000, guid: f3913cbf5cba058479eba7161fe9f203, type: 3}
+  m_Shader: {fileID: 4800000, guid: 4cd7d1d3844f96e47a1d159bdabd58ea, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -156,6 +156,7 @@ Material:
     - _DstBlend: 0
     - _EmissionSpeed: 3
     - _Exposure: 1
+    - _FakeLight: 0
     - _FlipBackfaceNorms: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.5
@@ -180,6 +181,7 @@ Material:
     - _PanoUseAlpha: 0
     - _PanoUseOverlay: 0
     - _Parallax: 0.02
+    - _PointLightLitShade: 0.2
     - _Premultiply: 0
     - _ProbeClarity: 0
     - _ProbeStrength: 0
@@ -226,6 +228,7 @@ Material:
     - _UVSec: 0
     - _Unlit: 0
     - _UseSecondShadow: 0
+    - _Vivid: 0
     - _WriteMask: 255
     - _ZTest: 4
     - _ZWrite: 1
@@ -244,6 +247,7 @@ Material:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _EmissionPulseColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FakeLightCol: {r: 1, g: 1, b: 1, a: 1}
     - _FallbackLightDir: {r: 0.5, g: 1, b: 0.25, a: 1}
     - _LightColor: {r: 1, g: 1, b: 1, a: 1}
     - _SSTint: {r: 1, g: 1, b: 1, a: 1}

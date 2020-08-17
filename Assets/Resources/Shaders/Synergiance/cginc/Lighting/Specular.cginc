@@ -32,7 +32,7 @@ float3 BoxProject(BoxProjectData i) {
 
 #ifndef LIGHTSPECOVERRIDE
 void calcSpecular(inout shadingData s) {
-	float3 halfVector = normalize(s.lightDir + s.normal);
+	float3 halfVector = normalize(s.lightDir + s.viewDir);
 	float specular = pow(saturate(dot(s.normal, halfVector)), _Glossiness * 100);
 	
 	BoxProjectData bpd;

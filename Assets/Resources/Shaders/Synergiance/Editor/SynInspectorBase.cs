@@ -68,7 +68,7 @@ namespace Synergiance.Shaders {
 		}
 		
 		static protected bool BoldFoldout(bool foldout, GUIContent content) {
-			GUIStyle BFstyle = EditorStyles.foldout;
+			GUIStyle BFstyle = new GUIStyle(EditorStyles.foldout);
 			BFstyle.fontStyle = FontStyle.Bold;
 			return EditorGUILayout.Foldout(foldout, content, BFstyle);
 		}
@@ -136,8 +136,7 @@ namespace Synergiance.Shaders {
 		protected void Vec2Prop(GUIContent label, MaterialProperty prop1, MaterialProperty prop2) {
 			EditorGUI.BeginChangeCheck();
 			EditorGUI.showMixedValue = prop1.hasMixedValue || prop2.hasMixedValue;
-			Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop1), EditorStyles.layerMaskField, new GUILayoutOption[0]);
-			Vector2 vec2 = EditorGUI.Vector2Field(controlRect, label, new Vector2(prop1.floatValue, prop2.floatValue));
+			Vector2 vec2 = EditorGUILayout.Vector2Field(label, new Vector2(prop1.floatValue, prop2.floatValue));
 			EditorGUI.showMixedValue = false;
 			if (EditorGUI.EndChangeCheck()) {
 				prop1.floatValue = vec2.x;
@@ -148,8 +147,7 @@ namespace Synergiance.Shaders {
 		protected void Vec2IntProp(GUIContent label, MaterialProperty prop1, MaterialProperty prop2) {
 			EditorGUI.BeginChangeCheck();
 			EditorGUI.showMixedValue = prop1.hasMixedValue || prop2.hasMixedValue;
-			Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop1), EditorStyles.layerMaskField, new GUILayoutOption[0]);
-			Vector2 vec2 = EditorGUI.Vector2Field(controlRect, label, new Vector2(prop1.floatValue, prop2.floatValue));
+			Vector2 vec2 = EditorGUILayout.Vector2Field(label, new Vector2(prop1.floatValue, prop2.floatValue));
 			EditorGUI.showMixedValue = false;
 			if (EditorGUI.EndChangeCheck()) {
 				prop1.floatValue = Mathf.Floor(vec2.x);
@@ -170,8 +168,7 @@ namespace Synergiance.Shaders {
 		protected void Vec3Prop(GUIContent label, MaterialProperty prop) {
 			EditorGUI.BeginChangeCheck();
 			EditorGUI.showMixedValue = prop.hasMixedValue;
-			Rect controlRect = EditorGUILayout.GetControlRect(true, MaterialEditor.GetDefaultPropertyHeight(prop), EditorStyles.layerMaskField, new GUILayoutOption[0]);
-			Vector3 vec3 = EditorGUI.Vector3Field(controlRect, label, new Vector3(prop.vectorValue.x, prop.vectorValue.y, prop.vectorValue.z));
+			Vector3 vec3 = EditorGUILayout.Vector3Field(label, new Vector3(prop.vectorValue.x, prop.vectorValue.y, prop.vectorValue.z));
 			EditorGUI.showMixedValue = false;
 			if (EditorGUI.EndChangeCheck()) prop.vectorValue = new Vector4(vec3.x, vec3.y, vec3.z, prop.vectorValue.w);
 		}

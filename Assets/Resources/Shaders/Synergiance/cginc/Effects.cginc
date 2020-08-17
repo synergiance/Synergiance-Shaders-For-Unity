@@ -10,20 +10,20 @@
 #endif
 
 #ifdef COLOR_EFFECTS
-#include "HSB.cginc"
-float _Vivid;
-float _Speed;
+	#include "HSB.cginc"
+	float _Vivid;
+	float _Speed;
 #endif
 
 #ifdef EMISSION_EFFECTS
-#include "Perlin.cginc"
-#include "GoldenRatio.cginc"
-float _EmissionNoise;
-float _EmissionNoiseSpeed;
-float _EmissionNoiseDensity;
-int _EmissionIterations;
-int _EmissionNoiseCoords;
-int _EmissionNoise3DUV;
+	#include "Perlin.cginc"
+	#include "GoldenRatio.cginc"
+	float _EmissionNoise;
+	float _EmissionNoiseSpeed;
+	float _EmissionNoiseDensity;
+	int _EmissionIterations;
+	int _EmissionNoiseCoords;
+	int _EmissionNoise3DUV;
 #endif
 
 #define CUSTOM_VERT
