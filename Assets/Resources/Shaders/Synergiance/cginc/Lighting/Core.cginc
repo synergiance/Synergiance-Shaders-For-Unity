@@ -132,14 +132,17 @@ void initializeStruct(inout shadingData s, inout ITPL i) {
 	#endif
 	s.lightDir = _WorldSpaceLightPos0.rgb;
 	#ifdef _EMISSION
-		s.emission = _EmissionMap.Sample(sampler_MainTex, i.uv.xy).rgb * _EmissionColor.rgb;
+		s.emission = _EmissionMap.Sample(sampler_MainTex, s.uv.xy).rgb * _EmissionColor.rgb;
 	#endif // _EMISSION
 	s.light = 1;
-	s.viewDir = normalize(_WorldSpaceCameraPos - i.posWorld.xyz);
+	s.posWorld = i.posWorld;
+	s.viewDir = normalize(_WorldSpaceCameraPos - s.posWorld.xyz);
 	#ifdef HASSPECULAR
 		s.specular = 0;
+		#ifdef HASMETALLIC
+			s.metallic = _Metallic * _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).r;
+		#endif
 	#endif
-	s.posWorld = i.posWorld;
 	SYN_TRANSFER_SHADOW(i,s)
 	s.vertLight = i.vertLight;
 	s.lightCol = _LightColor0;
@@ -164,13 +167,24 @@ fixed4 calcFinalColor(shadingData s) {
 		color.rgb *= color.a;
 	#endif
 	#ifdef HASSPECULAR
+		#ifdef HASMETALLIC
+			float3 tmpCol = color.rgb;
+			#define COLVAR tmpCol
+		#else
+			#define COLVAR color.rgb
+		#endif
 		#ifdef _ALPHAPREMULTIPLY_ON
 			fixed4 speccolor = fixed4(s.specular * _Exposure, 0);
 			UNITY_APPLY_FOG(s.fogCoord, speccolor);
-			color.rgb += speccolor.rgb;
+			COLVAR += speccolor.rgb;
 		#else
-			color.rgb += s.specular * _Exposure;
+			COLVAR += s.specular * _Exposure;
 		#endif
+		#ifdef HASMETALLIC
+			color.rgb = lerp(tmpCol, color.rgb * s.specular, s.metallic);
+			//color.r = s.metallic;
+		#endif
+		#undef COLVAR
 	#endif // HASSPECULAR
 	#ifndef _ALPHAPREMULTIPLY_ON
 		UNITY_APPLY_FOG(i.fogCoord, color);
@@ -181,11 +195,7 @@ fixed4 calcFinalColor(shadingData s) {
 // Default Shading
 #ifndef LIGHTDIROVERRIDE
 float3 calcLightDirectionInternal(float3 posWorld) {
-	#if defined(DIRECTIONAL) || defined(DIRECTIONAL_COOKIE)
-		return _WorldSpaceLightPos0;
-	#else
-		return normalize(_WorldSpaceLightPos0 - posWorld);
-	#endif
+	return normalize(_WorldSpaceLightPos0.xyz - posWorld * _WorldSpaceLightPos0.w);
 }
 
 void calcLightDir(inout shadingData s) {

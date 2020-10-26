@@ -2,6 +2,7 @@
 #define ACKTOONCORE
 
 #define CUSTOM_VERT
+#include "Lighting/Metallic.cginc"
 #include "Lighting/ToonSpecular.cginc"
 
 #ifdef FAKE_LIGHT

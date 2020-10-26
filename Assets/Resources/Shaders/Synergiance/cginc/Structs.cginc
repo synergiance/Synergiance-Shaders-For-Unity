@@ -36,6 +36,9 @@ struct shadingData {
 	float3 normal;
 	#ifdef HASSPECULAR
 		float3 specular;
+		#ifdef HASMETALLIC
+			float metallic;
+		#endif
 	#endif
 	float4 posWorld;
 	LOC_SHADOWCOORD

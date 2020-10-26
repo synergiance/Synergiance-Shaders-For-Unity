@@ -72,6 +72,7 @@ Shader "Synergiance/AckToon/MMD" {
 		[Enum(None,0,Alpha,1,Red,8,Green,4,Blue,2,RGB,14,RGBA,15)] _stencilcolormask("Color Mask", Int) = 15
         [Enum(UnityEngine.Rendering.BlendMode)] _ASrcBlend ("Alpha Source Blend", Int) = 1
 		[Enum(UnityEngine.Rendering.BlendMode)] _ADstBlend ("Alpha Destination Blend", Int) = 0
+		[Toggle(_)] _AlphaToMask("Alpha To Mask", Int) = 0
 	}
 
 	SubShader {
@@ -83,6 +84,7 @@ Shader "Synergiance/AckToon/MMD" {
 		ColorMask [_stencilcolormask]
         ZTest [_ZTest]
         BlendOp [_BlendOp]
+		AlphaToMask [_AlphaToMask]
         
 		Stencil
 		{

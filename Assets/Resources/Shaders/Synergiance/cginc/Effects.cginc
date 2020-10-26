@@ -27,6 +27,7 @@
 #endif
 
 #define CUSTOM_VERT
+#include "Lighting/Metallic.cginc"
 #include "Lighting/ToonSpecular.cginc"
 
 #ifdef EMISSION_EFFECTS

@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version { get { return "0.10b2"; } }
+		protected override string version { get { return "0.10b3"; } }
 
 		protected virtual bool hasEffects { get { return false; }}
 
@@ -154,6 +154,7 @@ namespace Synergiance.Shaders.AckToon {
 			ShaderProperty("_stencilcolormask");
 			ShaderProperty("_ASrcBlend");
 			ShaderProperty("_ADstBlend");
+			ShowPropertyIfExists("_AlphaToMask");
 		}
 
 		protected virtual void DoEffects() {}

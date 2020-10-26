@@ -4,11 +4,7 @@
 #define HASSPECULAR
 #include "Core.cginc"
 
-Texture2D _MetallicGlossMap;
-float _Metallic;
 float _Glossiness;
-float _GlossMapScale;
-float _SmoothnessTextureChannel;
 
 struct BoxProjectData {
 	float3 direction;
@@ -32,8 +28,14 @@ float3 BoxProject(BoxProjectData i) {
 
 #ifndef LIGHTSPECOVERRIDE
 void calcSpecular(inout shadingData s) {
+	#if defined(_METALLICGLOSSMAP) && defined(HASMETALLIC)
+		float glossiness = _GlossMapScale * (_SmoothnessTextureChannel == 0 ? _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).a : _MainTex.Sample(sampler_MainTex, s.uv.xy).a);
+	#else
+		float glossiness = _Glossiness;
+	#endif
+
 	float3 halfVector = normalize(s.lightDir + s.viewDir);
-	float specular = pow(saturate(dot(s.normal, halfVector)), _Glossiness * 100);
+	float specular = pow(saturate(dot(s.normal, halfVector)), glossiness * 100);
 	
 	BoxProjectData bpd;
 	bpd.direction = reflect(-s.viewDir, s.normal);
@@ -44,7 +46,7 @@ void calcSpecular(inout shadingData s) {
 	
 	fixed3 probe = 0;
 	Unity_GlossyEnvironmentData envData;
-	envData.roughness = 1 - _Glossiness;
+	envData.roughness = 1 - glossiness;
 	envData.reflUVW = BoxProject(bpd);
 	float3 probe0 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE(unity_SpecCube0), unity_SpecCube0_HDR, envData);
 	#if UNITY_SPECCUBE_BLENDING

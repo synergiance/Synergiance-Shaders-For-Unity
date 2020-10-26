@@ -11,12 +11,18 @@ fixed _SpecPower;
 fixed _ReflPower;
 
 void calcSpecular(inout shadingData s) {
+	#if defined(_METALLICGLOSSMAP) && defined(HASMETALLIC)
+		float glossiness = _GlossMapScale * (_SmoothnessTextureChannel == 0 ? _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).a : _MainTex.Sample(sampler_MainTex, s.uv.xy).a);
+	#else
+		float glossiness = _Glossiness;
+	#endif
+
 	float3 halfVector = normalize(s.lightDir + s.viewDir);
-	float specular = pow(saturate(dot(s.normal, halfVector)), _Glossiness * 100);
+	float specular = pow(saturate(dot(s.normal, halfVector)), glossiness * 100);
 	specular *= smoothstep(-0.01, 0, dot(s.normal, s.lightDir));
 	
 	fixed feather = max(_SpecFeather, ddx(specular) + ddy(specular));
-	fixed ref = (1 - feather) * lerp(0.5, 0.95, _Glossiness);
+	fixed ref = (1 - feather) * lerp(0.5, 0.95, glossiness);
 	specular = smoothstep(ref, ref + feather, specular * s.light.g);
 	
 	fixed3 probe = 0;
@@ -30,7 +36,7 @@ void calcSpecular(inout shadingData s) {
 		bpd.boxMax = unity_SpecCube0_BoxMax;
 		
 		Unity_GlossyEnvironmentData envData;
-		envData.roughness = 1 - _Glossiness;
+		envData.roughness = 1 - glossiness;
 		envData.reflUVW = BoxProject(bpd);
 		float3 probe0 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE(unity_SpecCube0), unity_SpecCube0_HDR, envData);
 		#if UNITY_SPECCUBE_BLENDING
@@ -51,7 +57,7 @@ void calcSpecular(inout shadingData s) {
 		#endif
 	}
 	
-	s.specular += (specular * s.lightCol * _SpecPower + probe * _ReflPower) * smoothstep(0.2, 0.8, _Glossiness);
+	s.specular += (specular * s.lightCol * _SpecPower + probe * _ReflPower) * smoothstep(0.2, 0.8, glossiness);
 }
 
 #endif // ACKLIGHTINGTOONSPEC
