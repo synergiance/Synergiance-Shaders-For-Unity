@@ -41,6 +41,7 @@ Shader "Synergiance/AckToon/Light" {
 		_SpecFeather ("Specular Feather", Range(0, 1)) = 0.1
 		_SpecPower ("Specular Intensity", Range(0, 1)) = 0.5
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
+		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
 
 		// Rendering
 		[Enum(Opaque,0,Cutout,1,Fade,2,Transparent,3)] _Mode ("Render Mode", Int) = 0
@@ -76,8 +77,7 @@ Shader "Synergiance/AckToon/Light" {
         BlendOp [_BlendOp]
 		AlphaToMask [_AlphaToMask]
         
-		Stencil
-		{
+		Stencil {
 			Ref [_Stencil]
 			ReadMask [_ReadMask]
 			WriteMask [_WriteMask]

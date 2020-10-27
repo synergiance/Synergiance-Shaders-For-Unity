@@ -9,6 +9,7 @@
 fixed _SpecFeather;
 fixed _SpecPower;
 fixed _ReflPower;
+Texture2D _ReflPowerTex;
 
 void calcSpecular(inout shadingData s) {
 	#if defined(_METALLICGLOSSMAP) && defined(HASMETALLIC)
@@ -57,7 +58,7 @@ void calcSpecular(inout shadingData s) {
 		#endif
 	}
 	
-	s.specular += (specular * s.lightCol * _SpecPower + probe * _ReflPower) * smoothstep(0.2, 0.8, glossiness);
+	s.specular += (specular * s.lightCol * _SpecPower + probe * _ReflPower * _ReflPowerTex.Sample(sampler_MainTex, s.uv.xy).b) * smoothstep(0.2, 0.8, glossiness);
 }
 
 #endif // ACKLIGHTINGTOONSPEC

@@ -26,6 +26,7 @@ Shader "Synergiance/AckToon/MMD" {
 
         _EmissionColor("Color", Color) = (0,0,0)
         _EmissionMap("Emission", 2D) = "white" {}
+		_EmissionFalloff("Emission Falloff", Range(0.0, 1.0)) = 0.2
 
 		// Color Options
 		_Vivid("Vivid", Range(0, 1)) = 0
@@ -46,6 +47,7 @@ Shader "Synergiance/AckToon/MMD" {
 		_SpecFeather ("Specular Feather", Range(0, 1)) = 0.1
 		_SpecPower ("Specular Intensity", Range(0, 1)) = 0.5
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
+		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
 
 		_ShadowRamp("Toon Texture", 2D) = "white" {}
 		_SphereAddTex ("Additive MatCap", 2D) = "black" {}
@@ -86,8 +88,7 @@ Shader "Synergiance/AckToon/MMD" {
         BlendOp [_BlendOp]
 		AlphaToMask [_AlphaToMask]
         
-		Stencil
-		{
+		Stencil {
 			Ref [_Stencil]
 			ReadMask [_ReadMask]
 			WriteMask [_WriteMask]
@@ -115,6 +116,7 @@ Shader "Synergiance/AckToon/MMD" {
 			#pragma shader_feature _ALPHABLEND_ON
 			#pragma shader_feature _ALPHAPREMULTIPLY_ON
 			
+            #define EMISSION_FALLOFF
 			#define BASE_PASS
 			#define COLOR_EFFECTS
 			#define FAKE_LIGHT

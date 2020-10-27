@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version { get { return "0.10b3"; } }
+		protected override string version { get { return "0.10b4"; } }
 
 		protected virtual bool hasEffects { get { return false; }}
 
@@ -103,7 +103,7 @@ namespace Synergiance.Shaders.AckToon {
 
 		protected virtual void DoMainMaps() {
 			MaterialProperty mainTex = FindProperty("_MainTex");
-			editor.TexturePropertySingleLine(MakeLabel("Main Texture", "Main Color Texture (RGB)"), mainTex, FindProperty("_Color"));
+			editor.TexturePropertySingleLine(MakeLabel("Main Texture", "Albedo (RGB), Alpha (A)"), mainTex, FindProperty("_Color"));
 			ShaderProperty("_Cutoff");
 			DoSpecularMetallicArea();
 			DoNormalArea();
@@ -128,7 +128,8 @@ namespace Synergiance.Shaders.AckToon {
 			ShowPropertyIfExists("_FakeLight", "Fake Light", "Promenance of the fake light.  Direction is based on fallback light direction.");
 			ShowPropertyIfExists("_FakeLightCol", "Fake Light Color", "This is the color of the fake light when the promenance is at its highest");
 			Vec3Prop(MakeLabel("Fallback Light Direction", "This is the direction the light will appear to come from when there is no directional light in the world."), FindProperty("_FallbackLightDir"));
-			ShaderProperty("_ReflPower");
+			if (PropertyExists("_ReflPowerTex")) editor.TexturePropertySingleLine(MakeLabel("Reflections Intensity", "Reflections Intensity Texture (B)"), FindProperty("_ReflPowerTex"), FindProperty("_ReflPower"));
+			else ShaderProperty("_ReflPower");
 		}
 
 		protected virtual void DoBlending() {
@@ -167,8 +168,15 @@ namespace Synergiance.Shaders.AckToon {
 		}
 		
 		protected void DoEmissionArea() {
+			MaterialProperty emissionCol = FindProperty("_EmissionColor");
 			MaterialProperty emissionTex = FindProperty("_EmissionMap");
-			HDRColorTextureProperty(MakeLabel("Emission", "Emission Texture (RGB)"), emissionTex, FindProperty("_EmissionColor"), false);
+			Color matCol = emissionCol.colorValue;
+			HDRColorTextureProperty(MakeLabel("Emission", "Emission Texture (RGB)"), emissionTex, emissionCol, false);
+			if (matCol.r > 0 || matCol.g > 0 || matCol.b > 0) {
+				EditorGUI.indentLevel += 2;
+				ShowPropertyIfExists("_EmissionFalloff");
+				EditorGUI.indentLevel -= 2;
+			}
 		}
 
 		protected void DoNormalArea() {

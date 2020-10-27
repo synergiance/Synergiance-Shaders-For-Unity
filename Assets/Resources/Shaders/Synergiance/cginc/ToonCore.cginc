@@ -10,6 +10,10 @@
 	fixed3 _FakeLightCol;
 #endif
 
+#if defined(_EMISSION) && defined(EMISSION_FALLOFF)
+	fixed _EmissionFalloff;
+#endif
+
 v2f vert (appdata_full v) {
 	v2f o;
 	o.pos = UnityObjectToClipPos(v.vertex);
@@ -61,6 +65,10 @@ fixed4 frag (v2f i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	#endif
 
 	CALC_POSTLIGHT
+
+	#if defined(_EMISSION) && defined(EMISSION_FALLOFF)
+		s.emission *= lerp(1 - _EmissionFalloff, 1, max(0, dot(s.viewDir, s.normal)));
+	#endif
 	
 	// Final Blending
 	return calcFinalColor(s);

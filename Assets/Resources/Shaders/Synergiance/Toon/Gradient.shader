@@ -26,6 +26,7 @@ Shader "Synergiance/AckToon/Gradient" {
 
         _EmissionColor("Color", Color) = (0,0,0)
         _EmissionMap("Emission", 2D) = "white" {}
+		_EmissionFalloff("Emission Falloff", Range(0.0, 1.0)) = 0.2
 
 		// Color Options
 		_Vivid("Vivid", Range(0, 1)) = 0
@@ -38,6 +39,7 @@ Shader "Synergiance/AckToon/Gradient" {
 		_ToonAmb ("Toonstyle Ambient", Range(0,1)) = 0.5
 		_FallbackLightDir ("Fallback Light Direction", Vector) = (0.5, 1, 0.25)
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
+		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
 		_ToonIntensity ("Surface Intensity", Range(0, 1)) = 0
 		_PointLightLitShade ("Point Light Lit Shade", Range(0, 1)) = 0.2
 		_FakeLight ("Fake Light", Range(0, 1)) = 0
@@ -95,8 +97,7 @@ Shader "Synergiance/AckToon/Gradient" {
         BlendOp [_BlendOp]
 		AlphaToMask [_AlphaToMask]
         
-		Stencil
-		{
+		Stencil {
 			Ref [_Stencil]
 			ReadMask [_ReadMask]
 			WriteMask [_WriteMask]
@@ -124,6 +125,7 @@ Shader "Synergiance/AckToon/Gradient" {
 			#pragma shader_feature _ALPHABLEND_ON
 			#pragma shader_feature _ALPHAPREMULTIPLY_ON
 			
+            #define EMISSION_FALLOFF
 			#define BASE_PASS
 			#define COLOR_EFFECTS
 			#define USES_GRADIENTS
