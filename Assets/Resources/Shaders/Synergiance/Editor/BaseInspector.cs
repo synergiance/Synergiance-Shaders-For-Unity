@@ -114,7 +114,11 @@ namespace Synergiance.Shaders.AckToon {
 		protected virtual void DoToon() {
 			ShaderProperty("_ToonFeather", "Feather", "How soft the line between light and dark will be");
 			ShaderProperty("_ToonCoverage", "Coverage", "How much of the model light should affect at one time");
-			ShaderProperty("_ToonColor", "Color", "Tint color for the shadowed areas");
+			if (PropertyExists("_ShadeTex")) {
+				editor.TexturePropertySingleLine(MakeLabel("Shade"), FindProperty("_ShadeTex"), FindProperty("_ToonColor"), FindProperty("_ShadeMode"));
+			} else {
+				ShaderProperty("_ToonColor", "Color", "Tint color for the shadowed areas");
+			}
 			ShaderProperty("_ToonIntensity", "Surface Intensity", "This will make the surface color more prominant in shadowed areas");
 			ShaderProperty("_SpecFeather");
 			ShaderProperty("_SpecPower");

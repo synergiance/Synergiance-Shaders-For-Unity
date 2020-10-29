@@ -34,6 +34,10 @@ fixed _ToonIntensity;
 		fixed _ToonCoverage2;
 		fixed4 _ToonColor2;
 	#endif // SECONDSHADOWLAYER
+	#ifdef SHADE_TEXTURE
+		Texture2D _ShadeTex;
+		int _ShadeMode;
+	#endif // SHADE_TEXTURE
 #endif // Not USES_GRADIENTS
 
 float stylizeAtten(float atten, float feather, float coverage) {
@@ -42,7 +46,7 @@ float stylizeAtten(float atten, float feather, float coverage) {
 	return smoothstep(ref2, ref2 + feather, atten);
 }
 
-float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albedo, float3 lightColor) {
+float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albedo, float3 lightColor, float2 uv) {
 	#if defined(USES_GRADIENTS) || defined(SHADOWRAMP)
 		#ifdef USES_GRADIENTS
 			float4 sample = SampleGradientToon(ndotl * shade);
@@ -74,15 +78,22 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 				shadeCol *= _PointLightLitShade;
 			#endif
 		#endif
+		#ifdef SHADE_TEXTURE
+			#ifdef FRAGMENT
+				shadeCol *= _ShadeTex.Sample(sampler_MainTex, uv).rgb;
+			#else
+				shadeCol *= _ShadeTex.SampleLevel(sampler_MainTex, uv, 0).rgb;
+			#endif
+		#endif
 		return max(0, lerp(shadeCol, fixed3(1,1,1), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor);
 	#endif
 }
 
 void calcLightColor(inout shadingData s) {
-	s.light.rgb = calcLightColorInternal(s.light.r, s.light.g, s.light.b, s.color.rgb, s.lightCol.rgb);
+	s.light.rgb = calcLightColorInternal(s.light.r, s.light.g, s.light.b, s.color.rgb, s.lightCol.rgb, s.uv.xy);
 }
 
-float3 calcAmbientInternal(float3 normal, float3 albedo, float atten) {
+float3 calcAmbientInternal(float3 normal, float3 albedo, float atten, float2 uv) {
 	float3 amb = 0;
 	#ifdef BASE_PASS
 		float3 sh9amb = max(0, ShadeSH9(half4(lerp(half3(0,0,0), normal, _AmbDirection), 1.0)));
@@ -108,7 +119,15 @@ float3 calcAmbientInternal(float3 normal, float3 albedo, float atten) {
 		#if defined(USES_GRADIENTS) || defined(SHADOWRAMP)
 			float3 toonamb = lerp(negLight * 0.5 + posLight * 0.5 * lerp(fixed3(1,1,1), albedo, _ToonIntensity), posLight, styleAtten) * sample.rgb;
 		#else
-			float3 toonamb = lerp(negLight * 0.5 + posLight * 0.5 * _ToonColor.rgb * lerp(fixed3(1,1,1), albedo, _ToonIntensity), posLight, styleAtten);
+			fixed3 shadeCol = _ToonColor.rgb;
+			#ifdef SHADE_TEXTURE
+				#ifdef FRAGMENT
+					shadeCol *= _ShadeTex.Sample(sampler_MainTex, uv).rgb;
+				#else
+					shadeCol *= _ShadeTex.SampleLevel(sampler_MainTex, uv, 0).rgb;
+				#endif
+			#endif
+			float3 toonamb = lerp(negLight * 0.5 + posLight * 0.5 * shadeCol * lerp(fixed3(1,1,1), albedo, _ToonIntensity), posLight, styleAtten);
 		#endif
 		amb = lerp(sh9amb, toonamb, _ToonAmb);
 	#endif // BASE_PASS
@@ -116,7 +135,7 @@ float3 calcAmbientInternal(float3 normal, float3 albedo, float atten) {
 }
 
 void calcAmbient(inout shadingData s) {
-	s.light.rgb += s.vertLight.rgb + calcAmbientInternal(s.normal.xyz, s.color.rgb, s.light.r * s.light.g);
+	s.light.rgb += s.vertLight.rgb + calcAmbientInternal(s.normal.xyz, s.color.rgb, s.light.r * s.light.g, s.uv.xy);
 }
 
 float3 calcStyledAtten(float atten) {

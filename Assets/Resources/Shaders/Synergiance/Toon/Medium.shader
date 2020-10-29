@@ -43,6 +43,8 @@ Shader "Synergiance/AckToon/Medium" {
 		_ToonCoverage ("Coverage", Range(0, 1)) = 0.5
 		_ToonColor ("Color", Color) = (0,0,0,0)
 		_ToonIntensity ("Surface Intensity", Range(0, 1)) = 0
+		_ShadeTex ("Shade Texture", 2D) = "white" {}
+		[Enum(Tint,0,Shade,1)] _ShadeMode ("Shade Mode", Int) = 0
 		
 		_SpecFeather ("Specular Feather", Range(0, 1)) = 0.1
 		_SpecPower ("Specular Intensity", Range(0, 1)) = 0.5
@@ -115,6 +117,7 @@ Shader "Synergiance/AckToon/Medium" {
 			#define BASE_PASS
 			#define COLOR_EFFECTS
 			#define FAKE_LIGHT
+			#define SHADE_TEXTURE
             #include "../cginc/Effects.cginc"
             
 			#pragma vertex vert
@@ -145,6 +148,7 @@ Shader "Synergiance/AckToon/Medium" {
 			
 			#define ADD_PASS
 			#define COLOR_EFFECTS
+			#define SHADE_TEXTURE
 			#include "../cginc/Effects.cginc"
 			
 			#pragma vertex vert
