@@ -88,6 +88,10 @@ float _Exposure;
 	float _Cutoff;
 #endif
 
+#ifdef USESHADE
+	uint _ShadeMode;
+#endif
+
 #ifndef CUSTOM_VERT
 ITPL vert (appdata_full v) {
 	ITPL o;
@@ -150,15 +154,20 @@ void initializeStruct(inout shadingData s, inout ITPL i) {
 		s.uvCap = calcMatcapCoords(s.viewDir, s.normal);
 	#endif
 }
-#endif
+#endif // NO_INITIALIZE
 
+#ifndef NO_FINALIZE
 fixed4 calcFinalColor(shadingData s) {
 	#ifdef _ALPHABLEND_ON
 		fixed4 color = fixed4(s.color, s.alpha);
 	#else
 		fixed4 color = fixed4(s.color, 1);
 	#endif
-	color.rgb *= s.light * _Exposure;
+	#ifdef USESHADE
+		color.rgb = lerp(color.rgb * s.light, s.light, _ShadeMode) * _Exposure;
+	#else
+		color.rgb *= s.light * _Exposure;
+	#endif
 	#ifdef _EMISSION
 		color.rgb += s.emission;
 	#endif // _EMISSION
@@ -191,6 +200,7 @@ fixed4 calcFinalColor(shadingData s) {
 	#endif
 	return color;
 }
+#endif // NO_FINALIZE
 
 // Default Shading
 #ifndef LIGHTDIROVERRIDE

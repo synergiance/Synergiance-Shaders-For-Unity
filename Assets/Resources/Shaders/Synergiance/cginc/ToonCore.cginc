@@ -40,6 +40,19 @@ v2f vert (appdata_full v) {
 	return o;
 };
 
+void calcFakeLight(inout shadingData s) {
+	#if !defined(USES_GRADIENTS) && !defined(SHADOWRAMP) && !defined(SHADOWMAP) && defined(BASE_PASS) && defined(FAKE_LIGHT)
+		float3 shadeCol = _ToonColor.rgb;
+		#ifdef SHADE_TEXTURE
+			shadeCol *= _ShadeTex.Sample(sampler_MainTex, s.uv.xy).rgb;
+		#endif
+		float ndotl = dot(s.normal.xyz, _FallbackLightDir) * 0.5 + 0.5;
+		shadeCol *= lerp(1, s.color.rgb, _ToonIntensity);
+		shadeCol = lerp(shadeCol, 1, stylizeAtten(ndotl, _ToonFeather, _ToonCoverage));
+		s.light.rgb += _FakeLightCol * _FakeLight * shadeCol;
+	#endif
+}
+
 fixed4 frag (v2f i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	// Initialize
 	shadingData s;
@@ -59,10 +72,7 @@ fixed4 frag (v2f i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	#endif
 	calcLightColor(s);
 	calcAmbient(s);
-
-	#if !defined(USES_GRADIENTS) && !defined(SHADOWRAMP) && !defined(SHADOWMAP) && defined(BASE_PASS) && defined(FAKE_LIGHT)
-		s.light.rgb += _FakeLightCol * _FakeLight * lerp(_ToonColor.rgb * lerp(1, s.color.rgb, _ToonIntensity), 1, stylizeAtten(dot(s.normal.xyz, _FallbackLightDir) * 0.5 + 0.5, _ToonFeather, _ToonCoverage));
-	#endif
+	calcFakeLight(s);
 
 	CALC_POSTLIGHT
 

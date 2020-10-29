@@ -1,6 +1,9 @@
 #ifndef ACKLIGHTINGTOON
 #define ACKLIGHTINGTOON
 
+#ifdef SHADE_TEXTURE
+	#define USESHADE
+#endif
 #define LIGHTCOLOROVERRIDE
 #define LIGHTAMBIENTOVERRIDE
 #include "Core.cginc"
@@ -36,7 +39,6 @@ fixed _ToonIntensity;
 	#endif // SECONDSHADOWLAYER
 	#ifdef SHADE_TEXTURE
 		Texture2D _ShadeTex;
-		int _ShadeMode;
 	#endif // SHADE_TEXTURE
 #endif // Not USES_GRADIENTS
 
@@ -47,6 +49,7 @@ float stylizeAtten(float atten, float feather, float coverage) {
 }
 
 float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albedo, float3 lightColor, float2 uv) {
+	float3 shadeRet;
 	#if defined(USES_GRADIENTS) || defined(SHADOWRAMP)
 		#ifdef USES_GRADIENTS
 			float4 sample = SampleGradientToon(ndotl * shade);
@@ -64,7 +67,7 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 				lightCol *= lerp(shadeCol * _PointLightLitShade, float3(1,1,1), sample.a);
 			#endif
 		#endif
-		return max(0, lightCol) * sample.rgb;
+		shadeRet = lightCol * sample.rgb;
 	#else
 		#ifdef LIGHT_IN_VERTEX
 			fixed feather = _ToonFeather;
@@ -85,8 +88,9 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 				shadeCol *= _ShadeTex.SampleLevel(sampler_MainTex, uv, 0).rgb;
 			#endif
 		#endif
-		return max(0, lerp(shadeCol, fixed3(1,1,1), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor);
+		shadeRet = lerp(shadeCol, fixed3(1,1,1), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor;
 	#endif
+	return max(0, shadeRet.rgb);
 }
 
 void calcLightColor(inout shadingData s) {
