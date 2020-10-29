@@ -45,11 +45,15 @@ void calcFakeLight(inout shadingData s) {
 		float3 shadeCol = _ToonColor.rgb;
 		#ifdef SHADE_TEXTURE
 			shadeCol *= _ShadeTex.Sample(sampler_MainTex, s.uv.xy).rgb;
+			#define BRIGHT_COL lerp(1, s.color, _ShadeMode)
+		#else
+			#define BRIGHT_COL 1
 		#endif
 		float ndotl = dot(s.normal.xyz, _FallbackLightDir) * 0.5 + 0.5;
-		shadeCol *= lerp(1, s.color.rgb, _ToonIntensity);
-		shadeCol = lerp(shadeCol, 1, stylizeAtten(ndotl, _ToonFeather, _ToonCoverage));
+		shadeCol *= lerp(1, s.color, _ToonIntensity);
+		shadeCol = lerp(shadeCol, BRIGHT_COL, stylizeAtten(ndotl, _ToonFeather, _ToonCoverage));
 		s.light.rgb += _FakeLightCol * _FakeLight * shadeCol;
+		#undef BRIGHT_COL
 	#endif
 }
 

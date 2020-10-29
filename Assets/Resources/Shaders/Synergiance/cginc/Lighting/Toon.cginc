@@ -87,8 +87,10 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 			#else
 				shadeCol *= _ShadeTex.SampleLevel(sampler_MainTex, uv, 0).rgb;
 			#endif
+			shadeRet = lerp(shadeCol, lerp(fixed3(1,1,1), albedo, _ShadeMode), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor;
+		#else
+			shadeRet = lerp(shadeCol, fixed3(1,1,1), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor;
 		#endif
-		shadeRet = lerp(shadeCol, fixed3(1,1,1), stylizeAtten(ndotl * shade, feather, _ToonCoverage)) * atten * lightColor;
 	#endif
 	return max(0, shadeRet.rgb);
 }
@@ -130,6 +132,7 @@ float3 calcAmbientInternal(float3 normal, float3 albedo, float atten, float2 uv)
 				#else
 					shadeCol *= _ShadeTex.SampleLevel(sampler_MainTex, uv, 0).rgb;
 				#endif
+				posLight *= lerp(1, albedo, _ShadeMode);
 			#endif
 			float3 toonamb = lerp(negLight * 0.5 + posLight * 0.5 * shadeCol * lerp(fixed3(1,1,1), albedo, _ToonIntensity), posLight, styleAtten);
 		#endif
