@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Test Material
   m_Shader: {fileID: 4800000, guid: 4cd7d1d3844f96e47a1d159bdabd58ea, type: 3}
-  m_ShaderKeywords: 
+  m_ShaderKeywords: _EMISSION
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -83,6 +83,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _ReflPowerTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SSThickness:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -135,6 +139,7 @@ Material:
     - _ADstBlend: 0
     - _ASrcBlend: 1
     - _AlphaOverride: 1
+    - _AlphaToMask: 0
     - _AmbDirection: 0.25
     - _BlendOp: 0
     - _Brightness: 1
@@ -154,6 +159,7 @@ Material:
     - _DisableBatching: 0
     - _Dither: 0
     - _DstBlend: 0
+    - _EmissionFalloff: 0.75
     - _EmissionSpeed: 3
     - _Exposure: 1
     - _FakeLight: 0
@@ -245,7 +251,7 @@ Material:
     - _BackFaceTint: {r: 1, g: 1, b: 1, a: 1}
     - _ColChangeColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor: {r: 0.2735849, g: 0, b: 0, a: 1}
     - _EmissionPulseColor: {r: 0, g: 0, b: 0, a: 1}
     - _FakeLightCol: {r: 1, g: 1, b: 1, a: 1}
     - _FallbackLightDir: {r: 0.5, g: 1, b: 0.25, a: 1}
