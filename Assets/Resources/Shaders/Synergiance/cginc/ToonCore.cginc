@@ -62,7 +62,7 @@ void calcFakeLight(inout shadingData s) {
 	#endif
 }
 
-#ifndef NO_TOON_FRAG
+#if !defined(NO_TOON_FRAG) && !defined(SHADER_STAGE_VERTEX)
 fixed4 frag (ITPL i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	// Initialize
 	shadingData s;
