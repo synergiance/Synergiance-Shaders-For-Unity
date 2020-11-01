@@ -6,7 +6,9 @@
 	#define NEEDS_UVW
     #define CALC_PRELIGHT calcPreEffects(s);
     #define CALC_POSTLIGHT calcPostEffects(s, i.uvw);
-    #define CALC_VERT calcVertEffects(o, v);
+    #ifdef SHADER_STAGE_VERTEX
+		#define CALC_VERT calcVertEffects(o, v);
+	#endif
 #endif
 
 #ifdef COLOR_EFFECTS
