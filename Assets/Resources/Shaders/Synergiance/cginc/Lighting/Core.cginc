@@ -119,7 +119,7 @@ ITPL vert (appdata_full v) {
 };
 #endif
 
-#ifndef NO_INITIALIZE
+#if !defined(NO_INITIALIZE) && !defined(SHADER_STAGE_VERTEX)
 void initializeStruct(inout shadingData s, inout ITPL i) {
 	s.uv = i.uv.xy;
 	s.color = _MainTex.Sample(sampler_MainTex, s.uv.xy).rgb * i.color.rgb;
