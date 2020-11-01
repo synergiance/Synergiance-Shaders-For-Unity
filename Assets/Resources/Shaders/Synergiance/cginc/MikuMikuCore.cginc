@@ -6,6 +6,7 @@
 #define HAS_MATCAP
 #define SHADOWRAMP
 #define CUSTOM_VERT
+#define USE_TOON_VERT
 #include "Lighting/ToonSpecular.cginc"
 
 Texture2D _SphereAddTex;

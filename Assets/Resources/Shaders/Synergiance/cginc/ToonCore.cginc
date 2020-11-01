@@ -1,7 +1,10 @@
 #ifndef ACKTOONCORE
 #define ACKTOONCORE
 
-#define CUSTOM_VERT
+#ifndef CUSTOM_VERT
+	#define USE_TOON_VERT
+	#define CUSTOM_VERT
+#endif
 #include "Lighting/Metallic.cginc"
 #include "Lighting/ToonSpecular.cginc"
 
@@ -14,8 +17,9 @@
 	fixed _EmissionFalloff;
 #endif
 
-v2f vert (appdata_full v) {
-	v2f o;
+#ifdef USE_TOON_VERT
+ITPL vert (appdata_full v) {
+	ITPL o;
 	o.pos = UnityObjectToClipPos(v.vertex);
 	o.posWorld = mul(unity_ObjectToWorld, v.vertex);
 	o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
@@ -39,6 +43,7 @@ v2f vert (appdata_full v) {
 	CALC_VERT
 	return o;
 };
+#endif
 
 void calcFakeLight(inout shadingData s) {
 	#if !defined(USES_GRADIENTS) && !defined(SHADOWRAMP) && !defined(SHADOWMAP) && defined(BASE_PASS) && defined(FAKE_LIGHT)
@@ -57,7 +62,8 @@ void calcFakeLight(inout shadingData s) {
 	#endif
 }
 
-fixed4 frag (v2f i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
+#ifndef NO_TOON_FRAG
+fixed4 frag (ITPL i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	// Initialize
 	shadingData s;
 	initializeStruct(s, i);
@@ -87,5 +93,6 @@ fixed4 frag (v2f i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	// Final Blending
 	return calcFinalColor(s);
 }
+#endif
 
 #endif // ACKTOONCORE

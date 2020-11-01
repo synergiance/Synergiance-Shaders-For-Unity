@@ -27,6 +27,9 @@
 #endif
 
 #define CUSTOM_VERT
+#ifndef NO_TOON_VERT
+	#define USE_TOON_VERT
+#endif
 #include "Lighting/Metallic.cginc"
 #include "Lighting/ToonSpecular.cginc"
 
