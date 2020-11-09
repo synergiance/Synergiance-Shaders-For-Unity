@@ -82,7 +82,12 @@ namespace Synergiance.Shaders.AckToon {
 
 			if (PropertyExists("_Speed") || PropertyExists("_Vivid")) BoldFoldout(ref fCols, "Color Options", () => {
 				ShowPropertyIfExists("_Vivid");
-				ShowPropertyIfExists("_Speed");
+				if (PropertyExists("_RainbowMask")) {
+					MaterialProperty speedProp = FindProperty("_Speed");
+					editor.TexturePropertySingleLine(MakeLabel(speedProp), FindProperty("_RainbowMask"), speedProp);
+				} else {
+					ShowPropertyIfExists("_Speed");
+				}
 			});
 
 			if (hasEffects) BoldFoldout(ref fEffects, "Effects", DoEffects);
@@ -134,6 +139,7 @@ namespace Synergiance.Shaders.AckToon {
 			Vec3Prop(MakeLabel("Fallback Light Direction", "This is the direction the light will appear to come from when there is no directional light in the world."), FindProperty("_FallbackLightDir"));
 			if (PropertyExists("_ReflPowerTex")) editor.TexturePropertySingleLine(MakeLabel("Reflections Intensity", "Reflections Intensity Texture (B)"), FindProperty("_ReflPowerTex"), FindProperty("_ReflPower"));
 			else ShaderProperty("_ReflPower");
+			if (PropertyExists("_ReflBackupCube")) editor.TexturePropertySingleLine(MakeLabel("Reflections Backup Map", "Use a bright cubemap for best appearance"), FindProperty("_ReflBackupCube"));
 		}
 
 		protected virtual void DoBlending() {

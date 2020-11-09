@@ -31,6 +31,7 @@ Shader "Synergiance/AckToon/MMD" {
 		// Color Options
 		_Vivid("Vivid", Range(0, 1)) = 0
 		_Speed("Rainbow Speed", Range(0, 10)) = 0
+        _RainbowMask ("Rainbow Mask", 2D) = "white" {}
 		
 		// Options
 		[Toggle(_ALPHAPREMULTIPLY_ON)] _Premultiply ("Premultiply", Int) = 0

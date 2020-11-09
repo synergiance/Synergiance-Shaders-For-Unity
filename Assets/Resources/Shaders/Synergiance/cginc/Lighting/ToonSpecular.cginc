@@ -11,6 +11,19 @@ fixed _SpecPower;
 fixed _ReflPower;
 Texture2D _ReflPowerTex;
 
+#ifdef BLANK_CUBE_DETECTION
+	TextureCube _ReflBackupCube;
+
+	static float3 cubeDirections[6] = {
+		float3( 1, 0, 0),
+		float3(-1, 0, 0),
+		float3( 0, 1, 0),
+		float3( 0,-1, 0),
+		float3( 0, 0, 1),
+		float3( 0, 0,-1)
+	};
+#endif
+
 void calcSpecular(inout shadingData s) {
 	#if defined(_METALLICGLOSSMAP) && defined(HASMETALLIC)
 		float glossiness = _GlossMapScale * (_SmoothnessTextureChannel == 0 ? _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).a : _MainTex.Sample(sampler_MainTex, s.uv.xy).a);
@@ -38,6 +51,13 @@ void calcSpecular(inout shadingData s) {
 		
 		Unity_GlossyEnvironmentData envData;
 		envData.roughness = 1 - glossiness;
+		#ifdef BLANK_CUBE_DETECTION
+			envData.reflUVW = bpd.direction;
+			float3 testProbe = 0;
+			for (int i = 0; i < 6; i++) testProbe += unity_SpecCube0.SampleLevel(samplerunity_SpecCube0, cubeDirections[i], 1).rgb;
+			float probeVal = smoothstep(s.light.g * (s.lightCol.r + s.lightCol.g + s.lightCol.b) * 9, 0, testProbe.r + testProbe.g + testProbe.b);
+			float3 probe2 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE_SAMPLER(_ReflBackupCube, unity_SpecCube0), unity_SpecCube0_HDR, envData);
+		#endif
 		envData.reflUVW = BoxProject(bpd);
 		float3 probe0 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE(unity_SpecCube0), unity_SpecCube0_HDR, envData);
 		#if UNITY_SPECCUBE_BLENDING
@@ -56,9 +76,16 @@ void calcSpecular(inout shadingData s) {
 		#else
 			probe = probe0;
 		#endif
+		#ifdef BLANK_CUBE_DETECTION
+			probe += probe2 * probeVal * s.lightCol * s.light.g;
+		#endif
 	}
 	
-	s.specular += (specular * s.lightCol * _SpecPower + probe * _ReflPower * _ReflPowerTex.Sample(sampler_MainTex, s.uv.xy).b) * smoothstep(0.2, 0.8, glossiness);
+	#ifdef HASMETALLIC
+		s.specular += (specular * s.lightCol * s.light.g * _SpecPower + probe * _ReflPower * _ReflPowerTex.Sample(sampler_MainTex, s.uv.xy).b) * lerp(smoothstep(0.2, 0.8, glossiness), 1, s.metallic);
+	#else
+		s.specular += (specular * s.lightCol * s.light.g * _SpecPower + probe * _ReflPower * _ReflPowerTex.Sample(sampler_MainTex, s.uv.xy).b) * smoothstep(0.2, 0.8, glossiness);
+	#endif
 }
 
 #endif // ACKLIGHTINGTOONSPEC

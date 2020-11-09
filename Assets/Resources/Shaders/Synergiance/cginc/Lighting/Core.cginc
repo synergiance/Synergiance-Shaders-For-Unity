@@ -176,24 +176,20 @@ fixed4 calcFinalColor(shadingData s) {
 		color.rgb *= color.a;
 	#endif
 	#ifdef HASSPECULAR
-		#ifdef HASMETALLIC
-			float3 tmpCol = color.rgb;
-			#define COLVAR tmpCol
-		#else
-			#define COLVAR color.rgb
-		#endif
 		#ifdef _ALPHAPREMULTIPLY_ON
 			fixed4 speccolor = fixed4(s.specular * _Exposure, 0);
 			UNITY_APPLY_FOG(s.fogCoord, speccolor);
-			COLVAR += speccolor.rgb;
+			color.rgb += speccolor.rgb;
 		#else
-			COLVAR += s.specular * _Exposure;
+			color.rgb += s.specular * _Exposure;
 		#endif
 		#ifdef HASMETALLIC
-			color.rgb = lerp(tmpCol, color.rgb * s.specular, s.metallic);
-			//color.r = s.metallic;
+			fixed3 metallicColor = s.color * s.specular * _Exposure;
+			#ifdef _ALPHAPREMULTIPLY_ON
+				UNITY_APPLY_FOG(s.fogCoord, metallicColor);
+			#endif
+			color.rgb = lerp(color.rgb, metallicColor, s.metallic);
 		#endif
-		#undef COLVAR
 	#endif // HASSPECULAR
 	#ifndef _ALPHAPREMULTIPLY_ON
 		UNITY_APPLY_FOG(i.fogCoord, color);

@@ -28,6 +28,7 @@ Shader "Synergiance/AckToon/Effects" {
 		// Color Options
 		_Vivid("Vivid", Range(0, 1)) = 0
 		_Speed("Rainbow Speed", Range(0, 10)) = 0
+        _RainbowMask ("Rainbow Mask", 2D) = "white" {}
 
 		// Effects
 		_EmissionNoise("Emission Noise", Range(0,1)) = 0
@@ -58,6 +59,7 @@ Shader "Synergiance/AckToon/Effects" {
 		_SpecPower ("Specular Intensity", Range(0, 1)) = 0.5
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
 		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
+		_ReflBackupCube ("Backup Reflections Map", Cube) = "black" {}
 
 		// Rendering
 		[Enum(Opaque,0,Cutout,1,Fade,2,Transparent,3)] _Mode ("Render Mode", Int) = 0
@@ -126,6 +128,7 @@ Shader "Synergiance/AckToon/Effects" {
 			#define COLOR_EFFECTS
 			#define FAKE_LIGHT
 			#define SHADE_TEXTURE
+			#define BLANK_CUBE_DETECTION
             #include "../cginc/Effects.cginc"
             
 			#pragma vertex vert
