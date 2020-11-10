@@ -4,7 +4,6 @@
 #ifdef _EMISSION
 	#define EMISSION_EFFECTS
 	#define NEEDS_UVW
-    #define CALC_PRELIGHT calcPreEffects(s);
     #define CALC_POSTLIGHT calcPostEffects(s, i.uvw);
     #ifdef SHADER_STAGE_VERTEX
 		#define CALC_VERT calcVertEffects(o, v);
@@ -12,9 +11,11 @@
 #endif
 
 #ifdef COLOR_EFFECTS
+    #define CALC_PRELIGHT calcPreEffects(s);
 	#include "HSB.cginc"
 	float _Vivid;
 	float _Speed;
+	Texture2D _RainbowMask;
 #endif
 
 #ifdef EMISSION_EFFECTS
@@ -103,7 +104,7 @@ void calcPreEffects(inout shadingData s) {
 		hsvcol.y *= 1 + _Vivid;
 		s.color.rgb = HSVtoRGB(hsvcol);
 	}
-	[branch] if (_Speed > 0) s.color.rgb = applyHue(s.color.rgb, _Time[1] * _Speed * _Speed * _Speed);
+	[branch] if (_Speed > 0) s.color.rgb = lerp(s.color.rgb, applyHue(s.color.rgb, _Time[1] * _Speed * _Speed * _Speed), _RainbowMask.Sample(sampler_MainTex, s.uv.xy));
 	#endif
 }
 

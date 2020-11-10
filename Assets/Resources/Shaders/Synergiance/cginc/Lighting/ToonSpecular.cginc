@@ -13,6 +13,7 @@ Texture2D _ReflPowerTex;
 
 #ifdef BLANK_CUBE_DETECTION
 	TextureCube _ReflBackupCube;
+	SamplerState sampler_ReflBackupCube;
 
 	static float3 cubeDirections[6] = {
 		float3( 1, 0, 0),
@@ -54,9 +55,9 @@ void calcSpecular(inout shadingData s) {
 		#ifdef BLANK_CUBE_DETECTION
 			envData.reflUVW = bpd.direction;
 			float3 testProbe = 0;
-			for (int i = 0; i < 6; i++) testProbe += unity_SpecCube0.SampleLevel(samplerunity_SpecCube0, cubeDirections[i], 1).rgb;
+			for (int i = 0; i < 6; i++) testProbe += _ReflBackupCube.SampleLevel(sampler_ReflBackupCube, cubeDirections[i], 1).rgb;
 			float probeVal = smoothstep(s.light.g * (s.lightCol.r + s.lightCol.g + s.lightCol.b) * 9, 0, testProbe.r + testProbe.g + testProbe.b);
-			float3 probe2 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE_SAMPLER(_ReflBackupCube, unity_SpecCube0), unity_SpecCube0_HDR, envData);
+			float3 probe2 = Unity_GlossyEnvironment(_ReflBackupCube, sampler_ReflBackupCube, unity_SpecCube0_HDR, envData);
 		#endif
 		envData.reflUVW = BoxProject(bpd);
 		float3 probe0 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE(unity_SpecCube0), unity_SpecCube0_HDR, envData);
