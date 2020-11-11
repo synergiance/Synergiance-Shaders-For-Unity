@@ -3,28 +3,9 @@
 
 #define HASSPECULAR
 #include "Core.cginc"
+#include "Reflections.cginc"
 
 float _Glossiness;
-
-struct BoxProjectData {
-	float3 direction;
-	float3 position;
-	float4 cubemapPosition;
-	float3 boxMin;
-	float3 boxMax;
-};
-
-float3 BoxProject(BoxProjectData i) {
-	float3 direction = i.direction;
-	#if UNITY_SPECCUBE_BOX_PROJECTION
-		[branch] if (i.cubemapPosition.w > 0) {
-			float3 factors = ((i.direction > 0 ? i.boxMax : i.boxMin) - i.position) / i.direction;
-			float scalar = min(min(factors.x, factors.y), factors.z);
-			direction = i.direction * scalar + (i.position - i.cubemapPosition);
-		}
-	#endif
-	return direction;
-}
 
 #ifndef LIGHTSPECOVERRIDE
 void calcSpecular(inout shadingData s) {
@@ -37,34 +18,7 @@ void calcSpecular(inout shadingData s) {
 	float3 halfVector = normalize(s.lightDir + s.viewDir);
 	float specular = pow(saturate(dot(s.normal, halfVector)), glossiness * 100);
 	
-	BoxProjectData bpd;
-	bpd.direction = reflect(-s.viewDir, s.normal);
-	bpd.position = s.posWorld;
-	bpd.cubemapPosition = unity_SpecCube0_ProbePosition;
-	bpd.boxMin = unity_SpecCube0_BoxMin;
-	bpd.boxMax = unity_SpecCube0_BoxMax;
-	
-	fixed3 probe = 0;
-	Unity_GlossyEnvironmentData envData;
-	envData.roughness = 1 - glossiness;
-	envData.reflUVW = BoxProject(bpd);
-	float3 probe0 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE(unity_SpecCube0), unity_SpecCube0_HDR, envData);
-	#if UNITY_SPECCUBE_BLENDING
-		float interpolator = unity_SpecCube0_BoxMin.w;
-		UNITY_BRANCH
-		if (interpolator < 0.99999) {
-			bpd.cubemapPosition = unity_SpecCube1_ProbePosition;
-			bpd.boxMin = unity_SpecCube1_BoxMin;
-			bpd.boxMax = unity_SpecCube1_BoxMax;
-			envData.reflUVW = BoxProject(bpd);
-			float3 probe1 = Unity_GlossyEnvironment(UNITY_PASS_TEXCUBE_SAMPLER(unity_SpecCube1, unity_SpecCube0), unity_SpecCube0_HDR, envData);
-			probe = lerp(probe1, probe0, interpolator);
-		} else {
-			probe = probe0;
-		}
-	#else
-		probe = probe0;
-	#endif
+	fixed3 probe = calcProbe(s.viewDir, s.normal, s.posWorld, s.lightCol, 1 - glossiness, s.light.g);
 	
 	s.specular += specular * s.lightCol + probe;
 }
