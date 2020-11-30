@@ -5,6 +5,10 @@
 	#define USEALPHA
 #endif
 
+#ifdef _NORMALMAP
+	#define USE_TANGENTS
+#endif
+
 #ifdef LIGHT_IN_VERTEX
 	#define SafeTex2D(sampl, uv) tex2Dlod(sampl, float4(uv.xy, 0, 0))
 	#define SafeTexCUBE(sampl, uvw) texCUBElod(sampl, float4(uvw.xyz, 0))
@@ -51,7 +55,7 @@ struct v2f {
 	float3 normal : NORMAL;
 	float2 uv : TEXCOORD0;
 	float4 posWorld : TEXCOORD2;
-	#ifdef _NORMALMAP
+	#ifdef USE_TANGENTS
     	float4 tangent : TEXCOORD3;
 	#endif
 	float3 vertLight : TEXCOORD4;
@@ -99,7 +103,7 @@ ITPL vert (appdata_full v) {
 	o.posWorld = mul(unity_ObjectToWorld, v.vertex);
 	o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
 	o.normal = UnityObjectToWorldNormal(v.normal);
-	#ifdef _NORMALMAP
+	#ifdef USE_TANGENTS
 		o.tangent = float4(normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz), v.tangent.w);
 	#endif
 	TRANSFER_SHADOW(o)
@@ -130,7 +134,7 @@ void initializeStruct(inout shadingData s, inout ITPL i) {
 		clip(s.alpha - _Cutoff);
 	#endif
 	s.normal = normalize(i.normal);
-	#ifdef _NORMALMAP
+	#ifdef USE_TANGENTS
 		s.tangent = normalize(i.tangent.xyz);
 		s.bitangent = normalize(cross(s.normal, s.tangent) * i.tangent.w);
 	#endif
@@ -216,7 +220,11 @@ float calcLightAttenuationInternal(float3 posWorld) {
 		return SafeTex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL;
 	#elif defined(SPOT)
 		unityShadowCoord4 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(posWorld, 1));
-		return (lightCoord.z > 0) * UnitySpotCookie(lightCoord) * UnitySpotAttenuate(lightCoord.xyz);
+		#ifndef SHADER_STAGE_FRAGMENT
+			return (lightCoord.z > 0) * tex2Dlod(_LightTexture0, float4(lightCoord.xy / lightCoord.w + 0.5, 0, 0)).w * tex2Dlod(_LightTextureB0, float4(dot(lightCoord.xyz, lightCoord.xyz).xx, 0, 0)).r;
+		#else
+			return (lightCoord.z > 0) * UnitySpotCookie(lightCoord) * UnitySpotAttenuate(lightCoord.xyz);
+		#endif
 	#elif defined(POINT_COOKIE)
 		unityShadowCoord3 lightCoord = mul(unity_WorldToLight, unityShadowCoord4(posWorld, 1)).xyz;
 		return SafeTex2D(_LightTextureB0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL * SafeTexCUBE(_LightTexture0, lightCoord).w;
