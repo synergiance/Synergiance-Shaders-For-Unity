@@ -1,6 +1,8 @@
 #ifndef SYNACK_REFLECTIONS
 #define SYNACK_REFLECTIONS
 
+#include "UnityPBSLighting.cginc"
+
 #ifdef BLANK_CUBE_DETECTION
 	TextureCube _ReflBackupCube;
 	SamplerState sampler_ReflBackupCube;
