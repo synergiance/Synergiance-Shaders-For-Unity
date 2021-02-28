@@ -56,7 +56,7 @@ struct v2f {
 	float2 uv : TEXCOORD0;
 	float4 posWorld : TEXCOORD2;
 	#ifdef USE_TANGENTS
-    	float4 tangent : TEXCOORD3;
+		float4 tangent : TEXCOORD3;
 	#endif
 	float3 vertLight : TEXCOORD4;
 	float4 color : TEXCOORD5;

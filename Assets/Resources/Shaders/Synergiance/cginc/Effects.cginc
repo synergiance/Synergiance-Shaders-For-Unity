@@ -4,14 +4,18 @@
 #ifdef _EMISSION
 	#define EMISSION_EFFECTS
 	#define NEEDS_UVW
-    #define CALC_POSTLIGHT calcPostEffects(s, i.uvw);
-    #ifdef SHADER_STAGE_VERTEX
+	#ifndef CALC_POSTLIGHT
+		#define CALC_POSTLIGHT calcPostEffects(s, i.uvw);
+	#endif
+	#ifdef SHADER_STAGE_VERTEX
 		#define CALC_VERT calcVertEffects(o, v);
 	#endif
 #endif
 
 #ifdef COLOR_EFFECTS
-    #define CALC_PRELIGHT calcPreEffects(s);
+	#ifndef CALC_PRELIGHT
+		#define CALC_PRELIGHT calcPreEffects(s);
+	#endif
 	#include "HSB.cginc"
 	float _Vivid;
 	float _Speed;
