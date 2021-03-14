@@ -1,6 +1,10 @@
 #ifndef ACKTOONCORE
 #define ACKTOONCORE
 
+#ifdef _SUNDISK_HIGH_QUALITY
+	#define ANISOTROPIC_SPECULAR
+#endif
+
 #ifndef CUSTOM_VERT
 	#define USE_TOON_VERT
 	#define CUSTOM_VERT
@@ -20,11 +24,14 @@
 #ifdef USE_TOON_VERT
 ITPL vert (appdata_full v) {
 	ITPL o;
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_INITIALIZE_OUTPUT(v2f, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 	o.pos = UnityObjectToClipPos(v.vertex);
 	o.posWorld = mul(unity_ObjectToWorld, v.vertex);
 	o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
 	o.normal = UnityObjectToWorldNormal(v.normal);
-	#ifdef _NORMALMAP
+	#ifdef USE_TANGENTS
 		o.tangent = float4(normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz), v.tangent.w);
 	#endif
 	TRANSFER_SHADOW(o)
@@ -65,15 +72,16 @@ void calcFakeLight(inout shadingData s) {
 #if !defined(NO_TOON_FRAG) && !defined(SHADER_STAGE_VERTEX)
 fixed4 frag (ITPL i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	// Initialize
+	UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 	shadingData s;
 	initializeStruct(s, i);
-	
+
 	// Calculations
 	calcNormal(s);
 	s.normal *= isFrontFace ? 1 : -1;
 
 	CALC_PRELIGHT
-	
+
 	calcLightDir(s);
 	calcLightScale(s);
 	s.light.r = s.light.r * 0.5 + 0.5;
@@ -89,7 +97,7 @@ fixed4 frag (ITPL i, bool isFrontFace : SV_ISFRONTFACE) : COLOR {
 	#if defined(_EMISSION) && defined(EMISSION_FALLOFF)
 		s.emission *= lerp(1 - _EmissionFalloff, 1, max(0, dot(s.viewDir, s.normal)));
 	#endif
-	
+
 	// Final Blending
 	return calcFinalColor(s);
 }

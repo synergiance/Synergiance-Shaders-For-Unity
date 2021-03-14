@@ -27,6 +27,7 @@ struct VertexData {
     #ifdef USES_ALPHA
 	    float2 uv       : TEXCOORD0;
     #endif
+	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct VertexOutput {
@@ -37,6 +38,7 @@ struct VertexOutput {
 	#ifdef SHADOWS_CUBE
 		float3 lightVec : TEXCOORD1;
 	#endif
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 
 struct FragmentInput {
@@ -51,6 +53,9 @@ struct FragmentInput {
 
 VertexOutput vert (VertexData v) {
 	VertexOutput i;
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_INITIALIZE_OUTPUT(VertexOutput, i);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(i);
 	#ifdef SHADOWS_CUBE
 		i.position = UnityObjectToClipPos(v.position);
 		i.lightVec = mul(unity_ObjectToWorld, v.position).xyz - _LightPositionRange.xyz;

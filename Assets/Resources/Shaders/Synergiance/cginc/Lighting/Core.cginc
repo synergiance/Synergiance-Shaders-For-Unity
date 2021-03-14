@@ -65,6 +65,7 @@ struct v2f {
 	#ifdef NEEDS_UVW
 		float3 uvw : TEXCOORD8;
 	#endif
+	UNITY_VERTEX_OUTPUT_STEREO
 };
 #endif
 
@@ -99,6 +100,9 @@ float _Exposure;
 #ifndef CUSTOM_VERT
 ITPL vert (appdata_full v) {
 	ITPL o;
+	UNITY_SETUP_INSTANCE_ID(v);
+	UNITY_INITIALIZE_OUTPUT(v2f, o);
+	UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 	o.pos = UnityObjectToClipPos(v.vertex);
 	o.posWorld = mul(unity_ObjectToWorld, v.vertex);
 	o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
