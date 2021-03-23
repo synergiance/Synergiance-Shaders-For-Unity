@@ -186,13 +186,12 @@ float3 Shade4PointLightsStyled (
     ndotl = max (float4(0,0,0,0), ndotl * corr);
     // attenuation
     float4 atten = 1.0 / (1.0 + lengthSq * lightAttenSq);
-    float4 diff = ndotl * atten;
     // final color
     float3 col = 0;
-    col += max(0, lightColor0 * calcStyledAtten(diff.x));
-    col += max(0, lightColor1 * calcStyledAtten(diff.y));
-    col += max(0, lightColor2 * calcStyledAtten(diff.z));
-    col += max(0, lightColor3 * calcStyledAtten(diff.w));
+    col += max(0, lightColor0 * calcStyledAtten(ndotl.x) * atten.x);
+    col += max(0, lightColor1 * calcStyledAtten(ndotl.y) * atten.y);
+    col += max(0, lightColor2 * calcStyledAtten(ndotl.z) * atten.z);
+    col += max(0, lightColor3 * calcStyledAtten(ndotl.w) * atten.w);
     return col;
 }
 
