@@ -7,6 +7,7 @@ Shader "Synergiance/AckToon/MMD" {
         _MainTex("Albedo", 2D) = "white" {}
 
         _Cutoff("Alpha Cutoff", Range(0.0, 1.0)) = 0
+		_VertexColors("Vertex Color Strength", Range(0.0, 1.0)) = 0
 
         _Glossiness("Smoothness", Range(0.0, 1.0)) = 0.5
         _GlossMapScale("Smoothness Scale", Range(0.0, 1.0)) = 1.0
@@ -121,6 +122,7 @@ Shader "Synergiance/AckToon/MMD" {
 			#define BASE_PASS
 			#define COLOR_EFFECTS
 			#define FAKE_LIGHT
+			#define VERTEX_COLORS_TOGGLE
             #include "../cginc/MikuMikuCore.cginc"
             
 			#pragma vertex vert
@@ -151,6 +153,7 @@ Shader "Synergiance/AckToon/MMD" {
 			
 			#define ADD_PASS
 			#define COLOR_EFFECTS
+			#define VERTEX_COLORS_TOGGLE
 			#include "../cginc/MikuMikuCore.cginc"
 			
 			#pragma vertex vert

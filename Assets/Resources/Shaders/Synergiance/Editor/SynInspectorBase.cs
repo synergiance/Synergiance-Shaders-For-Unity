@@ -56,15 +56,17 @@ namespace Synergiance.Shaders {
 		}
 		
 		protected static GUIContent MakeLabel(string text, string tooltip = null) {
-			staticLabel.text = text;
-			staticLabel.tooltip = tooltip;
-			return staticLabel;
+			GUIContent newLabel = new GUIContent(staticLabel);
+			newLabel.text = text;
+			newLabel.tooltip = tooltip;
+			return newLabel;
 		}
 		
 		protected static GUIContent MakeLabel(MaterialProperty property, string tooltip = null) {
-			staticLabel.text = property.displayName;
-			staticLabel.tooltip = tooltip;
-			return staticLabel;
+			GUIContent newLabel = new GUIContent(staticLabel);
+			newLabel.text = property.displayName;
+			newLabel.tooltip = tooltip;
+			return newLabel;
 		}
 		
 		static protected bool BoldFoldout(bool foldout, GUIContent content) {
@@ -124,7 +126,11 @@ namespace Synergiance.Shaders {
 			MaterialProperty property = FindProperty(enumName, false);
 			if (property != null) ShaderProperty(property, display, display2);
 		}
-		
+
+		protected void SetIntIfExists(string propertyName, Material m, int val) {
+			if (m.HasProperty(propertyName)) m.SetInt(propertyName, val);
+		}
+
 		protected void Vec2Prop(string label, MaterialProperty prop1, MaterialProperty prop2) {
 			Vec2Prop(MakeLabel(label), prop1, prop2);
 		}

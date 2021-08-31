@@ -1,6 +1,6 @@
 // AckToon Shader
 
-Shader "Synergiance/AckToon/Light" {
+Shader "Synergiance/AckToon/Medium-Outlines" {
 	Properties {
 		// Main Maps
 		_Color("Color", Color) = (1,1,1,1)
@@ -24,6 +24,21 @@ Shader "Synergiance/AckToon/Light" {
 
 		_EmissionColor("Color", Color) = (0,0,0)
 		_EmissionMap("Emission", 2D) = "white" {}
+		_EmissionFalloff("Emission Falloff", Range(0.0, 1.0)) = 0.2
+
+		// Outline Options
+		_OutlineWidth("Outline Width (mm)", Float) = 2.5
+		_OutlineColor("Outline Color", Color) = (0.5, 0.5, 0.5, 1.0)
+		_OutlineMap("Outline Map", 2D) = "white" {}
+		[Toggle(_)] _OutlineScreen("Screen Space Outlines", Int) = 0
+		[Enum(Object,0,World,1)] _OutlineSpace("Outline Space", Int) = 1
+		[Enum(Tint,0,Color,1)] _OutlineColorMode("Outline Color Mode", Int) = 0
+		[Toggle(_)] _OutlineMapCol("Outline Map Color", Int) = 1
+
+		// Color Options
+		_Vivid("Vivid", Range(0, 1)) = 0
+		_Speed("Rainbow Speed", Range(0, 10)) = 0
+		_RainbowMask ("Rainbow Mask", 2D) = "white" {}
 
 		// Options
 		[Toggle(_ALPHAPREMULTIPLY_ON)] _Premultiply ("Premultiply", Int) = 0
@@ -32,17 +47,21 @@ Shader "Synergiance/AckToon/Light" {
 		_ToonAmb ("Toonstyle Ambient", Range(0,1)) = 0.5
 		_FallbackLightDir ("Fallback Light Direction", Vector) = (0.5, 1, 0.25)
 		_PointLightLitShade ("Point Light Lit Shade", Range(0, 1)) = 0.2
-		//[HDR]_FakeLightCol ("Fake Light Color", Color) = (1, 1, 1)
+		_FakeLight ("Fake Light", Range(0, 1)) = 0
+		[HDR]_FakeLightCol ("Fake Light Color", Color) = (1, 1, 1)
 
 		_ToonFeather ("Feather", Range(0, 1)) = 0.1
 		_ToonCoverage ("Coverage", Range(0, 1)) = 0.5
 		_ToonColor ("Color", Color) = (0,0,0,0)
 		_ToonIntensity ("Surface Intensity", Range(0, 1)) = 0
+		_ShadeTex ("Shade Texture", 2D) = "white" {}
+		[Enum(Tint,0,Shade,1)] _ShadeMode ("Shade Mode", Int) = 0
 
 		_SpecFeather ("Specular Feather", Range(0, 1)) = 0.1
 		_SpecPower ("Specular Intensity", Range(0, 1)) = 0.5
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
 		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
+		_ReflBackupCube ("Backup Reflections Map", Cube) = "black" {}
 
 		// Rendering
 		[Enum(Opaque,0,Cutout,1,Fade,2,Transparent,3)] _Mode ("Render Mode", Int) = 0
@@ -88,27 +107,32 @@ Shader "Synergiance/AckToon/Light" {
 			ZFail [_StencilZFail]
 		}
 
-		Pass {
-			Name "FORWARD"
+		UsePass "Synergiance/AckToon/Medium/FORWARD"
+		
+		UsePass "Synergiance/AckToon/Medium/FORWARD_DELTA"
 
+		Pass {
+			Name "FORWARD_OUTLINE"
+			
 			Blend [_SrcBlend] [_DstBlend], [_ASrcBlend] [_ADstBlend]
-			ZWrite [_ZWrite]
+			ZWrite Off
+			Cull Front
 
 			Tags {
 				"LightMode" = "ForwardBase"
 			}
 
 			CGPROGRAM
-			#pragma shader_feature _NORMALMAP
-			#pragma shader_feature _EMISSION
-			#pragma shader_feature _METALLICGLOSSMAP
 			#pragma shader_feature _ALPHATEST_ON
 			#pragma shader_feature _ALPHABLEND_ON
 			#pragma shader_feature _ALPHAPREMULTIPLY_ON
 
 			#define BASE_PASS
+			#define FAKE_LIGHT
+			#define SHADE_TEXTURE
+			#define OUTLINE_TEXTURE
 			#define VERTEX_COLORS_TOGGLE
-			#include "../cginc/ToonCore.cginc"
+			#include "../cginc/OutlineCore.cginc"
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -118,27 +142,30 @@ Shader "Synergiance/AckToon/Light" {
 
 			#pragma multi_compile_fwdbase
 			#pragma multi_compile_fog
-
 			ENDCG
 		}
 
 		Pass {
-			Name "FORWARD_DELTA"
-			Tags { "LightMode" = "ForwardAdd" }
+			Name "FORWARD_OUTLINE_DELTA"
+
 			Blend [_SrcBlend] One, Zero One
-			Fog { Color (0,0,0,0) } // in additive pass fog should be black
 			ZWrite Off
+			Cull Front
+
+			Tags {
+				"LightMode" = "ForwardAdd"
+			}
 
 			CGPROGRAM
-			#pragma shader_feature _NORMALMAP
-			#pragma shader_feature _METALLICGLOSSMAP
 			#pragma shader_feature _ALPHATEST_ON
 			#pragma shader_feature _ALPHABLEND_ON
 			#pragma shader_feature _ALPHAPREMULTIPLY_ON
 
 			#define ADD_PASS
+			#define SHADE_TEXTURE
+			#define OUTLINE_TEXTURE
 			#define VERTEX_COLORS_TOGGLE
-			#include "../cginc/ToonCore.cginc"
+			#include "../cginc/OutlineCore.cginc"
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -146,35 +173,12 @@ Shader "Synergiance/AckToon/Light" {
 			#pragma only_renderers d3d11 glcore gles
 			#pragma target 4.0
 
-			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fwdbase
 			#pragma multi_compile_fog
-
 			ENDCG
 		}
 
-		Pass {
-			Name "SHADOWCASTER"
-			Tags {
-				"LightMode" = "ShadowCaster"
-			}
-			ZTest LEqual
-
-			CGPROGRAM
-
-			#pragma target 3.0
-
-			#pragma multi_compile_shadowcaster
-
-			#pragma shader_feature _ALPHATEST_ON
-			#pragma shader_feature _ALPHABLEND_ON
-
-			#pragma vertex vert
-			#pragma fragment frag
-
-			#include "../cginc/ShadowCore.cginc"
-
-			ENDCG
-		}
+		UsePass "Synergiance/AckToon/Light/SHADOWCASTER"
 	}
 
 	FallBack "Diffuse"

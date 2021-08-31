@@ -46,7 +46,11 @@ ITPL vert (appdata_full v) {
 	#else
 		o.vertLight = 0;
 	#endif
-	o.color = v.color * _Color;
+	#ifdef VERTEX_COLORS_TOGGLE
+		o.color = lerp(1, v.color, _VertexColors) * _Color;
+	#else
+		o.color = v.color * _Color;
+	#endif
 	CALC_VERT
 	return o;
 };

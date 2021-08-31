@@ -90,6 +90,10 @@ float _Exposure;
 	uint _ShadeMode;
 #endif
 
+#ifdef VERTEX_COLORS_TOGGLE
+	float _VertexColors;
+#endif
+
 #ifndef CUSTOM_VERT
 ITPL vert (appdata_full v) {
 	ITPL o;
@@ -115,7 +119,11 @@ ITPL vert (appdata_full v) {
 	#else
 		o.vertLight = 0;
 	#endif
-	o.color = v.color * _Color;
+	#ifdef VERTEX_COLORS_TOGGLE
+		o.color = lerp(1, v.color, _VertexColors) * _Color;
+	#else
+		o.color = v.color * _Color;
+	#endif
 	return o;
 };
 #endif

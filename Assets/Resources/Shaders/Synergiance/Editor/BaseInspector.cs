@@ -69,7 +69,7 @@ namespace Synergiance.Shaders.AckToon {
 			};
 		}
 		
-		protected bool fMain = true, fToon = true, fOpts = false, fRend = false, fAdvRend = false, fCols = false, fUtil = false, fEffects = false;
+		protected bool fMain = true, fToon = true, fOutline = true, fOpts = false, fRend = false, fAdvRend = false, fCols = false, fUtil = false, fEffects = false;
 
 		protected bool hasCutoff = false;
 		
@@ -79,6 +79,8 @@ namespace Synergiance.Shaders.AckToon {
 
 			BoldFoldout(ref fMain, "Main Maps", DoMainMaps);
 			BoldFoldout(ref fToon, "Toon Settings", DoToon);
+
+			if (PropertyExists("_OutlineWidth")) BoldFoldout(ref fOutline, "Outline Settings", DoOutline);
 
 			if (PropertyExists("_Speed") || PropertyExists("_Vivid")) BoldFoldout(ref fCols, "Color Options", () => {
 				ShowPropertyIfExists("_Vivid");
@@ -110,6 +112,7 @@ namespace Synergiance.Shaders.AckToon {
 			MaterialProperty mainTex = FindProperty("_MainTex");
 			editor.TexturePropertySingleLine(MakeLabel("Main Texture", "Albedo (RGB), Alpha (A)"), mainTex, FindProperty("_Color"));
 			ShaderProperty("_Cutoff");
+			ShowPropertyIfExists("_VertexColors");
 			DoSpecularMetallicArea();
 			DoNormalArea();
 			DoEmissionArea();
@@ -129,6 +132,26 @@ namespace Synergiance.Shaders.AckToon {
 			ShaderProperty("_SpecPower");
 		}
 
+		protected virtual void DoOutline() {
+			GUIContent colorText = MakeLabel("Outline Color", "Outline Color Tint (RGB)");
+			GUIContent widthText = MakeLabel("Outline Width", "Outline Width (mm)");
+			MaterialProperty widthProp = FindProperty("_OutlineWidth");
+			MaterialProperty colorProp = FindProperty("_OutlineColor");
+			MaterialProperty blendProp = FindProperty("_OutlineColorMode");
+			if (PropertyExists("_OutlineMap")) {
+				MaterialProperty colorMap = FindProperty("_OutlineMap");
+				editor.TexturePropertySingleLine(colorText, colorMap, colorProp, blendProp);
+				ShowPropertyIfExists("_OutlineMapCol");
+			} else {
+				ShaderProperty(colorProp, colorText);
+				ShaderProperty(blendProp);
+			}
+			ShowPropertyIfExists("_OutlineAlpha");
+			ShaderProperty(widthProp, widthText);
+			ShaderProperty("_OutlineSpace");
+			ShaderProperty("_OutlineScreen");
+		}
+
 		protected virtual void DoOptions() {
 			ShaderProperty("_Exposure");
 			ShaderProperty("_AmbDirection");
@@ -144,27 +167,27 @@ namespace Synergiance.Shaders.AckToon {
 
 		protected virtual void DoBlending() {
 			editor.RenderQueueField();
-			ShaderProperty("_BlendOp");
-			ShaderProperty("_SrcBlend");
-			ShaderProperty("_DstBlend");
-			ShaderProperty("_CullMode");
-			ShaderProperty("_ZWrite");
-			ShaderProperty("_Premultiply", "Premultiply", "Causes reflections in low opacity areas to be much more prominant");
+			ShowPropertyIfExists("_BlendOp");
+			ShowPropertyIfExists("_SrcBlend");
+			ShowPropertyIfExists("_DstBlend");
+			ShowPropertyIfExists("_CullMode");
+			ShowPropertyIfExists("_ZWrite");
+			ShowPropertyIfExists("_Premultiply", "Premultiply", "Causes reflections in low opacity areas to be much more prominant");
 			EditorGUILayout.Space();
 		}
 
 		protected virtual void DoAdvanced() {
-			ShaderProperty("_Stencil");
-			ShaderProperty("_ReadMask");
-			ShaderProperty("_WriteMask");
-			ShaderProperty("_StencilComp");
-			ShaderProperty("_StencilOp");
-			ShaderProperty("_StencilFail");
-			ShaderProperty("_StencilZFail");
-			ShaderProperty("_ZTest");
-			ShaderProperty("_stencilcolormask");
-			ShaderProperty("_ASrcBlend");
-			ShaderProperty("_ADstBlend");
+			ShowPropertyIfExists("_Stencil");
+			ShowPropertyIfExists("_ReadMask");
+			ShowPropertyIfExists("_WriteMask");
+			ShowPropertyIfExists("_StencilComp");
+			ShowPropertyIfExists("_StencilOp");
+			ShowPropertyIfExists("_StencilFail");
+			ShowPropertyIfExists("_StencilZFail");
+			ShowPropertyIfExists("_ZTest");
+			ShowPropertyIfExists("_stencilcolormask");
+			ShowPropertyIfExists("_ASrcBlend");
+			ShowPropertyIfExists("_ADstBlend");
 			ShowPropertyIfExists("_AlphaToMask");
 		}
 
@@ -220,10 +243,10 @@ namespace Synergiance.Shaders.AckToon {
 			foreach (Material m in editor.targets) {
 				m.renderQueue = settings.queue;
 				m.SetOverrideTag("RenderType", settings.renderType);
-				m.SetInt("_SrcBlend", (int)settings.srcBlend);
-				m.SetInt("_DstBlend", (int)settings.dstBlend);
-				m.SetInt("_ASrcBlend", (int)settings.srcAlphaBlend);
-				m.SetInt("_ADstBlend", (int)settings.dstAlphaBlend);
+				SetIntIfExists("_SrcBlend", m, (int)settings.srcBlend);
+				SetIntIfExists("_DstBlend", m, (int)settings.dstBlend);
+				SetIntIfExists("_ASrcBlend", m, (int)settings.srcAlphaBlend);
+				SetIntIfExists("_ADstBlend", m, (int)settings.dstAlphaBlend);
 				m.SetInt("_ZWrite", settings.zWrite ? 1 : 0);
 				m.SetInt("_Premultiply", settings.premultiply ? 1 : 0);
 				m.SetFloat("_Cutoff", settings.cutoff);
@@ -234,6 +257,7 @@ namespace Synergiance.Shaders.AckToon {
 		static bool CheckAlphaBlend(Material material) {
 			bool blendsAlpha = false;
 			foreach (string propName in BlendPropNames) {
+				if (!material.HasProperty(propName)) continue;
 				int i = material.GetInt(propName);
 				if (i == 5 || i > 6) {
 					blendsAlpha = true;
