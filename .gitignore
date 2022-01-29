@@ -4,6 +4,8 @@
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
+.idea/
+[Aa]ssets/Plugins/Editor/Jetbrains*
 
 # Uncomment this line if you wish to ignore the asset store tools plugin
 # [Aa]ssets/AssetStoreTools*

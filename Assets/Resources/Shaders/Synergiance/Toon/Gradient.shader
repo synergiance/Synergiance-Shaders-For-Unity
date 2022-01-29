@@ -1,0 +1,209 @@
+// AckToon Shader
+
+Shader "Synergiance/AckToon/Gradient" {
+	Properties {
+		// Main Maps
+        _Color("Color", Color) = (1,1,1,1)
+        _MainTex("Albedo", 2D) = "white" {}
+
+        _Cutoff("Alpha Cutoff", Range(0.0, 1.0)) = 0.01
+		_VertexColors("Vertex Color Strength", Range(0.0, 1.0)) = 0
+
+        _Glossiness("Smoothness", Range(0.0, 1.0)) = 0.5
+        _GlossMapScale("Smoothness Scale", Range(0.0, 1.0)) = 1.0
+        [Enum(Metallic Alpha,0,Albedo Alpha,1)] _SmoothnessTextureChannel ("Smoothness texture channel", Float) = 0
+
+        [Gamma] _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
+        _MetallicGlossMap("Metallic", 2D) = "white" {}
+
+        [ToggleOff] _SpecularHighlights("Specular Highlights", Float) = 1.0
+        [ToggleOff] _GlossyReflections("Glossy Reflections", Float) = 1.0
+
+        _BumpScale("Scale", Float) = 1.0
+        _BumpMap("Normal Map", 2D) = "bump" {}
+
+        _OcclusionStrength("Strength", Range(0.0, 1.0)) = 1.0
+        _OcclusionMap("Occlusion", 2D) = "white" {}
+
+        _EmissionColor("Color", Color) = (0,0,0)
+        _EmissionMap("Emission", 2D) = "white" {}
+		_EmissionFalloff("Emission Falloff", Range(0.0, 1.0)) = 0.2
+
+		// Color Options
+		_Vivid("Vivid", Range(0, 1)) = 0
+		_Speed("Rainbow Speed", Range(0, 10)) = 0
+        _RainbowMask ("Rainbow Mask", 2D) = "white" {}
+		
+		// Options
+		[Toggle(_ALPHAPREMULTIPLY_ON)] _Premultiply ("Premultiply", Int) = 0
+		_Exposure ("Exposure", Float) = 1
+		_AmbDirection ("Directional Ambient", Range(0,1)) = 0.25
+		_ToonAmb ("Toonstyle Ambient", Range(0,1)) = 0.5
+		_FallbackLightDir ("Fallback Light Direction", Vector) = (0.5, 1, 0.25)
+		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
+		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
+		_ToonIntensity ("Surface Intensity", Range(0, 1)) = 0
+		_PointLightLitShade ("Point Light Lit Shade", Range(0, 1)) = 0.2
+		_FakeLight ("Fake Light", Range(0, 1)) = 0
+		[HDR]_FakeLightCol ("Fake Light Color", Color) = (1, 1, 1)
+		
+		// Toon Gradients
+		_ToonAlpha1 ("Toon Alpha 1", Vector) = (0,    0,    0)
+		_ToonAlpha2 ("Toon Alpha 2", Vector) = (0,    0.45, 0.45)
+		_ToonAlpha3 ("Toon Alpha 3", Vector) = (1,    0.55, 0.5)
+		_ToonAlpha4 ("Toon Alpha 4", Vector) = (1,    1,    0.55)
+		_ToonAlpha5 ("Toon Alpha 5", Vector) = (1,   -1,    1)
+		_ToonAlpha6 ("Toon Alpha 6", Vector) = (1,   -1,   -1)
+		_ToonAlpha7 ("Toon Alpha 7", Vector) = (1,   -1,   -1)
+		_ToonAlpha8 ("Toon Alpha 8", Vector) = (1,   -1,   -1)
+		_ToonColor1 ("Toon Color 1", Color)  = (0.6,  0.5,  0.5)
+		_ToonColor2 ("Toon Color 2", Color)  = (0.6,  0.5,  0.5)
+		_ToonColor3 ("Toon Color 3", Color)  = (1,    0.8,  0.8)
+		_ToonColor4 ("Toon Color 4", Color)  = (1,    1,    1)
+		_ToonColor5 ("Toon Color 5", Color)  = (1,    1,    1)
+		_ToonColor6 ("Toon Color 6", Color)  = (1,    1,    1)
+		_ToonColor7 ("Toon Color 7", Color)  = (1,    1,    1)
+		_ToonColor8 ("Toon Color 8", Color)  = (1,    1,    1)
+
+		// Rendering
+		[Enum(Opaque,0,Cutout,1,Fade,2,Transparent,3)] _Mode ("Render Mode", Int) = 0
+        [Enum(UnityEngine.Rendering.BlendOp)] _BlendOp ("Blending Operation", Int) = 0
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Source Blend", Int) = 1
+		[Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Destination Blend", Int) = 0
+        [Enum(Off,0,Front,1,Back,2)] _CullMode ("Cull Mode", Float) = 0
+		[Enum(Off,0,On,1)] _ZWrite("Z Write", Int) = 1
+
+		// Advanced Rendering
+		[IntRange] _Stencil ("Stencil ID (0-255)", Range(0,255)) = 0
+		_ReadMask ("ReadMask (0-255)", Int) = 255
+		_WriteMask ("WriteMask (0-255)", Int) = 255
+		[Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Comparison", Int) = 0
+		[Enum(UnityEngine.Rendering.StencilOp)] _StencilOp ("Stencil Operation", Int) = 0
+		[Enum(UnityEngine.Rendering.StencilOp)] _StencilFail ("Stencil Fail", Int) = 0
+		[Enum(UnityEngine.Rendering.StencilOp)] _StencilZFail ("Stencil ZFail", Int) = 0
+		[Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("Z Test", Int) = 4
+		[Enum(None,0,Alpha,1,Red,8,Green,4,Blue,2,RGB,14,RGBA,15)] _stencilcolormask("Color Mask", Int) = 15
+        [Enum(UnityEngine.Rendering.BlendMode)] _ASrcBlend ("Alpha Source Blend", Int) = 1
+		[Enum(UnityEngine.Rendering.BlendMode)] _ADstBlend ("Alpha Destination Blend", Int) = 0
+		[Toggle(_)] _AlphaToMask("Alpha To Mask", Int) = 0
+	}
+
+	SubShader {
+		Tags {
+			"Queue" = "Geometry"
+			"PreviewType" = "Sphere"
+		}
+        Cull [_CullMode]
+		ColorMask [_stencilcolormask]
+        ZTest [_ZTest]
+        BlendOp [_BlendOp]
+		AlphaToMask [_AlphaToMask]
+        
+		Stencil {
+			Ref [_Stencil]
+			ReadMask [_ReadMask]
+			WriteMask [_WriteMask]
+			Comp [_StencilComp]
+			Pass [_StencilOp]
+			Fail [_StencilFail]
+			ZFail [_StencilZFail]
+		}
+
+		Pass {
+			Name "FORWARD"
+            
+            Blend [_SrcBlend] [_DstBlend], [_ASrcBlend] [_ADstBlend]
+            ZWrite [_ZWrite]
+            
+			Tags {
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature _EMISSION
+            #pragma shader_feature _METALLICGLOSSMAP
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			#pragma shader_feature _ALPHAPREMULTIPLY_ON
+			
+            #define EMISSION_FALLOFF
+			#define BASE_PASS
+			#define COLOR_EFFECTS
+			#define USES_GRADIENTS
+			#define FAKE_LIGHT
+			#define VERTEX_COLORS_TOGGLE
+            #include "../cginc/ToonCore.cginc"
+            
+			#pragma vertex vert
+			#pragma fragment frag
+            
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+            
+			ENDCG
+		}
+        
+        Pass {
+			Name "FORWARD_DELTA"
+			Tags { "LightMode" = "ForwardAdd" }
+            Blend [_SrcBlend] One, Zero One
+			Fog { Color (0,0,0,0) } // in additive pass fog should be black
+			ZWrite Off
+			ZTest LEqual
+
+			CGPROGRAM
+            #pragma shader_feature _NORMALMAP
+            #pragma shader_feature _METALLICGLOSSMAP
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			#pragma shader_feature _ALPHAPREMULTIPLY_ON
+			
+			#define ADD_PASS
+			#define COLOR_EFFECTS
+			#define USES_GRADIENTS
+			#define VERTEX_COLORS_TOGGLE
+			#include "../cginc/ToonCore.cginc"
+			
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+            
+            ENDCG
+        }
+		
+		Pass {
+			Name "SHADOWCASTER"
+			Tags {
+				"LightMode" = "ShadowCaster"
+			}
+			
+			CGPROGRAM
+			
+			#pragma target 3.0
+			
+			#pragma multi_compile_shadowcaster
+			
+            #pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			
+			#pragma vertex vert
+			#pragma fragment frag
+			
+			#include "../cginc/ShadowCore.cginc"
+			
+			ENDCG
+		}
+	}
+    
+	FallBack "Diffuse"
+	CustomEditor "Synergiance.Shaders.AckToon.GradientInspector"
+}

@@ -1,4 +1,5 @@
-// HSB
+#ifndef HSB_INCLUDE
+#define HSB_INCLUDE
 
 inline float3 applyHue(float3 aColor, float aHue)
 {
@@ -61,3 +62,5 @@ float3 RGBtoHSV(in float3 RGB)
     float S = HCV.y / (HCV.z + Epsilon);
     return saturate(float3(HCV.x, S, HCV.z));
 }
+
+#endif // HSB_INCLUDE
