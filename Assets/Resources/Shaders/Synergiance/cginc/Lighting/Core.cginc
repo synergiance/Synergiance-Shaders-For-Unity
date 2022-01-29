@@ -157,6 +157,7 @@ void initializeStruct(inout shadingData s, inout ITPL i) {
 		#endif
 	#endif
 	SYN_TRANSFER_SHADOW(i,s)
+	SYN_TRANSFER_FOG(i,s)
 	s.vertLight = i.vertLight;
 	s.lightCol = _LightColor0;
 	#ifdef HAS_MATCAP
@@ -181,13 +182,13 @@ fixed4 calcFinalColor(shadingData s) {
 		color.rgb += s.emission;
 	#endif // _EMISSION
 	#ifdef _ALPHAPREMULTIPLY_ON
-		UNITY_APPLY_FOG(s.fogCoord, color);
+		SYN_UNITY_APPLY_FOG(s.fogCoord, color);
 		color.rgb *= color.a;
 	#endif
 	#ifdef HASSPECULAR
 		#ifdef _ALPHAPREMULTIPLY_ON
 			fixed4 speccolor = fixed4(s.specular * _Exposure, 0);
-			UNITY_APPLY_FOG(s.fogCoord, speccolor);
+			SYN_UNITY_APPEND_FOG(s.fogCoord, speccolor);
 			color.rgb += speccolor.rgb;
 		#else
 			color.rgb += s.specular * _Exposure;
@@ -195,13 +196,13 @@ fixed4 calcFinalColor(shadingData s) {
 		#ifdef HASMETALLIC
 			fixed3 metallicColor = s.color * s.specular * _Exposure;
 			#ifdef _ALPHAPREMULTIPLY_ON
-				UNITY_APPLY_FOG(s.fogCoord, metallicColor);
+				SYN_UNITY_APPEND_FOG(s.fogCoord, metallicColor);
 			#endif
 			color.rgb = lerp(color.rgb, metallicColor, s.metallic);
 		#endif
 	#endif // HASSPECULAR
 	#ifndef _ALPHAPREMULTIPLY_ON
-		UNITY_APPLY_FOG(i.fogCoord, color);
+		SYN_UNITY_APPLY_FOG(s.fogCoord, color);
 	#endif
 	return color;
 }
