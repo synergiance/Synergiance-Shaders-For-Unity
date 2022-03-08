@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 
 namespace Synergiance.Shaders.AckToon {
     public class EffectsInspector : BaseInspector {
-        protected override bool hasEffects { get { return true; }}
+        protected override bool hasEffects => true;
 
         protected override void DoEffects() {
             MaterialProperty emissionNoise = FindProperty("_EmissionNoise");
