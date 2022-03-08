@@ -8,7 +8,9 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version { get { return "0.10b9"; } }
+		protected override string version => "0.10b9";
+
+		protected const string DEPRECATED_STR = "Deprecated, but let me know if this still helps some models";
 
 		protected virtual bool hasEffects { get { return false; }}
 
