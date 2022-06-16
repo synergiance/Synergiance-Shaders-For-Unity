@@ -1,24 +1,30 @@
 #ifndef ACKLIGHTINGSPECULAR
 #define ACKLIGHTINGSPECULAR
 
+#ifdef ANISOTROPIC_SPECULAR
+	#define USE_TANGENTS
+#endif
+
 #define HASSPECULAR
 #include "Core.cginc"
 #include "Reflections.cginc"
 
 float _Glossiness;
 
+#if defined(_METALLICGLOSSMAP) && defined(HASMETALLIC)
+	#define GET_GLOSSINESS _GlossMapScale * (_SmoothnessTextureChannel == 0 ? _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).a : _MainTex.Sample(sampler_MainTex, s.uv.xy).a)
+#else
+	#define GET_GLOSSINESS _Glossiness;
+#endif
+
 #ifndef LIGHTSPECOVERRIDE
 void calcSpecular(inout shadingData s) {
-	#if defined(_METALLICGLOSSMAP) && defined(HASMETALLIC)
-		float glossiness = _GlossMapScale * (_SmoothnessTextureChannel == 0 ? _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).a : _MainTex.Sample(sampler_MainTex, s.uv.xy).a);
-	#else
-		float glossiness = _Glossiness;
-	#endif
+	s.glossiness = GET_GLOSSINESS;
 
 	float3 halfVector = normalize(s.lightDir + s.viewDir);
-	float specular = pow(saturate(dot(s.normal, halfVector)), glossiness * 100);
+	float specular = pow(saturate(dot(s.normal, halfVector)), s.glossiness * 100);
 	
-	fixed3 probe = calcProbe(s.viewDir, s.normal, s.posWorld, s.lightCol, 1 - glossiness, s.light.g);
+	fixed3 probe = calcProbe(s.viewDir, s.normal, s.posWorld, s.lightCol, 1 - s.glossiness, s.light.g);
 	
 	s.specular += specular * s.lightCol + probe;
 }

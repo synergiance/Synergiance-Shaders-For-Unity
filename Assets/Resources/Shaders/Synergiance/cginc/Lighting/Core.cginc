@@ -152,6 +152,7 @@ void initializeStruct(inout shadingData s, inout ITPL i) {
 	s.viewDir = normalize(_WorldSpaceCameraPos - s.posWorld.xyz);
 	#ifdef HASSPECULAR
 		s.specular = 0;
+		s.glossiness = 0;
 		#ifdef HASMETALLIC
 			s.metallic = _Metallic * _MetallicGlossMap.Sample(sampler_MainTex, s.uv.xy).r;
 		#endif
@@ -179,7 +180,7 @@ fixed4 calcFinalColor(shadingData s) {
 		color.rgb *= s.light * _Exposure;
 	#endif
 	#ifdef HASMETALLIC
-		color.rgb *= lerp(1, 0.8, s.metallic);
+		color.rgb *= lerp(1, 0.8, s.metallic * s.glossiness);
 	#endif
 	#ifdef _EMISSION
 		color.rgb += s.emission;
@@ -199,7 +200,7 @@ fixed4 calcFinalColor(shadingData s) {
 	#ifdef HASSPECULAR
 		fixed3 specular = s.specular;
 		#ifdef HASMETALLIC
-			specular *= lerp(1, s.color.rgb * (s.color.rgb + 0.1) * 2 + 0.1, s.metallic);
+			specular *= lerp(1, (s.color.rgb * (s.color.rgb + 0.1) * 2 + 0.1) * s.glossiness, s.metallic);
 		#endif
 		#ifdef _ALPHAPREMULTIPLY_ON
 			fixed3 speccolor = fixed3(specular * _Exposure);

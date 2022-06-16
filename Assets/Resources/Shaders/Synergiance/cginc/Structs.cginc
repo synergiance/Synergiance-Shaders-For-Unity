@@ -60,6 +60,7 @@ struct shadingData {
 	float3 normal;
 	#ifdef HASSPECULAR
 		float3 specular;
+		float glossiness;
 		#ifdef HASMETALLIC
 			float metallic;
 		#endif
