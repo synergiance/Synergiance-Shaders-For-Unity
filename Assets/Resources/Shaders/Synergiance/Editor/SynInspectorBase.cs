@@ -131,6 +131,12 @@ namespace Synergiance.Shaders {
 			if (m.HasProperty(propertyName)) m.SetInt(propertyName, val);
 		}
 
+		protected void TexturePropertySingleLine(string propName, string label = null) {
+			MaterialProperty property = FindProperty(propName);
+			GUIContent guiContent = label == null ? MakeLabel(property) : MakeLabel(label);
+			editor.TexturePropertySingleLine(guiContent, property);
+		}
+
 		protected void Vec2Prop(string label, MaterialProperty prop1, MaterialProperty prop2) {
 			Vec2Prop(MakeLabel(label), prop1, prop2);
 		}

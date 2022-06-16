@@ -42,6 +42,12 @@ fixed _ToonIntensity;
 	#endif // SHADE_TEXTURE
 #endif // Not USES_GRADIENTS
 
+#ifdef HAS_RIMLIGHT
+	fixed4 _RimLightCol;
+	Texture2D _RimLightMask;
+	float _RimLightSharp;
+#endif
+
 float stylizeAtten(float atten, float feather, float coverage) {
 	fixed ref = 1 - feather;
 	fixed ref2 = ref * (1 - coverage);
@@ -96,7 +102,18 @@ float3 calcLightColorInternal(float ndotl, float atten, float shade, float3 albe
 }
 
 void calcLightColor(inout shadingData s) {
+	#ifdef HAS_RIMLIGHT
+		float3 rimColor = SafeTexSample(_RimLightMask, sampler_MainTex, s.uv.xy).rgb * _RimLightCol;
+		float3 lightCol = s.lightCol.rgb * s.light.g;
+		float rim = saturate(1 - dot(s.normal, s.viewDir));
+		float2 ssVals = lerp(float2(0, 1), 0.8, _RimLightSharp);
+		rim = lerp(rim, smoothstep(ssVals.x, ssVals.y, rim), smoothstep(0, 0.2, _RimLightSharp));
+		rimColor *= rim;
+	#endif
 	s.light.rgb = calcLightColorInternal(s.light.r, s.light.g, s.light.b, s.color.rgb, s.lightCol.rgb, s.uv.xy);
+	#ifdef HAS_RIMLIGHT
+		s.light.rgb += rimColor * (s.light.rgb * 0.2 + lightCol * 0.8);
+	#endif
 }
 
 float3 calcAmbientInternal(float3 normal, float3 albedo, float atten, float2 uv) {
@@ -158,41 +175,47 @@ float3 calcStyledAtten(float atten) {
 	#endif
 }
 
+#ifdef HAS_RIMLIGHT
+float3 calcRim(float3 viewDir, float3 normal) {
+	return saturate(1 - dot(viewDir, normal)) * _RimLightCol;
+}
+#endif
+
 // Basically copied out of the unity include files, with some modifications
 float3 Shade4PointLightsStyled (
-    float4 lightPosX, float4 lightPosY, float4 lightPosZ,
-    float3 lightColor0, float3 lightColor1, float3 lightColor2, float3 lightColor3,
-    float4 lightAttenSq, float3 pos, float3 normal)
+	float4 lightPosX, float4 lightPosY, float4 lightPosZ,
+	float3 lightColor0, float3 lightColor1, float3 lightColor2, float3 lightColor3,
+	float4 lightAttenSq, float3 pos, float3 normal)
 {
-    // to light vectors
-    float4 toLightX = lightPosX - pos.x;
-    float4 toLightY = lightPosY - pos.y;
-    float4 toLightZ = lightPosZ - pos.z;
-    // squared lengths
-    float4 lengthSq = 0;
-    lengthSq += toLightX * toLightX;
-    lengthSq += toLightY * toLightY;
-    lengthSq += toLightZ * toLightZ;
-    // don't produce NaNs if some vertex position overlaps with the light
-    lengthSq = max(lengthSq, 0.000001);
+	// to light vectors
+	float4 toLightX = lightPosX - pos.x;
+	float4 toLightY = lightPosY - pos.y;
+	float4 toLightZ = lightPosZ - pos.z;
+	// squared lengths
+	float4 lengthSq = 0;
+	lengthSq += toLightX * toLightX;
+	lengthSq += toLightY * toLightY;
+	lengthSq += toLightZ * toLightZ;
+	// don't produce NaNs if some vertex position overlaps with the light
+	lengthSq = max(lengthSq, 0.000001);
 
-    // NdotL
-    float4 ndotl = 0;
-    ndotl += toLightX * normal.x;
-    ndotl += toLightY * normal.y;
-    ndotl += toLightZ * normal.z;
-    // correct NdotL
-    float4 corr = rsqrt(lengthSq);
-    ndotl = max (float4(0,0,0,0), ndotl * corr);
-    // attenuation
-    float4 atten = 1.0 / (1.0 + lengthSq * lightAttenSq);
-    // final color
-    float3 col = 0;
-    col += max(0, lightColor0 * calcStyledAtten(ndotl.x) * atten.x);
-    col += max(0, lightColor1 * calcStyledAtten(ndotl.y) * atten.y);
-    col += max(0, lightColor2 * calcStyledAtten(ndotl.z) * atten.z);
-    col += max(0, lightColor3 * calcStyledAtten(ndotl.w) * atten.w);
-    return col;
+	// NdotL
+	float4 ndotl = 0;
+	ndotl += toLightX * normal.x;
+	ndotl += toLightY * normal.y;
+	ndotl += toLightZ * normal.z;
+	// correct NdotL
+	float4 corr = rsqrt(lengthSq);
+	ndotl = max (float4(0,0,0,0), ndotl * corr);
+	// attenuation
+	float4 atten = 1.0 / (1.0 + lengthSq * lightAttenSq);
+	// final color
+	float3 col = 0;
+	col += max(0, lightColor0 * calcStyledAtten(ndotl.x) * atten.x);
+	col += max(0, lightColor1 * calcStyledAtten(ndotl.y) * atten.y);
+	col += max(0, lightColor2 * calcStyledAtten(ndotl.z) * atten.z);
+	col += max(0, lightColor3 * calcStyledAtten(ndotl.w) * atten.w);
+	return col;
 }
 
 #endif // ACKLIGHTINGTOON

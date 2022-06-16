@@ -8,7 +8,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version => "0.11.1";
+		protected override string version => "0.12b1";
 
 		protected const string DEPRECATED_STR = "Deprecated, but let me know if this still helps some models";
 
@@ -71,7 +71,7 @@ namespace Synergiance.Shaders.AckToon {
 			};
 		}
 		
-		protected bool fMain = true, fToon = true, fOutline = true, fOpts = false, fRend = false, fAdvRend = false, fCols = false, fUtil = false, fEffects = false;
+		protected bool fMain = true, fToon = true, fOutline = true, fOpts = false, fRend = false, fAdvRend = false, fCols = false, fUtil = false, fEffects = false, fMatCap = false;
 
 		protected bool hasCutoff = false;
 		
@@ -83,6 +83,8 @@ namespace Synergiance.Shaders.AckToon {
 			BoldFoldout(ref fToon, "Toon Settings", DoToon);
 
 			if (PropertyExists("_OutlineWidth")) BoldFoldout(ref fOutline, "Outline Settings", DoOutline);
+
+			if (PropertyExists("_MatCapAdd")) BoldFoldout(ref fMatCap, "MatCap Settings", DoMatcap);
 
 			if (PropertyExists("_Speed") || PropertyExists("_Vivid")) BoldFoldout(ref fCols, "Color Options", () => {
 				ShowPropertyIfExists("_Vivid");
@@ -132,6 +134,10 @@ namespace Synergiance.Shaders.AckToon {
 			ShaderProperty("_ToonIntensity", "Surface Intensity", "This will make the surface color more prominant in shadowed areas");
 			ShaderProperty("_SpecFeather");
 			ShaderProperty("_SpecPower");
+			if (PropertyExists("_RimLightCol")) {
+				editor.TexturePropertySingleLine(MakeLabel("Rim Light Color"), FindProperty("_RimLightMask"), FindProperty("_RimLightCol"));
+				ShaderProperty("_RimLightSharp");
+			}
 		}
 
 		protected virtual void DoOutline() {
@@ -140,6 +146,7 @@ namespace Synergiance.Shaders.AckToon {
 			MaterialProperty widthProp = FindProperty("_OutlineWidth");
 			MaterialProperty colorProp = FindProperty("_OutlineColor");
 			MaterialProperty blendProp = FindProperty("_OutlineColorMode");
+			MaterialProperty spaceProp = FindProperty("_OutlineSpace");
 			if (PropertyExists("_OutlineMap")) {
 				MaterialProperty colorMap = FindProperty("_OutlineMap");
 				editor.TexturePropertySingleLine(colorText, colorMap, colorProp, blendProp);
@@ -150,8 +157,15 @@ namespace Synergiance.Shaders.AckToon {
 			}
 			ShowPropertyIfExists("_OutlineAlpha");
 			ShaderProperty(widthProp, widthText);
-			ShaderProperty("_OutlineSpace");
+			ShaderProperty(spaceProp);
 			ShaderProperty("_OutlineScreen");
+		}
+
+		protected virtual void DoMatcap() {
+			TexturePropertySingleLine("_MatCapAdd", "Additive");
+			TexturePropertySingleLine("_MatCapMaskAdd", "Additive Mask");
+			TexturePropertySingleLine("_MatCapMul", "Multiply");
+			TexturePropertySingleLine("_MatCapMaskMul", "Multiply Mask");
 		}
 
 		protected virtual void DoOptions() {
@@ -279,6 +293,9 @@ namespace Synergiance.Shaders.AckToon {
 			SetKeyword(material, "_ALPHATEST_ON", material.GetFloat("_Cutoff") > 0);
 			SetKeyword(material, "_ALPHABLEND_ON", CheckAlphaBlend(material));
 			SetKeyword(material, "_ALPHAPREMULTIPLY_ON", material.GetInt("_Premultiply") == 1);
+
+			// Remove useless "_" keyword
+			SetKeyword(material, "_", false);
 		}
 		
 		protected override void MaterialChanged(Material material) {

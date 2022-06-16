@@ -33,6 +33,8 @@
 	int _EmissionNoise3DUV;
 #endif
 
+#define HAS_RIMLIGHT
+#define HAS_MATCAP
 #define CUSTOM_VERT
 #ifndef NO_TOON_VERT
 	#define USE_TOON_VERT

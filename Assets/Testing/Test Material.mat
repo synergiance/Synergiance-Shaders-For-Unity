@@ -55,6 +55,22 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _MatCapAdd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MatCapMaskAdd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MatCapMaskMul:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MatCapMul:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -83,7 +99,15 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _ReflBackupCube:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _ReflPowerTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RimLightMask:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -92,6 +116,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SSTintMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ShadeTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -195,11 +223,13 @@ Material:
     - _Rainbowing: 0
     - _ReadMask: 255
     - _ReflPower: 0
+    - _RimLightSharp: 0.65
     - _SSDistortion: 0
     - _SSIntensity: 0
     - _SSPower: 20
     - _SaturationBoost: 0
     - _ShadeEmission: 0
+    - _ShadeMode: 0
     - _ShadowAmbAdd: 0
     - _ShadowAmbient: 0.8
     - _ShadowIntensity: 0.1
@@ -234,6 +264,7 @@ Material:
     - _UVSec: 0
     - _Unlit: 0
     - _UseSecondShadow: 0
+    - _VertexColors: 0
     - _Vivid: 0
     - _WriteMask: 255
     - _ZTest: 4
@@ -256,6 +287,7 @@ Material:
     - _FakeLightCol: {r: 1, g: 1, b: 1, a: 1}
     - _FallbackLightDir: {r: 0.5, g: 1, b: 0.25, a: 1}
     - _LightColor: {r: 1, g: 1, b: 1, a: 1}
+    - _RimLightCol: {r: 0.4, g: 0.4, b: 0.4, a: 1}
     - _SSTint: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowTint: {r: 0.75, g: 0.75, b: 0.75, a: 1}
     - _ShadowTint2: {r: 0.75, g: 0.75, b: 0.75, a: 1}

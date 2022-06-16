@@ -11,6 +11,12 @@
     #define SafeTexCUBE(sampl, uvw) texCUBE(sampl, uvw.xyz)
 #endif
 
+#ifdef FRAGMENT
+	#define SafeTexSample(tex, sampler, uv) tex.Sample(sampler, uv)
+#else
+	#define SafeTexSample(tex, sampler, uv) tex.SampleLevel(sampler, uv, 0)
+#endif
+
 #ifndef LIGHTSCALEOVERRIDE
 float calcLightAttenuationInternal(float3 posWorld) {
 	#if defined(POINT)

@@ -53,6 +53,15 @@ Shader "Synergiance/AckToon/Medium" {
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
 		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
 		_ReflBackupCube ("Backup Reflections Map", Cube) = "black" {}
+		
+		_MatCapAdd ("Additive MatCap", 2D) = "black" {}
+		_MatCapMul ("Multiply MatCap", 2D) = "white" {}
+		_MatCapMaskAdd ("Additive MatCap Mask", 2D) = "white" {}
+		_MatCapMaskMul ("Multiply MatCap Mask", 2D) = "white" {}
+		
+		_RimLightCol ("Rim Light Color", Color) = (0,0,0)
+		_RimLightMask ("Rim Light Mask", 2D) = "white" {}
+		_RimLightSharp ("Rim Light Sharpness", Range(0, 1)) = 0
 
 		// Rendering
 		[Enum(Opaque,0,Cutout,1,Fade,2,Transparent,3)] _Mode ("Render Mode", Int) = 0
@@ -123,6 +132,7 @@ Shader "Synergiance/AckToon/Medium" {
 			#define SHADE_TEXTURE
 			#define BLANK_CUBE_DETECTION
 			#define VERTEX_COLORS_TOGGLE
+			#define HAS_RIMLIGHT
 			#include "../cginc/Effects.cginc"
 
 			#pragma vertex vert
@@ -155,6 +165,7 @@ Shader "Synergiance/AckToon/Medium" {
 			#define COLOR_EFFECTS
 			#define SHADE_TEXTURE
 			#define VERTEX_COLORS_TOGGLE
+			#define HAS_RIMLIGHT
 			#include "../cginc/Effects.cginc"
 
 			#pragma vertex vert

@@ -15,7 +15,7 @@ float3 RotatePointAroundOrigin(float3 input, float2 angles) {
 
 float3x3 GetRotationMatrixAxis(float3 axis, float angle) {
 	float3 n = normalize(axis);
-	// 3D matrix formula from axis and angle
+	// Rodrigues formula converting axis-angle to an euler rotation matrix
 	float cs, sn;
 	sincos(angle, sn, cs);
 	float om = 1 - cs;

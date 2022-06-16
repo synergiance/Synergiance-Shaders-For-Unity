@@ -178,6 +178,9 @@ fixed4 calcFinalColor(shadingData s) {
 	#else
 		color.rgb *= s.light * _Exposure;
 	#endif
+	#ifdef HASMETALLIC
+		color.rgb *= lerp(1, 0.8, s.metallic);
+	#endif
 	#ifdef _EMISSION
 		color.rgb += s.emission;
 	#endif // _EMISSION
@@ -186,19 +189,24 @@ fixed4 calcFinalColor(shadingData s) {
 		color.rgb *= color.a;
 	#endif
 	#ifdef HASSPECULAR
+		#ifdef HASMETALLIC
+			fixed3 metallicColor = s.color;
+		#endif
+	#endif
+	#ifdef HAS_MATCAP
+		applyMatcap(color.rgb, s, sampler_MainTex);
+	#endif
+	#ifdef HASSPECULAR
+		fixed3 specular = s.specular;
+		#ifdef HASMETALLIC
+			specular *= lerp(1, s.color.rgb * (s.color.rgb + 0.1) * 2 + 0.1, s.metallic);
+		#endif
 		#ifdef _ALPHAPREMULTIPLY_ON
-			fixed4 speccolor = fixed4(s.specular * _Exposure, 0);
+			fixed3 speccolor = fixed3(specular * _Exposure);
 			SYN_UNITY_APPEND_FOG(s.fogCoord, speccolor);
 			color.rgb += speccolor.rgb;
 		#else
-			color.rgb += s.specular * _Exposure;
-		#endif
-		#ifdef HASMETALLIC
-			fixed3 metallicColor = s.color * s.specular * _Exposure;
-			#ifdef _ALPHAPREMULTIPLY_ON
-				SYN_UNITY_APPEND_FOG(s.fogCoord, metallicColor);
-			#endif
-			color.rgb = lerp(color.rgb, metallicColor, s.metallic);
+			color.rgb += specular * _Exposure;
 		#endif
 	#endif // HASSPECULAR
 	#ifndef _ALPHAPREMULTIPLY_ON
