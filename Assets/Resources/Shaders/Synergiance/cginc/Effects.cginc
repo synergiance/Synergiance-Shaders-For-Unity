@@ -20,6 +20,11 @@
 	float _Vivid;
 	float _Speed;
 	Texture2D _RainbowMask;
+	float _HueOffset;
+	float3 _ColorOverride;
+	int _OverrideHue;
+	float _SaturationEffect;
+	float _BrightnessEffect;
 #endif
 
 #ifdef EMISSION_EFFECTS
@@ -105,12 +110,18 @@ void calcVertEffects(inout ITPL o, appdata_full v) {
 
 void calcPreEffects(inout shadingData s) {
 	#ifdef COLOR_EFFECTS
-	[branch] if (_Vivid > 0) {
+	float3 mask = _RainbowMask.Sample(sampler_MainTex, s.uv.xy);
+	[branch] if (_Vivid > 0 || _OverrideHue > 0 || _SaturationEffect > 0 || _BrightnessEffect > 0) {
 		float3 hsvcol = RGBtoHSV(s.color.rgb);
+		float3 hsvovr = RGBtoHSV(_ColorOverride);
+		float maskAvg = dot(mask, float3(0.299, 0.587, 0.114));
+		if (_OverrideHue > 0 && hsvovr.y > 0) hsvcol.r = lerp(hsvcol.r, hsvovr.r, maskAvg);
+		hsvcol.y = lerp(hsvcol.y, hsvovr.y, _SaturationEffect * maskAvg);
+		hsvcol.b = lerp(hsvcol.b, hsvovr.b, _BrightnessEffect * maskAvg);
 		hsvcol.y *= 1 + _Vivid;
 		s.color.rgb = HSVtoRGB(hsvcol);
 	}
-	[branch] if (_Speed > 0) s.color.rgb = lerp(s.color.rgb, applyHue(s.color.rgb, _Time[1] * _Speed * _Speed * _Speed), _RainbowMask.Sample(sampler_MainTex, s.uv.xy));
+	[branch] if (_Speed > 0 || _HueOffset > 0) s.color.rgb = lerp(s.color.rgb, applyHue(s.color.rgb, _Time[1] * _Speed * _Speed * _Speed + _HueOffset), mask);
 	#endif
 }
 

@@ -33,6 +33,11 @@ Shader "Synergiance/AckToon/Gradient" {
 		_Vivid("Vivid", Range(0, 1)) = 0
 		_Speed("Rainbow Speed", Range(0, 10)) = 0
         _RainbowMask ("Rainbow Mask", 2D) = "white" {}
+		_HueOffset("Hue Offset", Range(0, 360)) = 0
+		_ColorOverride("Color Override", Color) = (1, 1, 1, 1)
+		[Toggle(_)] _OverrideHue("Override Hue", Int) = 0
+		_SaturationEffect("Saturation Effect", Range(0, 1)) = 0
+		_BrightnessEffect("Brightness Effect", Range(0, 1)) = 0
 		
 		// Options
 		[Toggle(_ALPHAPREMULTIPLY_ON)] _Premultiply ("Premultiply", Int) = 0

@@ -1,6 +1,5 @@
 // AckToon GUI
 
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -8,7 +7,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 		
-		protected override string version => "0.12b1";
+		protected override string version => "0.13.1";
 
 		protected const string DEPRECATED_STR = "Deprecated, but let me know if this still helps some models";
 
@@ -91,6 +90,13 @@ namespace Synergiance.Shaders.AckToon {
 				if (PropertyExists("_RainbowMask")) {
 					MaterialProperty speedProp = FindProperty("_Speed");
 					editor.TexturePropertySingleLine(MakeLabel(speedProp), FindProperty("_RainbowMask"), speedProp);
+					if (PropertyExists("_HueOffset")) {
+						ShaderProperty("_HueOffset");
+						ShaderProperty("_ColorOverride");
+						ShaderProperty("_OverrideHue");
+						ShaderProperty("_SaturationEffect");
+						ShaderProperty("_BrightnessEffect");
+					}
 				} else {
 					ShowPropertyIfExists("_Speed");
 				}
@@ -288,6 +294,7 @@ namespace Synergiance.Shaders.AckToon {
 			bool shouldEmissionBeEnabled = matCol.r > 0 || matCol.g > 0 || matCol.b > 0;
 			SetKeyword(material, "_EMISSION", shouldEmissionBeEnabled);
 			SetKeyword(material, "_NORMALMAP", material.GetTexture("_BumpMap") != null);
+			SetKeyword(material, "_METALLICGLOSSMAP", material.GetTexture("_MetallicGlossMap") != null);
 
 			// Render Mode Keywords
 			SetKeyword(material, "_ALPHATEST_ON", material.GetFloat("_Cutoff") > 0);

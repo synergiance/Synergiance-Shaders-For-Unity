@@ -1,6 +1,7 @@
 #include "UnityPBSLighting.cginc"
 #include "AutoLight.cginc"
 #include "VrHelpers.cginc"
+#include "Lighting/Helpers.cginc"
 
 float4 _Color;
 
@@ -63,12 +64,14 @@ v2f vert (appdata_full v) {
 	o.color = _OutlineColor * lerp(_Color * v.color, 1, _OutlineColorMode);
 	#endif
 	#if defined(VERTEXLIGHT_ON)
+	/*
 	o.vertLight = Shade4PointLightsStyled(
 		unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0,
 		unity_LightColor[0].rgb, unity_LightColor[1].rgb,
 		unity_LightColor[2].rgb, unity_LightColor[3].rgb,
 		unity_4LightAtten0, o.posWorld, o.normal * 0.5
 	);
+	*/
 	#else
 	o.vertLight = 0;
 	#endif
@@ -88,7 +91,10 @@ float4 frag (v2f i) : COLOR {
 	col.rgb *= lerp(1, tex2D(_OutlineMap, i.uv).rgb, _OutlineMapCol);
 	#endif
 	float3 lightDir = normalize(_WorldSpaceLightPos0.xyz - i.posWorld.xyz * _WorldSpaceLightPos0.w);
-	float3 lightColor = _LightColor0 * stylizeAtten(dot(i.normal, lightDir) * 0.5 + 0.5, _ToonFeather, _ToonCoverage);
+	float atten = calcLightAttenuationInternal(i.posWorld.xyz);
+	float ndotl = dot(i.normal, lightDir) * 0.5 + 0.5;
+	float shade = UNITY_SHADOW_ATTENUATION(i, i.posWorld.xyz);
+	float3 lightColor = _LightColor0 * stylizeAtten(ndotl * shade, _ToonFeather, _ToonCoverage) * atten;
 	#ifdef BASE_PASS
 	lightColor += i.vertLight + ShadeSH9(float4(i.normal * 0.5, 1));
 	#endif

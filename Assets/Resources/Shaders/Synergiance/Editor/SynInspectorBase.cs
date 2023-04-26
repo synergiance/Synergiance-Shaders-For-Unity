@@ -8,8 +8,8 @@ namespace Synergiance.Shaders {
 	public class SynInspectorBase : ShaderGUI {
 		
 		
-		protected virtual string version { get { return "1.0"; }}
-		
+		protected virtual string version => "1.0";
+
 		protected Material target;
 		protected MaterialEditor editor;
 		protected MaterialProperty[] properties;
@@ -30,11 +30,11 @@ namespace Synergiance.Shaders {
 		protected static ColorPickerHDRConfig emissionConfig = new ColorPickerHDRConfig(0f, 99f, 1f / 99f, 3f);
 		#endif
 		
-		protected virtual bool hasGradient { get { return false; }}
+		protected virtual bool hasGradient => false;
 		protected Dictionary<string, Gradient> gradients;
-		protected virtual bool hasString { get { return false; }}
+		protected virtual bool hasString => false;
 		protected Dictionary<string, string> strings;
-		protected virtual bool hasFoldoutArray { get { return false; }}
+		protected virtual bool hasFoldoutArray => false;
 		protected Dictionary<string, List<FoldoutItem> > FoldoutArrays;
 		
 		protected static void SetKeyword(Material m, string keyword, bool state) {
