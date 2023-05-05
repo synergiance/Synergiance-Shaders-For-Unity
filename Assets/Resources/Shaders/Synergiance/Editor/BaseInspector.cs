@@ -6,8 +6,8 @@ using UnityEngine.Rendering;
 
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
-		
-		protected override string version => "0.13.1";
+
+		protected override string version => "0.13.2";
 
 		protected const string DEPRECATED_STR = "Deprecated, but let me know if this still helps some models";
 
@@ -69,11 +69,11 @@ namespace Synergiance.Shaders.AckToon {
 				}
 			};
 		}
-		
+
 		protected bool fMain = true, fToon = true, fOutline = true, fOpts = false, fRend = false, fAdvRend = false, fCols = false, fUtil = false, fEffects = false, fMatCap = false;
 
 		protected bool hasCutoff = false;
-		
+
 		protected override void DoMain() {
 			DoRenderMode();
 			EditorGUILayout.Space();
@@ -105,7 +105,7 @@ namespace Synergiance.Shaders.AckToon {
 			if (hasEffects) BoldFoldout(ref fEffects, "Effects", DoEffects);
 
 			AdditionalSettings();
-			
+
 			BoldFoldout(ref fOpts, "Options", DoOptions);
 			BoldFoldout(ref fRend, "Blending Options", DoBlending);
 			BoldFoldout(ref fAdvRend, "Advanced Options", DoAdvanced);
@@ -221,7 +221,7 @@ namespace Synergiance.Shaders.AckToon {
 				SetMaterialKeywords((Material)obj);
 			}
 		}
-		
+
 		protected void DoEmissionArea() {
 			MaterialProperty emissionCol = FindProperty("_EmissionColor");
 			MaterialProperty emissionTex = FindProperty("_EmissionMap");
@@ -250,8 +250,8 @@ namespace Synergiance.Shaders.AckToon {
 			int smoothnessChannel = (int)smoothnessMapChannel.floatValue;
 			if (smoothnessChannel == 1) // Alpha Channel
 				showSmoothnessScale = true;
-			
-			
+
+
 			int indentation = 2; // align with labels of texture properties
 			editor.ShaderProperty(showSmoothnessScale ? FindProperty("_GlossMapScale") : FindProperty("_Glossiness"), showSmoothnessScale ? MakeLabel("Smoothness", "Smoothness scale factor") : MakeLabel("Smoothness", "Smoothness value"), indentation);
 
@@ -288,7 +288,7 @@ namespace Synergiance.Shaders.AckToon {
 			}
 			return blendsAlpha;
 		}
-		
+
 		static void SetMaterialKeywords(Material material) {
 			Color matCol = material.GetColor("_EmissionColor");
 			bool shouldEmissionBeEnabled = matCol.r > 0 || matCol.g > 0 || matCol.b > 0;
@@ -304,7 +304,7 @@ namespace Synergiance.Shaders.AckToon {
 			// Remove useless "_" keyword
 			SetKeyword(material, "_", false);
 		}
-		
+
 		protected override void MaterialChanged(Material material) {
 			SetMaterialKeywords(material);
 		}
