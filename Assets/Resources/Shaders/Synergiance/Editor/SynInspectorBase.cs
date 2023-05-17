@@ -73,7 +73,7 @@ namespace Synergiance.Shaders {
 			return foldout = EditorGUILayout.Foldout(foldout, content, BFstyle);
 		}
 
-		static protected bool BoldFoldout(bool foldout, string content) {
+		static protected bool BoldFoldout(ref bool foldout, string content) {
 			return BoldFoldout(ref foldout, MakeLabel(content));
 		}
 

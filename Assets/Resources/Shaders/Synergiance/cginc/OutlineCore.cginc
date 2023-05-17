@@ -3,15 +3,6 @@
 #include "VrHelpers.cginc"
 #include "Lighting/Helpers.cginc"
 
-float4 _Color;
-
-#ifdef VERTEX_COLORS_TOGGLE
-float _VertexColors;
-#endif
-
-sampler2D _MainTex;
-float4 _MainTex_ST;
-
 #ifdef OUTLINE_TEXTURE
 sampler2D _OutlineMap;
 int _OutlineMapCol;
@@ -27,9 +18,6 @@ int _OutlineColorMode;
 int _OutlineAlpha;
 #endif
 
-float _ToonFeather;
-float _ToonCoverage;
-
 struct v2f {
 	float4 pos : SV_POSITION;
 	float3 normal : NORMAL;
@@ -41,6 +29,10 @@ struct v2f {
 	UNITY_FOG_COORDS(5)
 	UNITY_VERTEX_OUTPUT_STEREO
 };
+
+#define CUSTOM_VERT
+#define CUSTOM_INTERPOLATORS
+#include "Lighting/Toon.cginc"
 
 v2f vert (appdata_full v) {
 	v2f o;
@@ -64,29 +56,22 @@ v2f vert (appdata_full v) {
 	o.color = _OutlineColor * lerp(_Color * v.color, 1, _OutlineColorMode);
 	#endif
 	#if defined(VERTEXLIGHT_ON)
-	/*
 	o.vertLight = Shade4PointLightsStyled(
 		unity_4LightPosX0, unity_4LightPosY0, unity_4LightPosZ0,
 		unity_LightColor[0].rgb, unity_LightColor[1].rgb,
 		unity_LightColor[2].rgb, unity_LightColor[3].rgb,
 		unity_4LightAtten0, o.posWorld, o.normal * 0.5
 	);
-	*/
 	#else
 	o.vertLight = 0;
 	#endif
 	return o;
 }
 
-float stylizeAtten(float atten, float feather, float coverage) {
-	fixed ref = 1 - feather;
-	fixed ref2 = ref * (1 - coverage);
-	return smoothstep(ref2, ref2 + feather, atten);
-}
-
+#ifndef SHADER_STAGE_VERTEX
 float4 frag (v2f i) : COLOR {
 	i.normal = normalize(i.normal);
-	float4 col = i.color * lerp(tex2D(_MainTex, i.uv), 1, _OutlineColorMode);
+	float4 col = i.color * lerp(_MainTex.Sample(sampler_MainTex, i.uv), 1, _OutlineColorMode);
 	#ifdef OUTLINE_TEXTURE
 	col.rgb *= lerp(1, tex2D(_OutlineMap, i.uv).rgb, _OutlineMapCol);
 	#endif
@@ -104,3 +89,4 @@ float4 frag (v2f i) : COLOR {
 	#endif
 	return col;
 }
+#endif
