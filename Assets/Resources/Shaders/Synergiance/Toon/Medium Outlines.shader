@@ -127,7 +127,7 @@ Shader "Synergiance/AckToon/Medium-Outlines" {
 
 		Pass {
 			Name "FORWARD_OUTLINE"
-			
+
 			Blend [_SrcBlend] [_DstBlend], [_ASrcBlend] [_ADstBlend]
 			ZWrite Off
 			Cull Front
@@ -189,7 +189,7 @@ Shader "Synergiance/AckToon/Medium-Outlines" {
 			#pragma only_renderers d3d11 glcore gles
 			#pragma target 4.0
 
-			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fwdadd_fullshadows
 			#pragma multi_compile_fog
 			ENDCG
 		}
