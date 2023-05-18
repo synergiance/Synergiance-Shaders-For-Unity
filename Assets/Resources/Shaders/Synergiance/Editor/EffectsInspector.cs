@@ -1,10 +1,10 @@
 ﻿using UnityEditor;
-using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace Synergiance.Shaders.AckToon {
 	public class EffectsInspector : BaseInspector {
 		protected override bool hasEffects => true;
+
+		private bool fOutlineAL;
 
 		protected override void DoEffects() {
 			MaterialProperty emissionNoise = FindProperty("_EmissionNoise");
@@ -23,6 +23,21 @@ namespace Synergiance.Shaders.AckToon {
 				}
 				EditorGUI.indentLevel -= 2;
 			}
+		}
+
+		private void DoOutlineAudioLink() {
+			ShaderProperty("_OutlineAudioLinkEffect", "Strength");
+			ShaderProperty("_OutlineAudioLinkTheme", "Theme");
+			ShaderProperty("_OutlineAudioLinkColor", "Color");
+			ShaderProperty("_OutlineAudioLinkBright", "Brightness");
+			ShaderProperty("_OutlineAudioLinkDim", "Dim Emission");
+		}
+
+		protected override void DoOutline() {
+			base.DoOutline();
+
+			if (PropertyExists("_OutlineAudioLinkEffect"))
+				BoldFoldout(ref fOutlineAL, "AudioLink", DoOutlineAudioLink);
 		}
 	}
 }

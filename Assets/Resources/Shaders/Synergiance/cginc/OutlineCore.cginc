@@ -3,6 +3,10 @@
 #include "VrHelpers.cginc"
 #include "Lighting/Helpers.cginc"
 
+#ifdef OUTLINE_AUDIOLINK
+#include "OutlineAudioLink.cginc"
+#endif
+
 #ifdef OUTLINE_TEXTURE
 sampler2D _OutlineMap;
 int _OutlineMapCol;
@@ -13,6 +17,7 @@ float _OutlineWidth;
 int _OutlineScreen;
 int _OutlineSpace;
 int _OutlineColorMode;
+float3 _OutlineEmission;
 
 #ifdef ALPHA_TOGGLE
 int _OutlineAlpha;
@@ -86,6 +91,13 @@ float4 frag (v2f i) : COLOR {
 	col.rgb *= lightColor;
 	#ifdef ALPHA_TOGGLE
 	col.a = _OutlineAlpha == 0 ? 1 : col.a;
+	#endif
+	#ifdef BASE_PASS
+	float3 emission = _OutlineEmission.rgb;
+	#ifdef OUTLINE_AUDIOLINK
+	GetAudioLinkEmission(emission, i.normal);
+	#endif
+	col.rgb += emission;
 	#endif
 	return col;
 }

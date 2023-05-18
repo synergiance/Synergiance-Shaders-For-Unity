@@ -162,6 +162,7 @@ namespace Synergiance.Shaders.AckToon {
 				ShaderProperty(blendProp);
 			}
 			ShowPropertyIfExists("_OutlineAlpha");
+			ShowPropertyIfExists("_OutlineEmission");
 			ShaderProperty(widthProp, widthText);
 			ShaderProperty(spaceProp);
 			ShaderProperty("_OutlineScreen");

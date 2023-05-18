@@ -30,10 +30,18 @@ Shader "Synergiance/AckToon/Effects-Outlines" {
 		_OutlineWidth("Outline Width (mm)", Float) = 2.5
 		_OutlineColor("Outline Color", Color) = (0.5, 0.5, 0.5, 1.0)
 		_OutlineMap("Outline Map", 2D) = "white" {}
+		[HDR] _OutlineEmission("Outline Emission", Color) = (0,0,0)
 		[Toggle(_)] _OutlineScreen("Screen Space Outlines", Int) = 0
 		[Enum(Object,0,World,1)] _OutlineSpace("Outline Space", Int) = 1
 		[Enum(Tint,0,Color,1)] _OutlineColorMode("Outline Color Mode", Int) = 0
 		[Toggle(_)] _OutlineMapCol("Outline Map Color", Int) = 1
+
+		// Outline Effects
+		_OutlineAudioLinkColor("AudioLink Outline Color", Color) = (0,0,0)
+		_OutlineAudioLinkTheme("AudioLink Outline Theme", Range(0, 1)) = 1
+		_OutlineAudioLinkEffect("AudioLink Outline Effect", Range(0, 1)) = 0
+		_OutlineAudioLinkBright("AudioLink Outline Brightness", Float) = 1
+		_OutlineAudioLinkDim("AudioLink Outline Dim Regular Emission", Range(0, 1)) = 0.5
 
 		// Color Options
 		_Vivid("Vivid", Range(0, 1)) = 0
@@ -75,12 +83,12 @@ Shader "Synergiance/AckToon/Effects-Outlines" {
 		_ReflPower ("Reflections Intensity", Range(0, 1)) = 0
 		_ReflPowerTex ("Reflections Intensity Texture", 2D) = "white" {}
 		_ReflBackupCube ("Backup Reflections Map", Cube) = "black" {}
-		
+
 		_MatCapAdd ("Additive MatCap", 2D) = "black" {}
 		_MatCapMul ("Multiply MatCap", 2D) = "white" {}
 		_MatCapMaskAdd ("Additive MatCap Mask", 2D) = "white" {}
 		_MatCapMaskMul ("Multiply MatCap Mask", 2D) = "white" {}
-		
+
 		_RimLightCol ("Rim Light Color", Color) = (0,0,0)
 		_RimLightMask ("Rim Light Mask", 2D) = "white" {}
 		_RimLightSharp ("Rim Light Sharpness", Range(0, 1)) = 0
@@ -133,9 +141,75 @@ Shader "Synergiance/AckToon/Effects-Outlines" {
 
 		UsePass "Synergiance/AckToon/Effects/FORWARD_DELTA"
 
-		UsePass "Synergiance/AckToon/Medium-Outlines/FORWARD_OUTLINE"
+		Pass {
+			Name "FORWARD_OUTLINE"
 
-		UsePass "Synergiance/AckToon/Medium-Outlines/FORWARD_OUTLINE_DELTA"
+			Blend [_SrcBlend] [_DstBlend], [_ASrcBlend] [_ADstBlend]
+			ZWrite [_ZWrite]
+			Cull Front
+
+			Tags {
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			#pragma shader_feature _ALPHAPREMULTIPLY_ON
+
+			#define BASE_PASS
+			#define FAKE_LIGHT
+			#define SHADE_TEXTURE
+			#define OUTLINE_TEXTURE
+			#define OUTLINE_AUDIOLINK
+			#define VERTEX_COLORS_TOGGLE
+			#define HAS_RIMLIGHT
+			#include "../cginc/OutlineCore.cginc"
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+			ENDCG
+		}
+
+		Pass {
+			Name "FORWARD_OUTLINE_DELTA"
+
+			Blend [_SrcBlend] One, Zero One
+			ZWrite Off
+			Cull Front
+
+			Tags {
+				"LightMode" = "ForwardAdd"
+			}
+
+			CGPROGRAM
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			#pragma shader_feature _ALPHAPREMULTIPLY_ON
+
+			#define ADD_PASS
+			#define SHADE_TEXTURE
+			#define OUTLINE_TEXTURE
+			#define VERTEX_COLORS_TOGGLE
+			#define HAS_RIMLIGHT
+			#include "../cginc/OutlineCore.cginc"
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+			ENDCG
+		}
 
 		UsePass "Synergiance/AckToon/Light/SHADOWCASTER"
 	}

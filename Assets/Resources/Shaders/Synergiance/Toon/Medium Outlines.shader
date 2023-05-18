@@ -30,6 +30,7 @@ Shader "Synergiance/AckToon/Medium-Outlines" {
 		_OutlineWidth("Outline Width (mm)", Float) = 2.5
 		_OutlineColor("Outline Color", Color) = (0.5, 0.5, 0.5, 1.0)
 		_OutlineMap("Outline Map", 2D) = "white" {}
+		[HDR] _OutlineEmission("Outline Emission", Color) = (0,0,0)
 		[Toggle(_)] _OutlineScreen("Screen Space Outlines", Int) = 0
 		[Enum(Object,0,World,1)] _OutlineSpace("Outline Space", Int) = 1
 		[Enum(Tint,0,Color,1)] _OutlineColorMode("Outline Color Mode", Int) = 0
@@ -129,7 +130,7 @@ Shader "Synergiance/AckToon/Medium-Outlines" {
 			Name "FORWARD_OUTLINE"
 
 			Blend [_SrcBlend] [_DstBlend], [_ASrcBlend] [_ADstBlend]
-			ZWrite Off
+			ZWrite [_ZWrite]
 			Cull Front
 
 			Tags {
