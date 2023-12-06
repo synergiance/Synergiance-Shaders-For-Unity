@@ -9,18 +9,20 @@ Texture2D _MatCapAdd;
 Texture2D _MatCapMul;
 Texture2D _MatCapMaskAdd;
 Texture2D _MatCapMaskMul;
+float _MatCapValAdd;
+float _MatCapValMul;
 
 void applyMatcapAdd(inout float3 col, inout shadingData s, SamplerState texSampler) {
 	float3 matAdd = _MatCapAdd.Sample(matcapLinearMirrorOnce, s.uvCap);
 	float3 maskAdd = _MatCapMaskAdd.Sample(texSampler, s.uv);
-	matAdd *= maskAdd;
+	matAdd *= maskAdd * _MatCapValAdd;
 	col += matAdd * s.light;
 }
 
 void applyMatcapMul(inout float3 col, inout shadingData s, SamplerState texSampler) {
 	float3 matMul = _MatCapMul.Sample(matcapLinearMirrorOnce, s.uvCap);
 	float3 maskMul = _MatCapMaskMul.Sample(texSampler, s.uv);
-	matMul = lerp(1, matMul, maskMul);
+	matMul = lerp(1, matMul, maskMul * _MatCapValMul);
 	col *= matMul;
 }
 
