@@ -88,6 +88,8 @@ Shader "Synergiance/AckToon/Effects-Outlines" {
 		_MatCapMul ("Multiply MatCap", 2D) = "white" {}
 		_MatCapMaskAdd ("Additive MatCap Mask", 2D) = "white" {}
 		_MatCapMaskMul ("Multiply MatCap Mask", 2D) = "white" {}
+		_MatCapValAdd ("Additive MatCap Power", Range(0, 1)) = 1
+		_MatCapValMul ("Multiply MatCap Power", Range(0, 1)) = 1
 
 		_RimLightCol ("Rim Light Color", Color) = (0,0,0)
 		_RimLightMask ("Rim Light Mask", 2D) = "white" {}

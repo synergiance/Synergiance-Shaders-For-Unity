@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 
-		protected override string version => "0.14b1";
+		protected override string version => "0.14";
 
 		protected const string DEPRECATED_STR = "Deprecated, but let me know if this still helps some models";
 
@@ -169,9 +169,9 @@ namespace Synergiance.Shaders.AckToon {
 		}
 
 		protected virtual void DoMatcap() {
-			TexturePropertySingleLine("_MatCapAdd", "Additive");
+			editor.TexturePropertySingleLine(MakeLabel("Additive"), FindProperty("_MatCapAdd"), FindProperty("_MatCapValAdd"));
 			TexturePropertySingleLine("_MatCapMaskAdd", "Additive Mask");
-			TexturePropertySingleLine("_MatCapMul", "Multiply");
+			editor.TexturePropertySingleLine(MakeLabel("Multiply"), FindProperty("_MatCapMul"), FindProperty("_MatCapValMul"));
 			TexturePropertySingleLine("_MatCapMaskMul", "Multiply Mask");
 		}
 
