@@ -187,7 +187,29 @@ Shader "Synergiance/AckToon/Medium" {
 			ENDCG
 		}
 
-		UsePass "Synergiance/AckToon/Light/SHADOWCASTER"
+		Pass {
+			Name "SHADOWCASTER"
+			Tags {
+				"LightMode" = "ShadowCaster"
+			}
+			ZTest LEqual
+
+			CGPROGRAM
+
+			#pragma target 3.0
+
+			#pragma multi_compile_shadowcaster
+
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../cginc/ShadowCore.cginc"
+
+			ENDCG
+		}
 	}
 
 	FallBack "Diffuse"

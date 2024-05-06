@@ -32,6 +32,7 @@ Shader "Synergiance/AckToon/Effects" {
 		_RainbowMask ("Rainbow Mask", 2D) = "white" {}
 		_HueOffset("Hue Offset", Range(0, 360)) = 0
 		_ColorOverride("Color Override", Color) = (1, 1, 1, 1)
+		_HSVOverride("HSV Override", Vector) = (0, 1, 1, 0)
 		[Toggle(_)] _OverrideHue("Override Hue", Int) = 0
 		_SaturationEffect("Saturation Effect", Range(0, 1)) = 0
 		_BrightnessEffect("Brightness Effect", Range(0, 1)) = 0
@@ -195,7 +196,29 @@ Shader "Synergiance/AckToon/Effects" {
 			ENDCG
 		}
 
-		UsePass "Synergiance/AckToon/Light/SHADOWCASTER"
+		Pass {
+			Name "SHADOWCASTER"
+			Tags {
+				"LightMode" = "ShadowCaster"
+			}
+			ZTest LEqual
+
+			CGPROGRAM
+
+			#pragma target 3.0
+
+			#pragma multi_compile_shadowcaster
+
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../cginc/ShadowCore.cginc"
+
+			ENDCG
+		}
 	}
 
 	FallBack "Diffuse"

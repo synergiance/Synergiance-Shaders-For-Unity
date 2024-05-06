@@ -124,9 +124,78 @@ Shader "Synergiance/AckToon/Medium-Outlines" {
 			ZFail [_StencilZFail]
 		}
 
-		UsePass "Synergiance/AckToon/Medium/FORWARD"
-		
-		UsePass "Synergiance/AckToon/Medium/FORWARD_DELTA"
+		Pass {
+			Name "FORWARD"
+
+			Blend [_SrcBlend] [_DstBlend], [_ASrcBlend] [_ADstBlend]
+			ZWrite [_ZWrite]
+
+			Tags {
+				"LightMode" = "ForwardBase"
+			}
+
+			CGPROGRAM
+			#pragma shader_feature _NORMALMAP
+			#pragma shader_feature _EMISSION
+			#pragma shader_feature _METALLICGLOSSMAP
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			#pragma shader_feature _ALPHAPREMULTIPLY_ON
+
+			#define EMISSION_FALLOFF
+			#define BASE_PASS
+			#define COLOR_EFFECTS
+			#define FAKE_LIGHT
+			#define SHADE_TEXTURE
+			#define BLANK_CUBE_DETECTION
+			#define VERTEX_COLORS_TOGGLE
+			#define HAS_RIMLIGHT
+			#include "../cginc/Effects.cginc"
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdbase
+			#pragma multi_compile_fog
+
+			ENDCG
+		}
+
+		Pass {
+			Name "FORWARD_DELTA"
+			Tags { "LightMode" = "ForwardAdd" }
+			Blend [_SrcBlend] One, Zero One
+			Fog { Color (0,0,0,0) } // in additive pass fog should be black
+			ZWrite Off
+
+			CGPROGRAM
+			#pragma shader_feature _NORMALMAP
+			#pragma shader_feature _METALLICGLOSSMAP
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+			#pragma shader_feature _ALPHAPREMULTIPLY_ON
+
+			#define ADD_PASS
+			#define COLOR_EFFECTS
+			#define SHADE_TEXTURE
+			#define VERTEX_COLORS_TOGGLE
+			#define HAS_RIMLIGHT
+			#include "../cginc/Effects.cginc"
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#pragma only_renderers d3d11 glcore gles
+			#pragma target 4.0
+
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+
+			ENDCG
+		}
 
 		Pass {
 			Name "FORWARD_OUTLINE"
@@ -197,7 +266,29 @@ Shader "Synergiance/AckToon/Medium-Outlines" {
 			ENDCG
 		}
 
-		UsePass "Synergiance/AckToon/Light/SHADOWCASTER"
+		Pass {
+			Name "SHADOWCASTER"
+			Tags {
+				"LightMode" = "ShadowCaster"
+			}
+			ZTest LEqual
+
+			CGPROGRAM
+
+			#pragma target 3.0
+
+			#pragma multi_compile_shadowcaster
+
+			#pragma shader_feature _ALPHATEST_ON
+			#pragma shader_feature _ALPHABLEND_ON
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../cginc/ShadowCore.cginc"
+
+			ENDCG
+		}
 	}
 
 	FallBack "Diffuse"

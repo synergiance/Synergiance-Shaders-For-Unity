@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 namespace Synergiance.Shaders.AckToon {
 	public class BaseInspector : SynInspectorBase {
 
-		protected override string version => "0.14";
+		protected override string version => "0.14.1";
 
 		protected const string DEPRECATED_STR = "Deprecated, but let me know if this still helps some models";
 
